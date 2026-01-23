@@ -42,6 +42,10 @@ Named after Cape Canaveral, NASA's historic launch site, Canaveral reflects the 
 - [Phase 4: Extended Ecosystem](./implementation/phase-4-extended.md) - Go, Maven, Docker
 - [Phase 5: Polish](./implementation/phase-5-polish.md) - Plugins, CI/CD, docs
 
+### Guides
+- [GitHub Integration](./github-integration.md) - Complete guide to using Canaveral with GitHub
+- [GitHub Action](../action/README.md) - Official GitHub Action for simplified workflows
+
 ### Reference
 - [Comparison](./comparison.md) - Comparison with existing tools
 - [Risk Analysis](./risk-analysis.md) - Technical and adoption risks

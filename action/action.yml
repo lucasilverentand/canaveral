@@ -1,0 +1,326 @@
+name: 'Canaveral Release'
+description: 'Universal release management for any package ecosystem'
+author: 'Canaveral'
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  command:
+    description: 'Command to run: release, version, changelog, or init'
+    required: false
+    default: 'release'
+
+  # Version inputs
+  bump:
+    description: 'Version bump type: major, minor, patch, or auto (from commits)'
+    required: false
+    default: 'auto'
+
+  version:
+    description: 'Explicit version to set (overrides bump)'
+    required: false
+
+  preid:
+    description: 'Pre-release identifier (alpha, beta, rc)'
+    required: false
+
+  # Package inputs
+  package:
+    description: 'Package name for monorepo (releases specific package)'
+    required: false
+
+  package-type:
+    description: 'Package type: npm, cargo, python, go, maven, docker'
+    required: false
+
+  # Git inputs
+  tag-prefix:
+    description: 'Tag prefix (default: v)'
+    required: false
+    default: 'v'
+
+  git-user-name:
+    description: 'Git user name for commits'
+    required: false
+    default: 'github-actions[bot]'
+
+  git-user-email:
+    description: 'Git user email for commits'
+    required: false
+    default: 'github-actions[bot]@users.noreply.github.com'
+
+  push:
+    description: 'Push commits and tags to remote'
+    required: false
+    default: 'true'
+
+  # Behavior inputs
+  dry-run:
+    description: 'Simulate release without making changes'
+    required: false
+    default: 'false'
+
+  skip-publish:
+    description: 'Skip publishing to registry'
+    required: false
+    default: 'false'
+
+  skip-changelog:
+    description: 'Skip changelog generation'
+    required: false
+    default: 'false'
+
+  skip-git:
+    description: 'Skip git operations (commit, tag, push)'
+    required: false
+    default: 'false'
+
+  # Registry inputs
+  registry-token:
+    description: 'Token for package registry (npm, crates.io, PyPI, etc.)'
+    required: false
+
+  # Advanced inputs
+  config:
+    description: 'Path to canaveral.yaml config file'
+    required: false
+
+  working-directory:
+    description: 'Working directory for the action'
+    required: false
+    default: '.'
+
+  canaveral-version:
+    description: 'Canaveral version to use (default: latest)'
+    required: false
+    default: 'latest'
+
+outputs:
+  version:
+    description: 'The released/calculated version'
+    value: ${{ steps.canaveral.outputs.version }}
+
+  previous-version:
+    description: 'The previous version before release'
+    value: ${{ steps.canaveral.outputs.previous_version }}
+
+  changelog:
+    description: 'Generated changelog content for this release'
+    value: ${{ steps.canaveral.outputs.changelog }}
+
+  tag:
+    description: 'The git tag created'
+    value: ${{ steps.canaveral.outputs.tag }}
+
+  released:
+    description: 'Whether a release was created (true/false)'
+    value: ${{ steps.canaveral.outputs.released }}
+
+  skipped:
+    description: 'Whether the release was skipped (no changes)'
+    value: ${{ steps.canaveral.outputs.skipped }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform
+      id: platform
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          Linux)
+            if [[ "${{ runner.arch }}" == "ARM64" ]]; then
+              echo "target=aarch64-unknown-linux-gnu" >> $GITHUB_OUTPUT
+              echo "archive=tar.gz" >> $GITHUB_OUTPUT
+            else
+              echo "target=x86_64-unknown-linux-musl" >> $GITHUB_OUTPUT
+              echo "archive=tar.gz" >> $GITHUB_OUTPUT
+            fi
+            ;;
+          macOS)
+            if [[ "${{ runner.arch }}" == "ARM64" ]]; then
+              echo "target=aarch64-apple-darwin" >> $GITHUB_OUTPUT
+            else
+              echo "target=x86_64-apple-darwin" >> $GITHUB_OUTPUT
+            fi
+            echo "archive=tar.gz" >> $GITHUB_OUTPUT
+            ;;
+          Windows)
+            echo "target=x86_64-pc-windows-msvc" >> $GITHUB_OUTPUT
+            echo "archive=zip" >> $GITHUB_OUTPUT
+            ;;
+        esac
+
+    - name: Download Canaveral
+      shell: bash
+      run: |
+        set -e
+
+        VERSION="${{ inputs.canaveral-version }}"
+        TARGET="${{ steps.platform.outputs.target }}"
+        ARCHIVE="${{ steps.platform.outputs.archive }}"
+
+        if [[ "$VERSION" == "latest" ]]; then
+          DOWNLOAD_URL="https://github.com/YOUR_ORG/canaveral/releases/latest/download/canaveral-${TARGET}.${ARCHIVE}"
+        else
+          DOWNLOAD_URL="https://github.com/YOUR_ORG/canaveral/releases/download/v${VERSION}/canaveral-${TARGET}.${ARCHIVE}"
+        fi
+
+        echo "Downloading Canaveral from: $DOWNLOAD_URL"
+
+        mkdir -p "$HOME/.canaveral/bin"
+        cd "$HOME/.canaveral/bin"
+
+        if [[ "$ARCHIVE" == "tar.gz" ]]; then
+          curl -sSL "$DOWNLOAD_URL" | tar xz
+        else
+          curl -sSL "$DOWNLOAD_URL" -o canaveral.zip
+          unzip -o canaveral.zip
+          rm canaveral.zip
+        fi
+
+        chmod +x canaveral*
+        echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
+
+    - name: Configure git
+      if: inputs.skip-git != 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        git config user.name "${{ inputs.git-user-name }}"
+        git config user.email "${{ inputs.git-user-email }}"
+
+    - name: Run Canaveral
+      id: canaveral
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        CANAVERAL_REGISTRY_TOKEN: ${{ inputs.registry-token }}
+        CARGO_REGISTRY_TOKEN: ${{ inputs.registry-token }}
+        NODE_AUTH_TOKEN: ${{ inputs.registry-token }}
+        PYPI_TOKEN: ${{ inputs.registry-token }}
+      run: |
+        set -e
+
+        # Build command arguments
+        ARGS=""
+
+        # Add config file if specified
+        if [[ -n "${{ inputs.config }}" ]]; then
+          ARGS="$ARGS --config ${{ inputs.config }}"
+        fi
+
+        # Add tag prefix
+        if [[ -n "${{ inputs.tag-prefix }}" ]]; then
+          ARGS="$ARGS --tag-prefix ${{ inputs.tag-prefix }}"
+        fi
+
+        # Add package for monorepo
+        if [[ -n "${{ inputs.package }}" ]]; then
+          ARGS="$ARGS --package ${{ inputs.package }}"
+        fi
+
+        # Add flags
+        if [[ "${{ inputs.dry-run }}" == "true" ]]; then
+          ARGS="$ARGS --dry-run"
+        fi
+
+        if [[ "${{ inputs.skip-publish }}" == "true" ]]; then
+          ARGS="$ARGS --no-publish"
+        fi
+
+        if [[ "${{ inputs.skip-changelog }}" == "true" ]]; then
+          ARGS="$ARGS --no-changelog"
+        fi
+
+        if [[ "${{ inputs.skip-git }}" == "true" ]]; then
+          ARGS="$ARGS --no-git"
+        fi
+
+        if [[ "${{ inputs.push }}" != "true" ]]; then
+          ARGS="$ARGS --no-push"
+        fi
+
+        # Handle different commands
+        case "${{ inputs.command }}" in
+          release)
+            # Determine version bump
+            if [[ -n "${{ inputs.version }}" ]]; then
+              ARGS="$ARGS --version ${{ inputs.version }}"
+            elif [[ "${{ inputs.bump }}" != "auto" ]]; then
+              ARGS="$ARGS --${{ inputs.bump }}"
+            fi
+
+            # Add preid if specified
+            if [[ -n "${{ inputs.preid }}" ]]; then
+              ARGS="$ARGS --preid ${{ inputs.preid }}"
+            fi
+
+            echo "Running: canaveral release $ARGS"
+            OUTPUT=$(canaveral release $ARGS --json 2>&1) || true
+
+            # Parse JSON output
+            if echo "$OUTPUT" | jq -e '.version' > /dev/null 2>&1; then
+              echo "version=$(echo "$OUTPUT" | jq -r '.version')" >> $GITHUB_OUTPUT
+              echo "previous_version=$(echo "$OUTPUT" | jq -r '.previous_version // empty')" >> $GITHUB_OUTPUT
+              echo "tag=$(echo "$OUTPUT" | jq -r '.tag // empty')" >> $GITHUB_OUTPUT
+              echo "released=true" >> $GITHUB_OUTPUT
+              echo "skipped=false" >> $GITHUB_OUTPUT
+
+              # Extract changelog if available
+              if echo "$OUTPUT" | jq -e '.changelog' > /dev/null 2>&1; then
+                CHANGELOG=$(echo "$OUTPUT" | jq -r '.changelog')
+                echo "changelog<<EOF" >> $GITHUB_OUTPUT
+                echo "$CHANGELOG" >> $GITHUB_OUTPUT
+                echo "EOF" >> $GITHUB_OUTPUT
+              fi
+            elif echo "$OUTPUT" | grep -q "No version bump"; then
+              echo "skipped=true" >> $GITHUB_OUTPUT
+              echo "released=false" >> $GITHUB_OUTPUT
+              echo "No releasable changes found"
+            else
+              echo "$OUTPUT"
+              echo "released=false" >> $GITHUB_OUTPUT
+              echo "skipped=false" >> $GITHUB_OUTPUT
+            fi
+            ;;
+
+          version)
+            if [[ -n "${{ inputs.version }}" ]]; then
+              ARGS="$ARGS --set ${{ inputs.version }}"
+            elif [[ "${{ inputs.bump }}" != "auto" ]]; then
+              ARGS="$ARGS --${{ inputs.bump }}"
+            fi
+
+            echo "Running: canaveral version $ARGS"
+            VERSION=$(canaveral version $ARGS --print)
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "released=false" >> $GITHUB_OUTPUT
+            echo "skipped=false" >> $GITHUB_OUTPUT
+            ;;
+
+          changelog)
+            echo "Running: canaveral changelog $ARGS"
+            canaveral changelog $ARGS
+            echo "released=false" >> $GITHUB_OUTPUT
+            echo "skipped=false" >> $GITHUB_OUTPUT
+            ;;
+
+          init)
+            INIT_ARGS=""
+            if [[ -n "${{ inputs.package-type }}" ]]; then
+              INIT_ARGS="$INIT_ARGS --type ${{ inputs.package-type }}"
+            fi
+
+            echo "Running: canaveral init $INIT_ARGS"
+            canaveral init $INIT_ARGS
+            echo "released=false" >> $GITHUB_OUTPUT
+            echo "skipped=false" >> $GITHUB_OUTPUT
+            ;;
+
+          *)
+            echo "Unknown command: ${{ inputs.command }}"
+            exit 1
+            ;;
+        esac
