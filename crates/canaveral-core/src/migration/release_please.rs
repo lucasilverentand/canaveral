@@ -25,8 +25,10 @@ struct ReleasePleaseConfig {
     changelog_sections: Option<Vec<ChangelogSection>>,
     include_component_in_tag: Option<bool>,
     include_v_in_tag: Option<bool>,
+    #[allow(dead_code)]
     tag_separator: Option<String>,
     separate_pull_requests: Option<bool>,
+    #[allow(dead_code)]
     bootstrap_sha: Option<String>,
     versioning_strategy: Option<String>,
 }
@@ -35,8 +37,11 @@ struct ReleasePleaseConfig {
 #[serde(rename_all = "kebab-case")]
 struct PackageConfig {
     release_type: Option<String>,
+    #[allow(dead_code)]
     component: Option<String>,
+    #[allow(dead_code)]
     changelog_path: Option<String>,
+    #[allow(dead_code)]
     bump_minor_pre_major: Option<bool>,
 }
 

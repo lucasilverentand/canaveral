@@ -1,5 +1,7 @@
 //! Exit codes for the CLI
 
+#![allow(dead_code)]
+
 /// Success
 pub const SUCCESS: i32 = 0;
 

@@ -1,5 +1,7 @@
 //! Output formatting utilities
 
+#![allow(dead_code)]
+
 use console::{style, Style};
 
 /// Print a success message

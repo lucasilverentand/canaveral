@@ -16,6 +16,7 @@ struct SemanticReleaseConfig {
     branches: Option<Vec<BranchConfig>>,
     plugins: Option<Vec<serde_json::Value>>,
     tag_format: Option<String>,
+    #[allow(dead_code)]
     preset: Option<String>,
     repository_url: Option<String>,
     dry_run: Option<bool>,
@@ -30,6 +31,7 @@ enum BranchConfig {
         #[serde(default)]
         prerelease: Option<String>,
         #[serde(default)]
+        #[allow(dead_code)]
         channel: Option<String>,
     },
 }

@@ -185,7 +185,7 @@ impl CITemplate for GitHubActionsTemplate {
     }
 
     fn generate(&self, options: &TemplateOptions) -> Result<String> {
-        let project_name = options
+        let _project_name = options
             .project_name
             .as_deref()
             .unwrap_or("project");
