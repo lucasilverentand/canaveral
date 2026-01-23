@@ -1,0 +1,21 @@
+[package]
+name = "canaveral-git"
+description = "Git operations for Canaveral release management"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+canaveral-core = { workspace = true }
+git2 = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+semver = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
