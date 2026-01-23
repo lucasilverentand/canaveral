@@ -37,6 +37,14 @@ pub enum CanaveralError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// TOML parsing error
+    #[error("TOML parsing error: {0}")]
+    Toml(#[from] toml::de::Error),
+
+    /// JSON parsing error
+    #[error("JSON parsing error: {0}")]
+    Json(#[from] serde_json::Error),
+
     /// Generic errors
     #[error("{0}")]
     Other(String),

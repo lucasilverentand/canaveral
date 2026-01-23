@@ -5,6 +5,7 @@
 
 pub mod config;
 pub mod error;
+pub mod monorepo;
 pub mod types;
 pub mod workflow;
 
