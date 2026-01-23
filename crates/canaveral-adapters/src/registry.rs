@@ -4,6 +4,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::cargo::CargoAdapter;
+use crate::docker::DockerAdapter;
+use crate::go::GoAdapter;
+use crate::maven::MavenAdapter;
 use crate::npm::NpmAdapter;
 use crate::python::PythonAdapter;
 use crate::traits::PackageAdapter;
@@ -21,6 +24,9 @@ impl AdapterRegistry {
                 Arc::new(NpmAdapter::new()),
                 Arc::new(CargoAdapter::new()),
                 Arc::new(PythonAdapter::new()),
+                Arc::new(GoAdapter::new()),
+                Arc::new(MavenAdapter::new()),
+                Arc::new(DockerAdapter::new()),
             ],
         }
     }
@@ -71,7 +77,7 @@ mod tests {
     #[test]
     fn test_registry_creation() {
         let registry = AdapterRegistry::new();
-        assert!(registry.adapters.len() >= 3);
+        assert!(registry.adapters.len() >= 6);
     }
 
     #[test]
@@ -81,6 +87,9 @@ mod tests {
         assert!(registry.get("npm").is_some());
         assert!(registry.get("cargo").is_some());
         assert!(registry.get("python").is_some());
+        assert!(registry.get("go").is_some());
+        assert!(registry.get("maven").is_some());
+        assert!(registry.get("docker").is_some());
         assert!(registry.get("unknown").is_none());
     }
 
@@ -92,5 +101,8 @@ mod tests {
         assert!(names.contains(&"npm"));
         assert!(names.contains(&"cargo"));
         assert!(names.contains(&"python"));
+        assert!(names.contains(&"go"));
+        assert!(names.contains(&"maven"));
+        assert!(names.contains(&"docker"));
     }
 }
