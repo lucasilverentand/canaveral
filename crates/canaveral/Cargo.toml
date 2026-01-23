@@ -1,0 +1,36 @@
+[package]
+name = "canaveral"
+description = "Universal release management CLI"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "canaveral"
+path = "src/main.rs"
+
+[dependencies]
+canaveral-core = { workspace = true }
+canaveral-git = { workspace = true }
+canaveral-changelog = { workspace = true }
+canaveral-strategies = { workspace = true }
+canaveral-adapters = { workspace = true }
+
+clap = { workspace = true }
+dialoguer = { workspace = true }
+indicatif = { workspace = true }
+console = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
