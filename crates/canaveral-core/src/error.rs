@@ -33,6 +33,10 @@ pub enum CanaveralError {
     #[error(transparent)]
     Workflow(#[from] WorkflowError),
 
+    /// Hook-related errors
+    #[error(transparent)]
+    Hook(#[from] HookError),
+
     /// IO errors
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -236,6 +240,26 @@ pub enum WorkflowError {
     /// User cancelled
     #[error("Operation cancelled by user")]
     Cancelled,
+}
+
+/// Hook-related errors
+#[derive(Debug, Error)]
+pub enum HookError {
+    /// Hook execution failed
+    #[error("Hook failed at {stage}: {command} - {message}")]
+    ExecutionFailed {
+        stage: String,
+        command: String,
+        message: String,
+    },
+
+    /// Hook timed out
+    #[error("Hook timed out at {stage}: {command}")]
+    Timeout { stage: String, command: String },
+
+    /// Invalid hook configuration
+    #[error("Invalid hook configuration: {0}")]
+    InvalidConfig(String),
 }
 
 impl CanaveralError {

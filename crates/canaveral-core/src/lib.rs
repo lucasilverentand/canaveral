@@ -5,9 +5,20 @@
 
 pub mod config;
 pub mod error;
+pub mod hooks;
+pub mod migration;
 pub mod monorepo;
+pub mod plugins;
+pub mod templates;
 pub mod types;
 pub mod workflow;
 
-pub use error::{CanaveralError, Result};
+pub use error::{CanaveralError, HookError, Result};
+pub use hooks::{Hook, HookContext, HookRunner, HookStage, HooksConfig};
+pub use plugins::{ExternalPlugin, PluginConfig, PluginInfo, PluginRegistry, PluginType};
+pub use migration::{
+    auto_migrate, detect_tool, MigrationResult, MigrationSource, Migrator,
+    ReleasePleaseMigrator, SemanticReleaseMigrator,
+};
+pub use templates::{CITemplate, GitHubActionsTemplate, GitLabCITemplate, TemplateOptions};
 pub use types::{ReleaseResult, ReleaseType};
