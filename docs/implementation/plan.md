@@ -66,13 +66,13 @@ This document outlines the phased approach to building Canaveral, with each phas
    - Link to commits/PRs
 
 ### Exit Criteria
-- [ ] `canaveral version` calculates and updates version
-- [ ] `canaveral changelog` generates changelog
-- [ ] `canaveral release --no-publish` does version + changelog + git
-- [ ] Conventional commits are parsed correctly
-- [ ] Configuration file is respected
+- [x] `canaveral version` calculates and updates version
+- [x] `canaveral changelog` generates changelog
+- [x] `canaveral release --no-publish` does version + changelog + git
+- [x] Conventional commits are parsed correctly
+- [x] Configuration file is respected
 
-## Phase 2: Core Adapters
+## Phase 2: Core Adapters ✅
 
 **Goal**: Support publishing to npm, crates.io, and PyPI with proper credential management.
 
@@ -115,13 +115,13 @@ This document outlines the phased approach to building Canaveral, with each phas
    - Detailed output
 
 ### Exit Criteria
-- [ ] `canaveral release` publishes to npm
-- [ ] `canaveral release` publishes to crates.io
-- [ ] `canaveral release` publishes to PyPI
-- [ ] `canaveral release --dry-run` shows changes without executing
-- [ ] Credentials are securely handled
+- [x] `canaveral release` publishes to npm
+- [x] `canaveral release` publishes to crates.io
+- [x] `canaveral release` publishes to PyPI
+- [x] `canaveral release --dry-run` shows changes without executing
+- [x] Credentials are securely handled
 
-## Phase 3: Monorepo Support
+## Phase 3: Monorepo Support ✅
 
 **Goal**: Handle multi-package repositories with coordinated or independent versioning.
 
@@ -158,13 +158,13 @@ This document outlines the phased approach to building Canaveral, with each phas
    - Exclude patterns
 
 ### Exit Criteria
-- [ ] Detect which packages changed since last release
-- [ ] Independent versioning works with 10+ packages
-- [ ] Fixed versioning keeps all packages in sync
-- [ ] Internal dependencies are updated automatically
-- [ ] `--filter` flags work correctly
+- [x] Detect which packages changed since last release
+- [x] Independent versioning works with 10+ packages
+- [x] Fixed versioning keeps all packages in sync
+- [x] Internal dependencies are updated automatically
+- [x] `--filter` flags work correctly
 
-## Phase 4: Extended Ecosystem
+## Phase 4: Extended Ecosystem ✅
 
 **Goal**: Support additional ecosystems and versioning strategies.
 
@@ -201,13 +201,13 @@ This document outlines the phased approach to building Canaveral, with each phas
    - CI integration
 
 ### Exit Criteria
-- [ ] Go modules can be released (via tags)
-- [ ] Maven packages can be published
-- [ ] Docker images can be built and pushed
-- [ ] CalVer versioning works correctly
-- [ ] Build numbers increment properly
+- [x] Go modules can be released (via tags)
+- [x] Maven packages can be published
+- [x] Docker images can be built and pushed
+- [x] CalVer versioning works correctly
+- [x] Build numbers increment properly
 
-## Phase 5: Polish & Extensibility
+## Phase 5: Polish & Extensibility ✅
 
 **Goal**: Enable community extensions and provide production-ready tooling.
 
@@ -244,11 +244,11 @@ This document outlines the phased approach to building Canaveral, with each phas
    - Troubleshooting
 
 ### Exit Criteria
-- [ ] Custom plugins can be loaded and executed
-- [ ] All hook stages execute correctly
-- [ ] Official CI/CD actions are published
-- [ ] Migration from 3 tools is documented
-- [ ] Full API documentation is complete
+- [x] Custom plugins can be loaded and executed
+- [x] All hook stages execute correctly
+- [x] Official CI/CD actions are published
+- [x] Migration from 3 tools is documented
+- [x] Full API documentation is complete
 
 ## Timeline Summary
 

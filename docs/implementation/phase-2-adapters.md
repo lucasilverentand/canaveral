@@ -1,4 +1,6 @@
-# Phase 2: Core Adapters
+# Phase 2: Core Adapters ✅
+
+**Status:** Complete
 
 **Goal**: Support publishing to npm, crates.io, and PyPI with proper credential management.
 
@@ -6,10 +8,10 @@
 
 ### 2.1 Adapter Trait
 
-- [ ] Define abstract PackageAdapter trait
-- [ ] Create adapter registry
-- [ ] Implement adapter discovery
-- [ ] Add adapter configuration types
+- [x] Define abstract PackageAdapter trait
+- [x] Create adapter registry
+- [x] Implement adapter discovery
+- [x] Add adapter configuration types
 
 **Adapters crate structure:**
 ```
@@ -121,12 +123,12 @@ pub enum Access {
 
 ### 2.2 npm Adapter
 
-- [ ] Parse and modify package.json
-- [ ] Handle scoped packages (@org/name)
-- [ ] Execute npm publish via command
-- [ ] Support custom registries
-- [ ] Handle access levels (public/restricted)
-- [ ] Support npm tags (latest, next, etc.)
+- [x] Parse and modify package.json
+- [x] Handle scoped packages (@org/name)
+- [x] Execute npm publish via command
+- [x] Support custom registries
+- [x] Handle access levels (public/restricted)
+- [x] Support npm tags (latest, next, etc.)
 
 **npm adapter:**
 ```rust
@@ -241,11 +243,11 @@ impl PackageAdapter for NpmAdapter {
 
 ### 2.3 Cargo Adapter
 
-- [ ] Parse and modify Cargo.toml (TOML)
-- [ ] Handle workspace members
-- [ ] Execute cargo publish
-- [ ] Support crates.io authentication
-- [ ] Handle publish restrictions
+- [x] Parse and modify Cargo.toml (TOML)
+- [x] Handle workspace members
+- [x] Execute cargo publish
+- [x] Support crates.io authentication
+- [x] Handle publish restrictions
 
 **Cargo adapter:**
 ```rust
@@ -350,11 +352,11 @@ impl PackageAdapter for CargoAdapter {
 
 ### 2.4 Python Adapter
 
-- [ ] Parse pyproject.toml (PEP 621)
-- [ ] Support setup.py/setup.cfg fallback
-- [ ] Build package (wheel, sdist)
-- [ ] Publish via twine
-- [ ] Support PyPI and custom indexes
+- [x] Parse pyproject.toml (PEP 621)
+- [x] Support setup.py/setup.cfg fallback
+- [x] Build package (wheel, sdist)
+- [x] Publish via twine
+- [x] Support PyPI and custom indexes
 
 **Python adapter:**
 ```rust
@@ -500,11 +502,11 @@ impl PackageAdapter for PythonAdapter {
 
 ### 2.5 Credential Management
 
-- [ ] Environment variable support
-- [ ] System keychain integration (keyring crate)
-- [ ] Config file credentials (.npmrc, etc.)
-- [ ] Secure token handling (no logging)
-- [ ] Credential validation before publish
+- [x] Environment variable support
+- [x] System keychain integration (keyring crate)
+- [x] Config file credentials (.npmrc, etc.)
+- [x] Secure token handling (no logging)
+- [x] Credential validation before publish
 
 **Credentials module:**
 ```rust
@@ -559,11 +561,11 @@ pub fn mask_token(token: &str) -> String {
 
 ### 2.6 Dry-Run Mode
 
-- [ ] Preview version changes
-- [ ] Show changelog that would be generated
-- [ ] Display files that would be modified
-- [ ] Show git operations that would occur
-- [ ] Simulate publish without execution
+- [x] Preview version changes
+- [x] Show changelog that would be generated
+- [x] Display files that would be modified
+- [x] Show git operations that would occur
+- [x] Simulate publish without execution
 
 **Dry-run output:**
 ```rust
@@ -613,10 +615,10 @@ pub fn print_dry_run(result: &DryRunResult) {
 
 ### 2.7 Validation & Error Handling
 
-- [ ] Pre-flight validation checks
-- [ ] Clear error messages
-- [ ] Suggestions for fixing issues
-- [ ] Structured error types
+- [x] Pre-flight validation checks
+- [x] Clear error messages
+- [x] Suggestions for fixing issues
+- [x] Structured error types
 
 **Validation:**
 ```rust
@@ -723,14 +725,14 @@ async fn test_npm_adapter_read_version() {
 
 Phase 2 is complete when:
 
-1. [ ] npm adapter reads/writes package.json correctly
-2. [ ] npm adapter publishes to npmjs.com
-3. [ ] Cargo adapter reads/writes Cargo.toml correctly
-4. [ ] Cargo adapter publishes to crates.io
-5. [ ] Python adapter supports pyproject.toml
-6. [ ] Python adapter builds and publishes to PyPI
-7. [ ] Credentials are loaded from env vars and keychain
-8. [ ] Dry-run mode shows accurate preview
-9. [ ] Validation catches common issues
-10. [ ] Error messages are helpful and actionable
-11. [ ] All adapters have >80% test coverage
+1. [x] npm adapter reads/writes package.json correctly
+2. [x] npm adapter publishes to npmjs.com
+3. [x] Cargo adapter reads/writes Cargo.toml correctly
+4. [x] Cargo adapter publishes to crates.io
+5. [x] Python adapter supports pyproject.toml
+6. [x] Python adapter builds and publishes to PyPI
+7. [x] Credentials are loaded from env vars and keychain
+8. [x] Dry-run mode shows accurate preview
+9. [x] Validation catches common issues
+10. [x] Error messages are helpful and actionable
+11. [x] All adapters have >80% test coverage

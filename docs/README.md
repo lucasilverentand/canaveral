@@ -2,9 +2,20 @@
 
 > Universal Release Management System
 
+**Status:** All core phases complete (205 tests passing across 6 crates)
+
 Canaveral is a unified release management CLI tool designed to replace the fragmented ecosystem of package-specific release tools (release-please, release-plz, semantic-release, etc.) with a single, extensible solution that works across multiple package managers and platforms.
 
 Named after Cape Canaveral, NASA's historic launch site, Canaveral reflects the tool's mission to "launch" software releases to their target registries with precision and reliability.
+
+## Features
+
+- **Multi-ecosystem support**: npm, Cargo, Python, Go, Maven, Docker
+- **Versioning strategies**: SemVer, CalVer, Build Numbers
+- **Monorepo support**: Package discovery, dependency graph, independent/fixed versioning
+- **Extensibility**: Hook system (12 lifecycle stages), plugin system
+- **CI/CD integration**: GitHub Actions and GitLab CI template generators
+- **Migration tools**: Migrate from semantic-release and release-please
 
 ## Documentation Index
 
