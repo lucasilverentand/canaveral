@@ -28,6 +28,18 @@ pub enum MetadataError {
     /// Serialization/deserialization error.
     #[error("Serialization error: {0}")]
     SerializationError(String),
+
+    /// Sync operation failed.
+    #[error("Sync error: {0}")]
+    SyncError(String),
+
+    /// API rate limit exceeded.
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
+
+    /// Authentication failed.
+    #[error("Authentication failed: {0}")]
+    AuthenticationError(String),
 }
 
 impl From<serde_json::Error> for MetadataError {

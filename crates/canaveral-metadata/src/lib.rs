@@ -16,6 +16,12 @@
 //!
 //! - [`AppleValidator`]: Validates Apple App Store metadata against Apple's requirements
 //!
+//! ## Sync (requires `sync` feature)
+//!
+//! With the `sync` feature enabled, you can synchronize metadata with app stores:
+//!
+//! - [`sync::AppleMetadataSync`]: Sync metadata with App Store Connect
+//!
 //! ## Example
 //!
 //! ```no_run
@@ -52,9 +58,38 @@
 //!     }
 //! }
 //! ```
+//!
+//! ## Sync Example (requires `sync` feature)
+//!
+//! ```no_run,ignore
+//! use canaveral_metadata::sync::{AppleMetadataSync, AppleSyncConfig, MetadataSync};
+//! use std::path::PathBuf;
+//!
+//! # async fn example() -> canaveral_metadata::Result<()> {
+//! // Configure App Store Connect API credentials
+//! let config = AppleSyncConfig::from_env()?;
+//!
+//! // Create sync client
+//! let sync = AppleMetadataSync::new(config, PathBuf::from("metadata")).await?;
+//!
+//! // Pull metadata from App Store Connect
+//! sync.pull("com.example.app", None).await?;
+//!
+//! // Check for differences
+//! let diff = sync.diff("com.example.app").await?;
+//! println!("{}", diff);
+//!
+//! // Push local changes (dry run first)
+//! let result = sync.push("com.example.app", None, true).await?;
+//! println!("Would update: {}", result);
+//! # Ok(())
+//! # }
+//! ```
 
 pub mod error;
 pub mod storage;
+#[cfg(feature = "sync")]
+pub mod sync;
 pub mod types;
 pub mod validation;
 
