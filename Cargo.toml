@@ -7,6 +7,9 @@ members = [
     "crates/canaveral-changelog",
     "crates/canaveral-strategies",
     "crates/canaveral-adapters",
+    "crates/canaveral-signing",
+    "crates/canaveral-stores",
+    "crates/canaveral-metadata",
 ]
 
 [workspace.package]
@@ -23,6 +26,9 @@ canaveral-git = { path = "crates/canaveral-git" }
 canaveral-changelog = { path = "crates/canaveral-changelog" }
 canaveral-strategies = { path = "crates/canaveral-strategies" }
 canaveral-adapters = { path = "crates/canaveral-adapters" }
+canaveral-signing = { path = "crates/canaveral-signing" }
+canaveral-stores = { path = "crates/canaveral-stores" }
+canaveral-metadata = { path = "crates/canaveral-metadata" }
 
 # CLI
 clap = { version = "4", features = ["derive", "env"] }
