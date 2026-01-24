@@ -2,8 +2,10 @@
 
 use clap::{Args, Subcommand, ValueEnum};
 use console::style;
+use std::io::Write;
 use std::path::PathBuf;
 
+use canaveral_core::config::load_config_or_default;
 use canaveral_metadata::{
     AppleValidator, FastlaneStorage, GooglePlayValidator, Locale, MetadataStorage, Platform,
     StorageFormat, ValidationResult,
@@ -26,6 +28,9 @@ pub enum MetadataSubcommand {
 
     /// Validate metadata against store requirements
     Validate(ValidateCommand),
+
+    /// Export metadata to different formats
+    Export(ExportCommand),
 
     /// Add a new localization
     AddLocale(AddLocaleCommand),
@@ -70,6 +75,18 @@ impl From<MetadataFormat> for StorageFormat {
     }
 }
 
+/// Export format for metadata
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
+pub enum ExportFormat {
+    /// JSON format (pretty-printed)
+    #[default]
+    Json,
+    /// YAML format
+    Yaml,
+    /// CSV format (localized text fields only)
+    Csv,
+}
+
 /// Initialize metadata directory structure
 #[derive(Debug, Args)]
 pub struct InitCommand {
@@ -106,16 +123,40 @@ pub struct ValidateCommand {
     pub app_id: String,
 
     /// Path to metadata directory
-    #[arg(long, default_value = "./metadata")]
-    pub path: PathBuf,
-
-    /// Strict mode - fail on warnings
     #[arg(long)]
-    pub strict: bool,
+    pub path: Option<PathBuf>,
+
+    /// Strict mode - fail on warnings (defaults to config value)
+    #[arg(long)]
+    pub strict: Option<bool>,
 
     /// Auto-fix common issues
     #[arg(long)]
     pub fix: bool,
+}
+
+/// Export metadata to different formats
+#[derive(Debug, Args)]
+pub struct ExportCommand {
+    /// Target platform
+    #[arg(long, value_enum, required = true)]
+    pub platform: SinglePlatform,
+
+    /// App identifier (bundle ID or package name)
+    #[arg(long, required = true)]
+    pub app_id: String,
+
+    /// Export format
+    #[arg(long, value_enum, default_value = "json")]
+    pub format: ExportFormat,
+
+    /// Output file path (defaults to stdout)
+    #[arg(long, short = 'o')]
+    pub output: Option<PathBuf>,
+
+    /// Path to metadata directory
+    #[arg(long)]
+    pub path: Option<PathBuf>,
 }
 
 /// Target platform for locale operations (single platform only)
@@ -208,6 +249,7 @@ impl MetadataCommand {
         match &self.command {
             MetadataSubcommand::Init(cmd) => rt.block_on(cmd.execute(cli)),
             MetadataSubcommand::Validate(cmd) => rt.block_on(cmd.execute(cli)),
+            MetadataSubcommand::Export(cmd) => rt.block_on(cmd.execute(cli)),
             MetadataSubcommand::AddLocale(cmd) => rt.block_on(cmd.execute(cli)),
             MetadataSubcommand::RemoveLocale(cmd) => rt.block_on(cmd.execute(cli)),
             MetadataSubcommand::ListLocales(cmd) => rt.block_on(cmd.execute(cli)),
@@ -329,8 +371,21 @@ impl InitCommand {
 
 impl ValidateCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        // Load config for defaults
+        let cwd = std::env::current_dir()?;
+        let (config, _) = load_config_or_default(&cwd);
+
+        // Use config defaults for path and strict mode
+        let metadata_path = self
+            .path
+            .clone()
+            .unwrap_or_else(|| config.metadata.storage.path.clone());
+        let strict = self
+            .strict
+            .unwrap_or(config.metadata.validation.strict);
+
         // Create storage backend
-        let storage = FastlaneStorage::new(&self.path);
+        let storage = FastlaneStorage::new(&metadata_path);
 
         if !cli.quiet {
             println!(
@@ -354,7 +409,7 @@ impl ValidateCommand {
                 let metadata = storage.load_apple(&self.app_id).await?;
 
                 // Validate
-                let validator = AppleValidator::new(self.strict);
+                let validator = AppleValidator::new(strict);
                 validator.validate(&metadata)
             }
             TargetPlatform::GooglePlay => {
@@ -370,7 +425,7 @@ impl ValidateCommand {
                 let metadata = storage.load_google_play(&self.app_id).await?;
 
                 // Validate
-                let validator = GooglePlayValidator::new(self.strict);
+                let validator = GooglePlayValidator::new(strict);
                 validator.validate(&metadata)
             }
             TargetPlatform::Both => {
@@ -393,14 +448,14 @@ impl ValidateCommand {
         }
 
         // Output results
-        self.print_results(cli, &result)?;
+        self.print_results(cli, &result, strict)?;
 
         // Determine exit status
         if !result.is_valid() {
             anyhow::bail!("Validation failed with {} error(s)", result.error_count());
         }
 
-        if self.strict && result.warning_count() > 0 {
+        if strict && result.warning_count() > 0 {
             anyhow::bail!(
                 "Validation failed in strict mode with {} warning(s)",
                 result.warning_count()
@@ -410,7 +465,7 @@ impl ValidateCommand {
         Ok(())
     }
 
-    fn print_results(&self, cli: &Cli, result: &ValidationResult) -> anyhow::Result<()> {
+    fn print_results(&self, cli: &Cli, result: &ValidationResult, _strict: bool) -> anyhow::Result<()> {
         match cli.format {
             OutputFormat::Json => {
                 let output = serde_json::json!({
@@ -527,6 +582,160 @@ impl ValidateCommand {
         }
 
         Ok(())
+    }
+}
+
+impl ExportCommand {
+    async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        // Load config for defaults
+        let cwd = std::env::current_dir()?;
+        let (config, _) = load_config_or_default(&cwd);
+
+        // Use config defaults for path
+        let metadata_path = self
+            .path
+            .clone()
+            .unwrap_or_else(|| config.metadata.storage.path.clone());
+
+        // Create storage backend
+        let storage = FastlaneStorage::new(&metadata_path);
+
+        if !cli.quiet {
+            println!(
+                "{} metadata for {}",
+                style("Exporting").cyan(),
+                style(&self.app_id).bold()
+            );
+        }
+
+        // Load and serialize metadata based on platform
+        let output_string = match self.platform {
+            SinglePlatform::Apple => {
+                // Check if metadata exists
+                if !storage.exists_apple(&self.app_id).await? {
+                    anyhow::bail!(
+                        "Apple metadata not found for '{}'. Run 'canaveral metadata init' first.",
+                        &self.app_id
+                    );
+                }
+
+                // Load metadata
+                let metadata = storage.load_apple(&self.app_id).await?;
+
+                // Serialize based on format
+                match self.format {
+                    ExportFormat::Json => serde_json::to_string_pretty(&metadata)?,
+                    ExportFormat::Yaml => serde_yaml::to_string(&metadata)?,
+                    ExportFormat::Csv => self.export_apple_csv(&metadata)?,
+                }
+            }
+            SinglePlatform::GooglePlay => {
+                // Check if metadata exists
+                if !storage.exists_google_play(&self.app_id).await? {
+                    anyhow::bail!(
+                        "Google Play metadata not found for '{}'. Run 'canaveral metadata init' first.",
+                        &self.app_id
+                    );
+                }
+
+                // Load metadata
+                let metadata = storage.load_google_play(&self.app_id).await?;
+
+                // Serialize based on format
+                match self.format {
+                    ExportFormat::Json => serde_json::to_string_pretty(&metadata)?,
+                    ExportFormat::Yaml => serde_yaml::to_string(&metadata)?,
+                    ExportFormat::Csv => self.export_google_play_csv(&metadata)?,
+                }
+            }
+        };
+
+        // Write output
+        if let Some(ref output_path) = self.output {
+            let mut file = std::fs::File::create(output_path)?;
+            file.write_all(output_string.as_bytes())?;
+
+            if !cli.quiet {
+                println!(
+                    "{} Exported to {}",
+                    style("Success:").green().bold(),
+                    style(output_path.display()).dim()
+                );
+            }
+        } else {
+            // Write to stdout
+            println!("{}", output_string);
+        }
+
+        Ok(())
+    }
+
+    /// Export Apple metadata to CSV format (localized text fields)
+    fn export_apple_csv(&self, metadata: &canaveral_metadata::AppleMetadata) -> anyhow::Result<String> {
+        let mut csv_output = String::new();
+
+        // CSV header
+        csv_output.push_str("locale,name,subtitle,description,keywords,whats_new,promotional_text,privacy_policy_url,support_url,marketing_url\n");
+
+        // Sort locales for consistent output
+        let mut locales: Vec<_> = metadata.localizations.keys().collect();
+        locales.sort();
+
+        for locale in locales {
+            if let Some(loc_meta) = metadata.localizations.get(locale) {
+                csv_output.push_str(&format!(
+                    "{},{},{},{},{},{},{},{},{},{}\n",
+                    escape_csv(locale),
+                    escape_csv(&loc_meta.name),
+                    escape_csv(loc_meta.subtitle.as_deref().unwrap_or("")),
+                    escape_csv(&loc_meta.description),
+                    escape_csv(loc_meta.keywords.as_deref().unwrap_or("")),
+                    escape_csv(loc_meta.whats_new.as_deref().unwrap_or("")),
+                    escape_csv(loc_meta.promotional_text.as_deref().unwrap_or("")),
+                    escape_csv(loc_meta.privacy_policy_url.as_deref().unwrap_or("")),
+                    escape_csv(loc_meta.support_url.as_deref().unwrap_or("")),
+                    escape_csv(loc_meta.marketing_url.as_deref().unwrap_or("")),
+                ));
+            }
+        }
+
+        Ok(csv_output)
+    }
+
+    /// Export Google Play metadata to CSV format (localized text fields)
+    fn export_google_play_csv(&self, metadata: &canaveral_metadata::GooglePlayMetadata) -> anyhow::Result<String> {
+        let mut csv_output = String::new();
+
+        // CSV header
+        csv_output.push_str("locale,title,short_description,full_description,video_url\n");
+
+        // Sort locales for consistent output
+        let mut locales: Vec<_> = metadata.localizations.keys().collect();
+        locales.sort();
+
+        for locale in locales {
+            if let Some(loc_meta) = metadata.localizations.get(locale) {
+                csv_output.push_str(&format!(
+                    "{},{},{},{},{}\n",
+                    escape_csv(locale),
+                    escape_csv(&loc_meta.title),
+                    escape_csv(&loc_meta.short_description),
+                    escape_csv(&loc_meta.full_description),
+                    escape_csv(loc_meta.video_url.as_deref().unwrap_or("")),
+                ));
+            }
+        }
+
+        Ok(csv_output)
+    }
+}
+
+/// Escape a string for CSV output
+fn escape_csv(value: &str) -> String {
+    if value.contains(',') || value.contains('"') || value.contains('\n') || value.contains('\r') {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    } else {
+        value.to_string()
     }
 }
 

@@ -34,6 +34,18 @@ pub struct Config {
 
     /// Publishing configuration
     pub publish: PublishConfig,
+
+    /// Code signing configuration
+    #[serde(default)]
+    pub signing: SigningConfig,
+
+    /// App store configurations
+    #[serde(default)]
+    pub stores: StoresConfig,
+
+    /// Metadata management configuration
+    #[serde(default)]
+    pub metadata: MetadataConfig,
 }
 
 impl Default for Config {
@@ -47,6 +59,9 @@ impl Default for Config {
             packages: Vec::new(),
             hooks: HooksConfig::default(),
             publish: PublishConfig::default(),
+            signing: SigningConfig::default(),
+            stores: StoresConfig::default(),
+            metadata: MetadataConfig::default(),
         }
     }
 }
@@ -334,6 +349,390 @@ pub struct RegistryConfig {
 
     /// Authentication token environment variable
     pub token_env: Option<String>,
+}
+
+/// Code signing configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SigningConfig {
+    /// Whether signing is enabled
+    pub enabled: bool,
+
+    /// Signing provider to use (macos, windows, android, gpg)
+    pub provider: Option<String>,
+
+    /// Signing identity (certificate name, fingerprint, or key ID)
+    pub identity: Option<String>,
+
+    /// macOS-specific signing options
+    pub macos: MacOSSigningConfig,
+
+    /// Windows-specific signing options
+    pub windows: WindowsSigningConfig,
+
+    /// Android-specific signing options
+    pub android: AndroidSigningConfig,
+
+    /// GPG-specific signing options
+    pub gpg: GpgSigningConfig,
+
+    /// Artifacts to sign (glob patterns)
+    #[serde(default)]
+    pub artifacts: Vec<String>,
+
+    /// Whether to verify signatures after signing
+    pub verify_after_sign: bool,
+}
+
+impl Default for SigningConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            provider: None,
+            identity: None,
+            macos: MacOSSigningConfig::default(),
+            windows: WindowsSigningConfig::default(),
+            android: AndroidSigningConfig::default(),
+            gpg: GpgSigningConfig::default(),
+            artifacts: Vec::new(),
+            verify_after_sign: true,
+        }
+    }
+}
+
+/// macOS-specific signing configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MacOSSigningConfig {
+    /// Enable hardened runtime
+    pub hardened_runtime: bool,
+
+    /// Path to entitlements file
+    pub entitlements: Option<PathBuf>,
+
+    /// Enable timestamping
+    pub timestamp: bool,
+
+    /// Deep signing (sign nested code)
+    pub deep: bool,
+
+    /// Notarize after signing
+    pub notarize: bool,
+
+    /// Apple ID for notarization
+    pub apple_id: Option<String>,
+
+    /// App Store Connect API key ID
+    pub api_key_id: Option<String>,
+
+    /// App Store Connect API issuer ID
+    pub api_issuer_id: Option<String>,
+
+    /// Path to App Store Connect API private key
+    pub api_key_path: Option<PathBuf>,
+
+    /// Team ID for notarization
+    pub team_id: Option<String>,
+}
+
+impl Default for MacOSSigningConfig {
+    fn default() -> Self {
+        Self {
+            hardened_runtime: true,
+            entitlements: None,
+            timestamp: true,
+            deep: true,
+            notarize: false,
+            apple_id: None,
+            api_key_id: None,
+            api_issuer_id: None,
+            api_key_path: None,
+            team_id: None,
+        }
+    }
+}
+
+/// Windows-specific signing configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct WindowsSigningConfig {
+    /// Timestamp server URL
+    pub timestamp_url: Option<String>,
+
+    /// Hash algorithm (sha256, sha384, sha512)
+    pub algorithm: String,
+
+    /// Description to embed in signature
+    pub description: Option<String>,
+
+    /// URL to embed in signature
+    pub description_url: Option<String>,
+
+    /// Path to PFX certificate file (alternative to store)
+    pub certificate_file: Option<PathBuf>,
+
+    /// Environment variable containing PFX password
+    pub certificate_password_env: Option<String>,
+}
+
+impl Default for WindowsSigningConfig {
+    fn default() -> Self {
+        Self {
+            timestamp_url: Some("http://timestamp.digicert.com".to_string()),
+            algorithm: "sha256".to_string(),
+            description: None,
+            description_url: None,
+            certificate_file: None,
+            certificate_password_env: None,
+        }
+    }
+}
+
+/// Android-specific signing configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AndroidSigningConfig {
+    /// Path to keystore file
+    pub keystore: Option<PathBuf>,
+
+    /// Key alias in the keystore
+    pub key_alias: Option<String>,
+
+    /// Environment variable containing keystore password
+    pub keystore_password_env: Option<String>,
+
+    /// Environment variable containing key password
+    pub key_password_env: Option<String>,
+
+    /// V1 (JAR) signing scheme
+    pub v1_signing: bool,
+
+    /// V2 (APK) signing scheme
+    pub v2_signing: bool,
+
+    /// V3 signing scheme
+    pub v3_signing: bool,
+
+    /// V4 signing scheme
+    pub v4_signing: bool,
+}
+
+impl Default for AndroidSigningConfig {
+    fn default() -> Self {
+        Self {
+            keystore: None,
+            key_alias: None,
+            keystore_password_env: Some("ANDROID_KEYSTORE_PASSWORD".to_string()),
+            key_password_env: Some("ANDROID_KEY_PASSWORD".to_string()),
+            v1_signing: true,
+            v2_signing: true,
+            v3_signing: true,
+            v4_signing: false,
+        }
+    }
+}
+
+/// GPG-specific signing configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GpgSigningConfig {
+    /// GPG key ID or email
+    pub key_id: Option<String>,
+
+    /// Create detached signatures
+    pub detached: bool,
+
+    /// ASCII armor output
+    pub armor: bool,
+
+    /// Environment variable containing passphrase
+    pub passphrase_env: Option<String>,
+
+    /// Path to GPG binary
+    pub gpg_path: Option<PathBuf>,
+}
+
+impl Default for GpgSigningConfig {
+    fn default() -> Self {
+        Self {
+            key_id: None,
+            detached: true,
+            armor: true,
+            passphrase_env: Some("GPG_PASSPHRASE".to_string()),
+            gpg_path: None,
+        }
+    }
+}
+
+/// App store configurations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StoresConfig {
+    /// Apple App Store / macOS configuration
+    #[serde(default)]
+    pub apple: Option<AppleStoreConfig>,
+
+    /// Google Play Store configuration
+    #[serde(default)]
+    pub google_play: Option<GooglePlayStoreConfig>,
+
+    /// Microsoft Store configuration
+    #[serde(default)]
+    pub microsoft: Option<MicrosoftStoreConfig>,
+}
+
+impl Default for StoresConfig {
+    fn default() -> Self {
+        Self {
+            apple: None,
+            google_play: None,
+            microsoft: None,
+        }
+    }
+}
+
+/// Metadata management configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct MetadataConfig {
+    /// Enable metadata management
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Storage configuration
+    #[serde(default)]
+    pub storage: MetadataStorageConfig,
+
+    /// Default settings
+    #[serde(default)]
+    pub defaults: MetadataDefaultsConfig,
+
+    /// Validation settings
+    #[serde(default)]
+    pub validation: MetadataValidationConfig,
+}
+
+/// Metadata storage configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MetadataStorageConfig {
+    /// Storage format: "fastlane" or "unified"
+    #[serde(default = "default_storage_format")]
+    pub format: String,
+
+    /// Base path for metadata files
+    #[serde(default = "default_metadata_path")]
+    pub path: PathBuf,
+}
+
+impl Default for MetadataStorageConfig {
+    fn default() -> Self {
+        Self {
+            format: default_storage_format(),
+            path: default_metadata_path(),
+        }
+    }
+}
+
+/// Metadata default settings
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct MetadataDefaultsConfig {
+    /// Default locale
+    #[serde(default)]
+    pub default_locale: Option<String>,
+
+    /// Default support URL
+    #[serde(default)]
+    pub support_url: Option<String>,
+
+    /// Default privacy policy URL
+    #[serde(default)]
+    pub privacy_policy_url: Option<String>,
+}
+
+/// Metadata validation settings
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct MetadataValidationConfig {
+    /// Treat warnings as errors
+    #[serde(default)]
+    pub strict: bool,
+
+    /// Locales that must be present
+    #[serde(default)]
+    pub required_locales: Vec<String>,
+}
+
+fn default_storage_format() -> String {
+    "fastlane".to_string()
+}
+
+fn default_metadata_path() -> PathBuf {
+    PathBuf::from("./metadata")
+}
+
+/// Microsoft Store configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MicrosoftStoreConfig {
+    /// Azure AD Tenant ID
+    pub tenant_id: String,
+
+    /// Azure AD Application (Client) ID
+    pub client_id: String,
+
+    /// Azure AD Client Secret
+    pub client_secret: String,
+
+    /// Partner Center Application ID (Store ID)
+    pub app_id: String,
+
+    /// Default flight (package flight name) - optional
+    pub default_flight: Option<String>,
+}
+
+/// Apple App Store configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppleStoreConfig {
+    /// App Store Connect API Key ID
+    pub api_key_id: String,
+
+    /// API Key Issuer ID
+    pub api_issuer_id: String,
+
+    /// Path to .p8 key file or env var name containing key
+    pub api_key: String,
+
+    /// Apple Team ID
+    pub team_id: Option<String>,
+
+    /// Bundle identifier
+    pub app_id: Option<String>,
+
+    /// Notarize before upload
+    #[serde(default)]
+    pub notarize: bool,
+
+    /// Staple notarization ticket
+    #[serde(default)]
+    pub staple: bool,
+
+    /// Primary locale for app metadata
+    pub primary_locale: Option<String>,
+}
+
+/// Google Play Store configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GooglePlayStoreConfig {
+    /// Android package name
+    pub package_name: String,
+
+    /// Path to service account JSON key file
+    pub service_account_key: PathBuf,
+
+    /// Default release track
+    #[serde(default)]
+    pub default_track: Option<String>,
 }
 
 #[cfg(test)]
