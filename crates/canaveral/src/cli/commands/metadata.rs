@@ -7,6 +7,10 @@ use std::path::PathBuf;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_metadata::{
+    sync::{
+        AppleMetadataSync, AppleSyncConfig, ChangeType, GooglePlayMetadataSync,
+        GooglePlaySyncConfig, MetadataDiff, MetadataSync,
+    },
     AppleValidator, FastlaneStorage, GooglePlayValidator, Locale, MetadataStorage, Platform,
     StorageFormat, ValidationResult,
 };
@@ -43,6 +47,12 @@ pub enum MetadataSubcommand {
 
     /// Screenshot management commands
     Screenshots(ScreenshotsCommand),
+
+    /// Sync metadata with app stores (pull/push)
+    Sync(SyncCommand),
+
+    /// Compare local vs remote metadata
+    Diff(DiffCommand),
 }
 
 /// Target platform for metadata operations
@@ -254,6 +264,8 @@ impl MetadataCommand {
             MetadataSubcommand::RemoveLocale(cmd) => rt.block_on(cmd.execute(cli)),
             MetadataSubcommand::ListLocales(cmd) => rt.block_on(cmd.execute(cli)),
             MetadataSubcommand::Screenshots(cmd) => rt.block_on(cmd.execute(cli)),
+            MetadataSubcommand::Sync(cmd) => rt.block_on(cmd.execute(cli)),
+            MetadataSubcommand::Diff(cmd) => rt.block_on(cmd.execute(cli)),
         }
     }
 }
@@ -1847,6 +1859,634 @@ impl ScreenshotsValidateCommand {
         }
 
         Ok(())
+    }
+}
+
+// =============================================================================
+// Sync Commands
+// =============================================================================
+
+/// Apple App Store Connect authentication options
+#[derive(Args, Debug, Clone)]
+pub struct AppleAuthOptions {
+    /// App Store Connect API Key ID
+    #[arg(long, env = "APP_STORE_CONNECT_KEY_ID")]
+    pub api_key_id: Option<String>,
+
+    /// App Store Connect API Issuer ID
+    #[arg(long, env = "APP_STORE_CONNECT_ISSUER_ID")]
+    pub api_issuer_id: Option<String>,
+
+    /// Path to App Store Connect API private key (.p8 file)
+    #[arg(long, env = "APP_STORE_CONNECT_KEY_PATH")]
+    pub api_key_path: Option<PathBuf>,
+}
+
+impl AppleAuthOptions {
+    /// Build AppleSyncConfig from CLI options or environment
+    pub fn to_config(&self) -> anyhow::Result<AppleSyncConfig> {
+        let api_key_id = self
+            .api_key_id
+            .clone()
+            .or_else(|| std::env::var("APP_STORE_CONNECT_KEY_ID").ok())
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Missing API Key ID. Provide --api-key-id or set APP_STORE_CONNECT_KEY_ID"
+                )
+            })?;
+
+        let api_issuer_id = self
+            .api_issuer_id
+            .clone()
+            .or_else(|| std::env::var("APP_STORE_CONNECT_ISSUER_ID").ok())
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Missing API Issuer ID. Provide --api-issuer-id or set APP_STORE_CONNECT_ISSUER_ID"
+                )
+            })?;
+
+        let key_path = self
+            .api_key_path
+            .clone()
+            .or_else(|| std::env::var("APP_STORE_CONNECT_KEY_PATH").ok().map(PathBuf::from))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Missing API Key Path. Provide --api-key-path or set APP_STORE_CONNECT_KEY_PATH"
+                )
+            })?;
+
+        let api_private_key = std::fs::read_to_string(&key_path).map_err(|e| {
+            anyhow::anyhow!("Failed to read API key file '{}': {}", key_path.display(), e)
+        })?;
+
+        Ok(AppleSyncConfig {
+            api_key_id,
+            api_issuer_id,
+            api_private_key,
+            team_id: None,
+        })
+    }
+}
+
+/// Google Play Console authentication options
+#[derive(Args, Debug, Clone)]
+pub struct GooglePlayAuthOptions {
+    /// Path to Google Play service account JSON key
+    #[arg(long, env = "GOOGLE_PLAY_SERVICE_ACCOUNT_KEY")]
+    pub service_account_key: Option<PathBuf>,
+}
+
+impl GooglePlayAuthOptions {
+    /// Build GooglePlaySyncConfig from CLI options or environment
+    pub fn to_config(&self) -> anyhow::Result<GooglePlaySyncConfig> {
+        let key_path = self
+            .service_account_key
+            .clone()
+            .or_else(|| {
+                std::env::var("GOOGLE_PLAY_SERVICE_ACCOUNT_KEY")
+                    .ok()
+                    .map(PathBuf::from)
+            })
+            .or_else(|| {
+                std::env::var("GOOGLE_APPLICATION_CREDENTIALS")
+                    .ok()
+                    .map(PathBuf::from)
+            });
+
+        if let Some(path) = key_path {
+            Ok(GooglePlaySyncConfig::from_key_file(path))
+        } else {
+            Err(anyhow::anyhow!(
+                "Missing service account key. Provide --service-account-key or set GOOGLE_PLAY_SERVICE_ACCOUNT_KEY"
+            ))
+        }
+    }
+}
+
+/// Sync commands container
+#[derive(Debug, Args)]
+pub struct SyncCommand {
+    #[command(subcommand)]
+    pub command: SyncSubcommand,
+}
+
+/// Sync subcommands
+#[derive(Debug, Subcommand)]
+pub enum SyncSubcommand {
+    /// Download metadata from app store
+    Pull(SyncPullCommand),
+
+    /// Upload metadata to app store
+    Push(SyncPushCommand),
+}
+
+/// Pull metadata from app store
+#[derive(Debug, Args)]
+pub struct SyncPullCommand {
+    /// Target platform
+    #[arg(long, value_enum, required = true)]
+    pub platform: SinglePlatform,
+
+    /// App identifier (bundle ID or package name)
+    #[arg(long, required = true)]
+    pub app_id: String,
+
+    /// Locales to pull (comma-separated, or "all")
+    #[arg(long, default_value = "all")]
+    pub locales: String,
+
+    /// Also download screenshots
+    #[arg(long)]
+    pub include_assets: bool,
+
+    /// Path to metadata directory
+    #[arg(long)]
+    pub path: Option<PathBuf>,
+
+    /// Apple authentication options
+    #[command(flatten)]
+    pub apple_auth: AppleAuthOptions,
+
+    /// Google Play authentication options
+    #[command(flatten)]
+    pub google_auth: GooglePlayAuthOptions,
+}
+
+/// Push metadata to app store
+#[derive(Debug, Args)]
+pub struct SyncPushCommand {
+    /// Target platform
+    #[arg(long, value_enum, required = true)]
+    pub platform: SinglePlatform,
+
+    /// App identifier (bundle ID or package name)
+    #[arg(long, required = true)]
+    pub app_id: String,
+
+    /// Locales to push (comma-separated, or "all")
+    #[arg(long, default_value = "all")]
+    pub locales: String,
+
+    /// Also upload screenshots
+    #[arg(long)]
+    pub include_assets: bool,
+
+    /// Only update text, skip screenshots
+    #[arg(long)]
+    pub skip_screenshots: bool,
+
+    /// Preview changes without actually pushing
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Path to metadata directory
+    #[arg(long)]
+    pub path: Option<PathBuf>,
+
+    /// Apple authentication options
+    #[command(flatten)]
+    pub apple_auth: AppleAuthOptions,
+
+    /// Google Play authentication options
+    #[command(flatten)]
+    pub google_auth: GooglePlayAuthOptions,
+}
+
+/// Compare local vs remote metadata
+#[derive(Debug, Args)]
+pub struct DiffCommand {
+    /// Target platform
+    #[arg(long, value_enum, required = true)]
+    pub platform: SinglePlatform,
+
+    /// App identifier (bundle ID or package name)
+    #[arg(long, required = true)]
+    pub app_id: String,
+
+    /// Locales to compare (comma-separated, or "all")
+    #[arg(long, default_value = "all")]
+    pub locales: String,
+
+    /// Path to metadata directory
+    #[arg(long)]
+    pub path: Option<PathBuf>,
+
+    /// Apple authentication options
+    #[command(flatten)]
+    pub apple_auth: AppleAuthOptions,
+
+    /// Google Play authentication options
+    #[command(flatten)]
+    pub google_auth: GooglePlayAuthOptions,
+}
+
+impl SyncCommand {
+    async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        match &self.command {
+            SyncSubcommand::Pull(cmd) => cmd.execute(cli).await,
+            SyncSubcommand::Push(cmd) => cmd.execute(cli).await,
+        }
+    }
+}
+
+impl SyncPullCommand {
+    async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        // Load config for defaults
+        let cwd = std::env::current_dir()?;
+        let (config, _) = load_config_or_default(&cwd);
+
+        let metadata_path = self
+            .path
+            .clone()
+            .unwrap_or_else(|| config.metadata.storage.path.clone());
+
+        // Parse locales
+        let locales = parse_locales(&self.locales)?;
+
+        if !cli.quiet {
+            println!(
+                "{} metadata from {}",
+                style("Pulling").cyan(),
+                match self.platform {
+                    SinglePlatform::Apple => "App Store Connect",
+                    SinglePlatform::GooglePlay => "Google Play Console",
+                }
+            );
+            println!("  App ID:  {}", style(&self.app_id).bold());
+            println!("  Path:    {}", style(metadata_path.display()).dim());
+            if let Some(ref locs) = locales {
+                println!(
+                    "  Locales: {}",
+                    locs.iter().map(|l| l.code()).collect::<Vec<_>>().join(", ")
+                );
+            } else {
+                println!("  Locales: {}", style("all").dim());
+            }
+        }
+
+        match self.platform {
+            SinglePlatform::Apple => {
+                let config = self.apple_auth.to_config()?;
+                let sync = AppleMetadataSync::new(config, metadata_path).await?;
+                sync.pull(&self.app_id, locales.as_deref()).await?;
+            }
+            SinglePlatform::GooglePlay => {
+                let config = self.google_auth.to_config()?;
+                let sync = GooglePlayMetadataSync::new(config, metadata_path).await?;
+                sync.pull(&self.app_id, locales.as_deref()).await?;
+            }
+        }
+
+        match cli.format {
+            OutputFormat::Json => {
+                let output = serde_json::json!({
+                    "success": true,
+                    "app_id": &self.app_id,
+                    "platform": format!("{:?}", self.platform),
+                    "operation": "pull",
+                });
+                println!("{}", serde_json::to_string_pretty(&output)?);
+            }
+            OutputFormat::Text => {
+                println!();
+                println!(
+                    "{}",
+                    style("Metadata pulled successfully!").green().bold()
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl SyncPushCommand {
+    async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        // Load config for defaults
+        let cwd = std::env::current_dir()?;
+        let (config, _) = load_config_or_default(&cwd);
+
+        let metadata_path = self
+            .path
+            .clone()
+            .unwrap_or_else(|| config.metadata.storage.path.clone());
+
+        // Parse locales
+        let locales = parse_locales(&self.locales)?;
+
+        if !cli.quiet {
+            println!(
+                "{} metadata to {}{}",
+                style("Pushing").cyan(),
+                match self.platform {
+                    SinglePlatform::Apple => "App Store Connect",
+                    SinglePlatform::GooglePlay => "Google Play Console",
+                },
+                if self.dry_run {
+                    style(" (dry run)").yellow().to_string()
+                } else {
+                    String::new()
+                }
+            );
+            println!("  App ID:  {}", style(&self.app_id).bold());
+            println!("  Path:    {}", style(metadata_path.display()).dim());
+            if let Some(ref locs) = locales {
+                println!(
+                    "  Locales: {}",
+                    locs.iter().map(|l| l.code()).collect::<Vec<_>>().join(", ")
+                );
+            } else {
+                println!("  Locales: {}", style("all").dim());
+            }
+        }
+
+        let result = match self.platform {
+            SinglePlatform::Apple => {
+                let config = self.apple_auth.to_config()?;
+                let sync = AppleMetadataSync::new(config, metadata_path).await?;
+                sync.push(&self.app_id, locales.as_deref(), self.dry_run)
+                    .await?
+            }
+            SinglePlatform::GooglePlay => {
+                let config = self.google_auth.to_config()?;
+                let sync = GooglePlayMetadataSync::new(config, metadata_path).await?;
+                sync.push(&self.app_id, locales.as_deref(), self.dry_run)
+                    .await?
+            }
+        };
+
+        match cli.format {
+            OutputFormat::Json => {
+                let output = serde_json::json!({
+                    "success": true,
+                    "app_id": &self.app_id,
+                    "platform": format!("{:?}", self.platform),
+                    "operation": "push",
+                    "dry_run": self.dry_run,
+                    "updated_locales": result.updated_locales,
+                    "updated_fields": result.updated_fields,
+                    "screenshots_uploaded": result.screenshots_uploaded,
+                    "screenshots_removed": result.screenshots_removed,
+                    "warnings": result.warnings,
+                });
+                println!("{}", serde_json::to_string_pretty(&output)?);
+            }
+            OutputFormat::Text => {
+                println!();
+                if result.has_changes() {
+                    if self.dry_run {
+                        println!(
+                            "{} {}",
+                            style("Would push:").yellow().bold(),
+                            result
+                        );
+                    } else {
+                        println!(
+                            "{} {}",
+                            style("Pushed:").green().bold(),
+                            result
+                        );
+                    }
+
+                    if !result.updated_locales.is_empty() {
+                        println!();
+                        println!("  Updated locales:");
+                        for locale in &result.updated_locales {
+                            println!("    {} {}", style("-").dim(), locale);
+                        }
+                    }
+
+                    if !result.warnings.is_empty() {
+                        println!();
+                        println!("  {}:", style("Warnings").yellow());
+                        for warning in &result.warnings {
+                            println!("    {} {}", style("!").yellow(), warning);
+                        }
+                    }
+                } else {
+                    println!(
+                        "{}",
+                        style("No changes to push.").dim()
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl DiffCommand {
+    async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        // Load config for defaults
+        let cwd = std::env::current_dir()?;
+        let (config, _) = load_config_or_default(&cwd);
+
+        let metadata_path = self
+            .path
+            .clone()
+            .unwrap_or_else(|| config.metadata.storage.path.clone());
+
+        if !cli.quiet {
+            println!(
+                "{} local metadata with {}",
+                style("Comparing").cyan(),
+                match self.platform {
+                    SinglePlatform::Apple => "App Store Connect",
+                    SinglePlatform::GooglePlay => "Google Play Console",
+                }
+            );
+            println!("  App ID: {}", style(&self.app_id).bold());
+            println!("  Path:   {}", style(metadata_path.display()).dim());
+        }
+
+        let diff = match self.platform {
+            SinglePlatform::Apple => {
+                let config = self.apple_auth.to_config()?;
+                let sync = AppleMetadataSync::new(config, metadata_path).await?;
+                sync.diff(&self.app_id).await?
+            }
+            SinglePlatform::GooglePlay => {
+                let config = self.google_auth.to_config()?;
+                let sync = GooglePlayMetadataSync::new(config, metadata_path).await?;
+                sync.diff(&self.app_id).await?
+            }
+        };
+
+        // Filter by locales if specified
+        let locales = parse_locales(&self.locales)?;
+        let filtered_diff = if let Some(ref filter_locales) = locales {
+            let filter_codes: Vec<String> = filter_locales.iter().map(|l| l.code().to_string()).collect();
+            MetadataDiff {
+                changes: diff
+                    .changes
+                    .into_iter()
+                    .filter(|c| filter_codes.contains(&c.locale))
+                    .collect(),
+            }
+        } else {
+            diff
+        };
+
+        match cli.format {
+            OutputFormat::Json => {
+                let output = serde_json::json!({
+                    "app_id": &self.app_id,
+                    "platform": format!("{:?}", self.platform),
+                    "has_changes": filtered_diff.has_changes(),
+                    "change_count": filtered_diff.len(),
+                    "affected_locales": filtered_diff.affected_locales(),
+                    "changes": filtered_diff.changes.iter().map(|c| {
+                        serde_json::json!({
+                            "locale": &c.locale,
+                            "field": &c.field,
+                            "change_type": format!("{}", c.change_type),
+                            "local_value": &c.local_value,
+                            "remote_value": &c.remote_value,
+                        })
+                    }).collect::<Vec<_>>(),
+                });
+                println!("{}", serde_json::to_string_pretty(&output)?);
+            }
+            OutputFormat::Text => {
+                print_diff(cli, &filtered_diff)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Parse a locale string (comma-separated or "all") into Option<Vec<Locale>>
+fn parse_locales(locales_str: &str) -> anyhow::Result<Option<Vec<Locale>>> {
+    if locales_str.to_lowercase() == "all" {
+        return Ok(None);
+    }
+
+    let locales: Result<Vec<Locale>, _> = locales_str
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(Locale::new)
+        .collect();
+
+    Ok(Some(locales.map_err(|e| anyhow::anyhow!("Invalid locale: {}", e))?))
+}
+
+/// Print a diff in a nice format with colors
+fn print_diff(_cli: &Cli, diff: &MetadataDiff) -> anyhow::Result<()> {
+    println!();
+
+    if diff.is_empty() {
+        println!(
+            "{}",
+            style("No differences found. Local and remote metadata are in sync.").green()
+        );
+        return Ok(());
+    }
+
+    println!(
+        "{} ({} change(s))",
+        style("Differences found").yellow().bold(),
+        diff.len()
+    );
+    println!();
+
+    // Group changes by locale
+    let affected_locales = diff.affected_locales();
+
+    for locale in &affected_locales {
+        let locale_changes = diff.for_locale(locale);
+        if locale_changes.is_empty() {
+            continue;
+        }
+
+        println!("  {} {}", style("Locale:").cyan(), style(locale).bold());
+
+        for change in locale_changes {
+            let (symbol, color) = match change.change_type {
+                ChangeType::Added => ("+", console::Color::Green),
+                ChangeType::Modified => ("~", console::Color::Yellow),
+                ChangeType::Removed => ("-", console::Color::Red),
+            };
+
+            println!(
+                "    {} {} {}",
+                style(symbol).fg(color).bold(),
+                style(&change.field).bold(),
+                style(format!("({})", change.change_type)).dim()
+            );
+
+            // Show truncated preview of values
+            match change.change_type {
+                ChangeType::Added => {
+                    if let Some(ref value) = change.local_value {
+                        let preview = truncate_str(value, 60);
+                        println!(
+                            "      {} {}",
+                            style("local:").fg(console::Color::Green),
+                            preview
+                        );
+                    }
+                }
+                ChangeType::Removed => {
+                    if let Some(ref value) = change.remote_value {
+                        let preview = truncate_str(value, 60);
+                        println!(
+                            "      {} {}",
+                            style("remote:").fg(console::Color::Red),
+                            preview
+                        );
+                    }
+                }
+                ChangeType::Modified => {
+                    if let Some(ref remote) = change.remote_value {
+                        let preview = truncate_str(remote, 60);
+                        println!(
+                            "      {} {}",
+                            style("remote:").fg(console::Color::Red),
+                            preview
+                        );
+                    }
+                    if let Some(ref local) = change.local_value {
+                        let preview = truncate_str(local, 60);
+                        println!(
+                            "      {} {}",
+                            style("local:").fg(console::Color::Green),
+                            preview
+                        );
+                    }
+                }
+            }
+        }
+        println!();
+    }
+
+    // Summary
+    let added = diff.by_type(ChangeType::Added).len();
+    let modified = diff.by_type(ChangeType::Modified).len();
+    let removed = diff.by_type(ChangeType::Removed).len();
+
+    println!(
+        "Summary: {} added, {} modified, {} removed",
+        style(added).green(),
+        style(modified).yellow(),
+        style(removed).red()
+    );
+
+    Ok(())
+}
+
+/// Truncate a string and add ellipsis if too long
+fn truncate_str(s: &str, max_len: usize) -> String {
+    // Replace newlines with spaces for preview
+    let s = s.replace('\n', " ").replace('\r', "");
+    let s = s.trim();
+
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max_len])
     }
 }
 

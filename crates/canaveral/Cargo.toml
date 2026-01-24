@@ -19,7 +19,7 @@ canaveral-strategies = { workspace = true }
 canaveral-adapters = { workspace = true }
 canaveral-signing = { workspace = true }
 canaveral-stores = { workspace = true }
-canaveral-metadata = { workspace = true }
+canaveral-metadata = { workspace = true, features = ["sync"] }
 
 clap = { workspace = true }
 dialoguer = { workspace = true }
