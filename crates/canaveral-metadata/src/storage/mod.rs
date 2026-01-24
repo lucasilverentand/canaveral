@@ -2,10 +2,20 @@
 //!
 //! This module provides the [`MetadataStorage`] trait and implementations
 //! for persisting and loading app store metadata.
+//!
+//! ## Available Storage Backends
+//!
+//! - [`FastlaneStorage`]: A Fastlane-compatible directory structure with individual
+//!   text files for each metadata field. Compatible with Fastlane's `deliver` and `supply` tools.
+//!
+//! - [`UnifiedStorage`]: A single YAML file per platform per app, providing a more
+//!   compact and manageable alternative to the Fastlane directory structure.
 
 mod fastlane;
+mod unified;
 
 pub use fastlane::FastlaneStorage;
+pub use unified::UnifiedStorage;
 
 use crate::{AppleMetadata, GooglePlayMetadata, Locale, Platform, Result};
 use async_trait::async_trait;

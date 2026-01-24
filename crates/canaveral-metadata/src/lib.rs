@@ -90,11 +90,13 @@ pub mod error;
 pub mod storage;
 #[cfg(feature = "sync")]
 pub mod sync;
+pub mod templates;
 pub mod types;
+pub mod utils;
 pub mod validation;
 
 pub use error::MetadataError;
-pub use storage::{FastlaneStorage, MetadataStorage, StorageFormat};
+pub use storage::{FastlaneStorage, MetadataStorage, StorageFormat, UnifiedStorage};
 pub use types::apple::{
     AppleAgeRating, AppleCategory, AppleLocalizedMetadata, AppleMetadata, AppleScreenshotSet,
 };
@@ -102,6 +104,18 @@ pub use types::common::{AssetType, Locale, MediaAsset, Platform};
 pub use types::google_play::{
     GooglePlayCategory, GooglePlayContentRating, GooglePlayLocalizedMetadata, GooglePlayMetadata,
     GooglePlayScreenshotSet,
+};
+pub use templates::{
+    apply_templates_to_apple_metadata, apply_templates_to_google_play_metadata,
+    extract_variable_names, has_template_variables, process_template, validate_template,
+    TemplateVariables,
+};
+pub use utils::{
+    auto_fix_text, count_chars, format_keywords, get_language_code, get_missing_apple_locales,
+    get_missing_google_play_locales, get_region_code, is_apple_recommended_locale,
+    is_google_play_recommended_locale, locales_equivalent, normalize_locale, parse_keywords,
+    sanitize_text, truncate_with_ellipsis, APPLE_RECOMMENDED_LOCALES,
+    GOOGLE_PLAY_RECOMMENDED_LOCALES,
 };
 pub use validation::{
     validate_localized_google_play_screenshots, validate_localized_screenshots, AppleValidator,

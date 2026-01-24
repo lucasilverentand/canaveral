@@ -1,0 +1,40 @@
+[package]
+name = "canaveral-signing"
+description = "Code signing support for Canaveral release management"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true, features = ["process", "fs"] }
+async-trait = "0.1"
+dirs = { workspace = true }
+uuid = { version = "1", features = ["v4", "serde"] }
+base64 = "0.22"
+sha2 = "0.10"
+rand = "0.8"
+
+# Age encryption
+age = { version = "0.10", features = ["armor"] }
+
+# Hostname detection
+hostname = "0.4"
+
+# Platform-specific
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58", features = ["Win32_Security_Cryptography"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
