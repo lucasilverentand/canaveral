@@ -37,8 +37,10 @@
 //! ```
 
 mod apple;
+mod google_play;
 
 pub use apple::{AppleMetadataSync, AppleSyncConfig};
+pub use google_play::{GooglePlayMetadataSync, GooglePlaySyncConfig, Listing, ListingUpdate, Image, image_types};
 
 use crate::{Locale, Result};
 use async_trait::async_trait;
