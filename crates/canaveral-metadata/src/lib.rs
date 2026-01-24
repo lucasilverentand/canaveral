@@ -10,6 +10,12 @@
 //! - [`FastlaneStorage`]: A Fastlane-compatible directory structure with
 //!   individual text files for each metadata field.
 //!
+//! ## Validation
+//!
+//! The crate provides comprehensive validation for app store metadata:
+//!
+//! - [`AppleValidator`]: Validates Apple App Store metadata against Apple's requirements
+//!
 //! ## Example
 //!
 //! ```no_run
@@ -28,10 +34,29 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! ## Validation Example
+//!
+//! ```rust
+//! use canaveral_metadata::{AppleMetadata, AppleValidator};
+//!
+//! let metadata = AppleMetadata::new("com.example.app");
+//! let validator = AppleValidator::new(false);
+//! let result = validator.validate(&metadata);
+//!
+//! if result.is_valid() {
+//!     println!("Metadata is valid for submission!");
+//! } else {
+//!     for error in result.errors() {
+//!         eprintln!("Error: {}", error);
+//!     }
+//! }
+//! ```
 
 pub mod error;
 pub mod storage;
 pub mod types;
+pub mod validation;
 
 pub use error::MetadataError;
 pub use storage::{FastlaneStorage, MetadataStorage, StorageFormat};
@@ -42,6 +67,9 @@ pub use types::common::{AssetType, Locale, MediaAsset, Platform};
 pub use types::google_play::{
     GooglePlayCategory, GooglePlayContentRating, GooglePlayLocalizedMetadata, GooglePlayMetadata,
     GooglePlayScreenshotSet,
+};
+pub use validation::{
+    validate_localized_screenshots, AppleValidator, Severity, ValidationIssue, ValidationResult,
 };
 
 /// Result type alias for metadata operations.
