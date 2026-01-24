@@ -26,6 +26,15 @@ pub enum MetadataSubcommand {
 
     /// Validate metadata against store requirements
     Validate(ValidateCommand),
+
+    /// Add a new localization
+    AddLocale(AddLocaleCommand),
+
+    /// Remove a localization
+    RemoveLocale(RemoveLocaleCommand),
+
+    /// List available localizations
+    ListLocales(ListLocalesCommand),
 }
 
 /// Target platform for metadata operations
@@ -106,6 +115,88 @@ pub struct ValidateCommand {
     pub fix: bool,
 }
 
+/// Target platform for locale operations (single platform only)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum SinglePlatform {
+    /// Apple App Store
+    Apple,
+    /// Google Play Store
+    GooglePlay,
+}
+
+impl From<SinglePlatform> for Platform {
+    fn from(platform: SinglePlatform) -> Self {
+        match platform {
+            SinglePlatform::Apple => Platform::Apple,
+            SinglePlatform::GooglePlay => Platform::GooglePlay,
+        }
+    }
+}
+
+/// Add a new localization
+#[derive(Debug, Args)]
+pub struct AddLocaleCommand {
+    /// Target platform
+    #[arg(long, value_enum, required = true)]
+    pub platform: SinglePlatform,
+
+    /// App identifier (bundle ID or package name)
+    #[arg(long, required = true)]
+    pub app_id: String,
+
+    /// Locale code (BCP 47 format, e.g., de-DE)
+    #[arg(long, required = true)]
+    pub locale: String,
+
+    /// Copy content from existing locale
+    #[arg(long)]
+    pub copy_from: Option<String>,
+
+    /// Path to metadata directory
+    #[arg(long, default_value = "./metadata")]
+    pub path: PathBuf,
+}
+
+/// Remove a localization
+#[derive(Debug, Args)]
+pub struct RemoveLocaleCommand {
+    /// Target platform
+    #[arg(long, value_enum, required = true)]
+    pub platform: SinglePlatform,
+
+    /// App identifier (bundle ID or package name)
+    #[arg(long, required = true)]
+    pub app_id: String,
+
+    /// Locale code (BCP 47 format, e.g., de-DE)
+    #[arg(long, required = true)]
+    pub locale: String,
+
+    /// Path to metadata directory
+    #[arg(long, default_value = "./metadata")]
+    pub path: PathBuf,
+
+    /// Skip confirmation prompt
+    #[arg(long, short = 'y')]
+    pub yes: bool,
+}
+
+/// List available localizations
+#[derive(Debug, Args)]
+pub struct ListLocalesCommand {
+    /// Target platform
+    #[arg(long, value_enum, required = true)]
+    pub platform: SinglePlatform,
+
+    /// App identifier (bundle ID or package name)
+    #[arg(long, required = true)]
+    pub app_id: String,
+
+    /// Path to metadata directory
+    #[arg(long, default_value = "./metadata")]
+    pub path: PathBuf,
+}
+
 impl MetadataCommand {
     /// Execute the metadata command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
@@ -114,6 +205,9 @@ impl MetadataCommand {
         match &self.command {
             MetadataSubcommand::Init(cmd) => rt.block_on(cmd.execute(cli)),
             MetadataSubcommand::Validate(cmd) => rt.block_on(cmd.execute(cli)),
+            MetadataSubcommand::AddLocale(cmd) => rt.block_on(cmd.execute(cli)),
+            MetadataSubcommand::RemoveLocale(cmd) => rt.block_on(cmd.execute(cli)),
+            MetadataSubcommand::ListLocales(cmd) => rt.block_on(cmd.execute(cli)),
         }
     }
 }
@@ -430,4 +524,233 @@ impl ValidateCommand {
 
         Ok(())
     }
+}
+
+impl AddLocaleCommand {
+    async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        // Parse locale
+        let locale = Locale::new(&self.locale)
+            .map_err(|e| anyhow::anyhow!("Invalid locale '{}': {}", &self.locale, e))?;
+
+        // Parse copy_from locale if provided
+        let copy_from = match &self.copy_from {
+            Some(code) => Some(
+                Locale::new(code)
+                    .map_err(|e| anyhow::anyhow!("Invalid source locale '{}': {}", code, e))?,
+            ),
+            None => None,
+        };
+
+        // Create storage backend
+        let storage = FastlaneStorage::new(&self.path);
+
+        if !cli.quiet {
+            println!(
+                "{} locale {} for {}",
+                style("Adding").cyan(),
+                style(locale.code()).bold(),
+                style(&self.app_id).bold()
+            );
+            if let Some(ref source) = copy_from {
+                println!("  Copying from: {}", style(source.code()).dim());
+            }
+        }
+
+        // Add the locale
+        let platform: Platform = self.platform.into();
+        storage
+            .add_locale(platform, &self.app_id, &locale, copy_from.as_ref())
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        match cli.format {
+            OutputFormat::Json => {
+                let output = serde_json::json!({
+                    "success": true,
+                    "app_id": &self.app_id,
+                    "platform": format!("{:?}", self.platform),
+                    "locale": locale.code(),
+                    "copied_from": copy_from.as_ref().map(|l| l.code()),
+                });
+                println!("{}", serde_json::to_string_pretty(&output)?);
+            }
+            OutputFormat::Text => {
+                println!();
+                println!(
+                    "{}",
+                    style(format!("Locale '{}' added successfully!", locale.code()))
+                        .green()
+                        .bold()
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl RemoveLocaleCommand {
+    async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        // Parse locale
+        let locale = Locale::new(&self.locale)
+            .map_err(|e| anyhow::anyhow!("Invalid locale '{}': {}", &self.locale, e))?;
+
+        // Confirmation prompt
+        if !self.yes && !cli.quiet {
+            println!(
+                "{} Are you sure you want to remove locale '{}' for '{}'?",
+                style("Warning:").yellow().bold(),
+                style(locale.code()).bold(),
+                style(&self.app_id).bold()
+            );
+            println!("This will permanently delete all metadata files for this locale.");
+            print!("Type 'yes' to confirm: ");
+            std::io::Write::flush(&mut std::io::stdout())?;
+
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input)?;
+            if input.trim().to_lowercase() != "yes" {
+                println!("{}", style("Aborted.").red());
+                return Ok(());
+            }
+        }
+
+        // Create storage backend
+        let storage = FastlaneStorage::new(&self.path);
+
+        if !cli.quiet {
+            println!(
+                "{} locale {} for {}",
+                style("Removing").cyan(),
+                style(locale.code()).bold(),
+                style(&self.app_id).bold()
+            );
+        }
+
+        // Remove the locale
+        let platform: Platform = self.platform.into();
+        storage
+            .remove_locale(platform, &self.app_id, &locale)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        match cli.format {
+            OutputFormat::Json => {
+                let output = serde_json::json!({
+                    "success": true,
+                    "app_id": &self.app_id,
+                    "platform": format!("{:?}", self.platform),
+                    "locale": locale.code(),
+                });
+                println!("{}", serde_json::to_string_pretty(&output)?);
+            }
+            OutputFormat::Text => {
+                println!();
+                println!(
+                    "{}",
+                    style(format!("Locale '{}' removed successfully!", locale.code()))
+                        .green()
+                        .bold()
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl ListLocalesCommand {
+    async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        // Create storage backend
+        let storage = FastlaneStorage::new(&self.path);
+
+        if !cli.quiet {
+            println!(
+                "{} locales for {}",
+                style("Listing").cyan(),
+                style(&self.app_id).bold()
+            );
+        }
+
+        // Get locales based on platform
+        let platform: Platform = self.platform.into();
+        let locales = match platform {
+            Platform::Apple => storage.list_locales_apple(&self.app_id).await,
+            Platform::GooglePlay => storage.list_locales_google_play(&self.app_id).await,
+        }
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        // Count files in each locale directory
+        let mut locale_info: Vec<(String, usize)> = Vec::new();
+        let app_path = match platform {
+            Platform::Apple => storage.apple_path(&self.app_id),
+            Platform::GooglePlay => storage.google_play_path(&self.app_id),
+        };
+
+        for locale in &locales {
+            let locale_path = app_path.join(locale.code());
+            let file_count = count_files_in_dir(&locale_path).await.unwrap_or(0);
+            locale_info.push((locale.code(), file_count));
+        }
+
+        // Sort by locale code
+        locale_info.sort_by(|a, b| a.0.cmp(&b.0));
+
+        match cli.format {
+            OutputFormat::Json => {
+                let output = serde_json::json!({
+                    "app_id": &self.app_id,
+                    "platform": format!("{:?}", self.platform),
+                    "locale_count": locales.len(),
+                    "locales": locale_info.iter().map(|(code, count)| {
+                        serde_json::json!({
+                            "code": code,
+                            "file_count": count,
+                        })
+                    }).collect::<Vec<_>>(),
+                });
+                println!("{}", serde_json::to_string_pretty(&output)?);
+            }
+            OutputFormat::Text => {
+                println!();
+                if locale_info.is_empty() {
+                    println!(
+                        "{}",
+                        style("No locales found.").yellow()
+                    );
+                    println!(
+                        "Run `canaveral metadata init` to create the metadata structure."
+                    );
+                } else {
+                    println!(
+                        "{} ({} found)",
+                        style("Locales").green().bold(),
+                        locale_info.len()
+                    );
+                    for (code, count) in &locale_info {
+                        println!(
+                            "  {} {} ({} files)",
+                            style("-").dim(),
+                            style(code).bold(),
+                            count
+                        );
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Count files in a directory (non-recursive).
+async fn count_files_in_dir(path: &std::path::Path) -> std::io::Result<usize> {
+    let mut count = 0;
+    let mut entries = tokio::fs::read_dir(path).await?;
+    while let Some(entry) = entries.next_entry().await? {
+        if entry.path().is_file() {
+            count += 1;
+        }
+    }
+    Ok(count)
 }

@@ -114,6 +114,32 @@ pub trait MetadataStorage: Send + Sync {
     /// * `app_id` - The app identifier (bundle_id or package_name)
     /// * `locales` - The locales to initialize
     async fn init(&self, platform: Platform, app_id: &str, locales: &[Locale]) -> Result<()>;
+
+    /// Add a new locale, optionally copying from an existing one.
+    ///
+    /// # Arguments
+    ///
+    /// * `platform` - The target platform
+    /// * `app_id` - The app identifier (bundle_id or package_name)
+    /// * `locale` - The new locale to add
+    /// * `copy_from` - Optional source locale to copy content from
+    async fn add_locale(
+        &self,
+        platform: Platform,
+        app_id: &str,
+        locale: &Locale,
+        copy_from: Option<&Locale>,
+    ) -> Result<()>;
+
+    /// Remove a locale and its directory.
+    ///
+    /// # Arguments
+    ///
+    /// * `platform` - The target platform
+    /// * `app_id` - The app identifier (bundle_id or package_name)
+    /// * `locale` - The locale to remove
+    async fn remove_locale(&self, platform: Platform, app_id: &str, locale: &Locale)
+        -> Result<()>;
 }
 
 /// Storage format type.

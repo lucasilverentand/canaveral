@@ -792,6 +792,181 @@ impl MetadataStorage for FastlaneStorage {
 
         Ok(())
     }
+
+    async fn add_locale(
+        &self,
+        platform: Platform,
+        app_id: &str,
+        locale: &Locale,
+        copy_from: Option<&Locale>,
+    ) -> Result<()> {
+        let (app_path, template_files, screenshot_subdirs) = match platform {
+            Platform::Apple => {
+                let path = self.apple_path(app_id);
+                let files = vec![
+                    "name.txt",
+                    "subtitle.txt",
+                    "description.txt",
+                    "keywords.txt",
+                    "release_notes.txt",
+                    "promotional_text.txt",
+                    "support_url.txt",
+                    "marketing_url.txt",
+                    "privacy_url.txt",
+                ];
+                let screenshot_subdirs: Vec<&str> = vec![];
+                (path, files, screenshot_subdirs)
+            }
+            Platform::GooglePlay => {
+                let path = self.google_play_path(app_id);
+                let files = vec![
+                    "title.txt",
+                    "short_description.txt",
+                    "full_description.txt",
+                ];
+                let screenshot_subdirs = vec!["phone", "tablet", "tv", "wear"];
+                (path, files, screenshot_subdirs)
+            }
+        };
+
+        if !app_path.exists() {
+            return Err(MetadataError::NotFound(format!(
+                "App metadata not found for: {}",
+                app_id
+            )));
+        }
+
+        let locale_path = app_path.join(locale.code());
+
+        // Check if locale already exists
+        if locale_path.exists() {
+            return Err(MetadataError::InvalidFormat(format!(
+                "Locale '{}' already exists",
+                locale.code()
+            )));
+        }
+
+        // Create locale directory
+        fs::create_dir_all(&locale_path).await?;
+
+        if let Some(source_locale) = copy_from {
+            // Copy from existing locale
+            let source_path = app_path.join(source_locale.code());
+            if !source_path.exists() {
+                return Err(MetadataError::NotFound(format!(
+                    "Source locale '{}' not found",
+                    source_locale.code()
+                )));
+            }
+
+            // Copy all files from source locale
+            let mut entries = fs::read_dir(&source_path).await?;
+            while let Some(entry) = entries.next_entry().await? {
+                let entry_path = entry.path();
+                if entry_path.is_file() {
+                    let file_name = entry_path.file_name().unwrap();
+                    let dest_path = locale_path.join(file_name);
+                    fs::copy(&entry_path, &dest_path).await?;
+                } else if entry_path.is_dir() {
+                    // Copy subdirectories (like changelogs for Google Play)
+                    let dir_name = entry_path.file_name().unwrap();
+                    let dest_dir = locale_path.join(dir_name);
+                    self.copy_dir_recursive(&entry_path, &dest_dir).await?;
+                }
+            }
+
+            // Copy screenshots if they exist
+            let source_screenshots = app_path.join("screenshots").join(source_locale.code());
+            let dest_screenshots = app_path.join("screenshots").join(locale.code());
+            if source_screenshots.exists() {
+                self.copy_dir_recursive(&source_screenshots, &dest_screenshots)
+                    .await?;
+            }
+        } else {
+            // Create empty template files
+            for file in &template_files {
+                self.write_text_file(&locale_path.join(file), "").await?;
+            }
+
+            // Create changelogs directory for Google Play
+            if platform == Platform::GooglePlay {
+                fs::create_dir_all(locale_path.join("changelogs")).await?;
+            }
+
+            // Create screenshots directory structure
+            let screenshots_path = app_path.join("screenshots").join(locale.code());
+            if screenshot_subdirs.is_empty() {
+                // Apple - just create locale directory
+                fs::create_dir_all(&screenshots_path).await?;
+            } else {
+                // Google Play - create subdirectories for each device type
+                for subdir in &screenshot_subdirs {
+                    fs::create_dir_all(screenshots_path.join(subdir)).await?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn remove_locale(
+        &self,
+        platform: Platform,
+        app_id: &str,
+        locale: &Locale,
+    ) -> Result<()> {
+        let app_path = match platform {
+            Platform::Apple => self.apple_path(app_id),
+            Platform::GooglePlay => self.google_play_path(app_id),
+        };
+
+        if !app_path.exists() {
+            return Err(MetadataError::NotFound(format!(
+                "App metadata not found for: {}",
+                app_id
+            )));
+        }
+
+        let locale_path = app_path.join(locale.code());
+        if !locale_path.exists() {
+            return Err(MetadataError::NotFound(format!(
+                "Locale '{}' not found",
+                locale.code()
+            )));
+        }
+
+        // Remove locale directory
+        fs::remove_dir_all(&locale_path).await?;
+
+        // Remove screenshots for this locale
+        let screenshots_path = app_path.join("screenshots").join(locale.code());
+        if screenshots_path.exists() {
+            fs::remove_dir_all(&screenshots_path).await?;
+        }
+
+        Ok(())
+    }
+}
+
+impl FastlaneStorage {
+    /// Recursively copy a directory.
+    async fn copy_dir_recursive(&self, src: &Path, dst: &Path) -> Result<()> {
+        fs::create_dir_all(dst).await?;
+
+        let mut entries = fs::read_dir(src).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let entry_path = entry.path();
+            let dest_path = dst.join(entry_path.file_name().unwrap());
+
+            if entry_path.is_dir() {
+                Box::pin(self.copy_dir_recursive(&entry_path, &dest_path)).await?;
+            } else {
+                fs::copy(&entry_path, &dest_path).await?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
