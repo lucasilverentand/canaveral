@@ -21,9 +21,11 @@
 
 mod apple;
 mod common;
+mod google_play;
 
 pub use apple::{validate_localized_screenshots, AppleValidator};
 pub use common::*;
+pub use google_play::{validate_localized_google_play_screenshots, GooglePlayValidator};
 
 /// Validation issue severity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

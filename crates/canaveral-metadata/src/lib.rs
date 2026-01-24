@@ -69,7 +69,8 @@ pub use types::google_play::{
     GooglePlayScreenshotSet,
 };
 pub use validation::{
-    validate_localized_screenshots, AppleValidator, Severity, ValidationIssue, ValidationResult,
+    validate_localized_google_play_screenshots, validate_localized_screenshots, AppleValidator,
+    GooglePlayValidator, Severity, ValidationIssue, ValidationResult,
 };
 
 /// Result type alias for metadata operations.
