@@ -17,6 +17,9 @@ canaveral-git = { workspace = true }
 canaveral-changelog = { workspace = true }
 canaveral-strategies = { workspace = true }
 canaveral-adapters = { workspace = true }
+canaveral-signing = { workspace = true }
+canaveral-stores = { workspace = true }
+canaveral-metadata = { workspace = true }
 
 clap = { workspace = true }
 dialoguer = { workspace = true }

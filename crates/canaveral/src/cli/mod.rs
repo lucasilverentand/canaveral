@@ -6,7 +6,8 @@ pub mod output;
 use clap::{Parser, Subcommand};
 
 use commands::{
-    ChangelogCommand, InitCommand, ReleaseCommand, StatusCommand, ValidateCommand, VersionCommand,
+    ChangelogCommand, InitCommand, MetadataCommand, ReleaseCommand, SigningCommand, StatusCommand,
+    StoreCommand, ValidateCommand, VersionCommand,
 };
 
 /// Canaveral - Universal release management CLI
@@ -65,6 +66,15 @@ pub enum Commands {
 
     /// Validate configuration and repository state
     Validate(ValidateCommand),
+
+    /// Code signing operations
+    Signing(SigningCommand),
+
+    /// App store upload operations
+    Store(StoreCommand),
+
+    /// App store metadata management
+    Metadata(MetadataCommand),
 }
 
 impl Cli {
@@ -82,6 +92,9 @@ impl Cli {
             Commands::Release(ref cmd) => cmd.execute(&self),
             Commands::Status(ref cmd) => cmd.execute(&self),
             Commands::Validate(ref cmd) => cmd.execute(&self),
+            Commands::Signing(ref cmd) => cmd.execute(&self),
+            Commands::Store(ref cmd) => cmd.execute(&self),
+            Commands::Metadata(ref cmd) => cmd.execute(&self),
         }
     }
 }
