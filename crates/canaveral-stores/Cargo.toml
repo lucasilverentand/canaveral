@@ -1,0 +1,54 @@
+[package]
+name = "canaveral-stores"
+version = "0.1.0"
+edition = "2021"
+description = "App store upload adapters for Canaveral"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/anthropics/canaveral"
+keywords = ["release", "app-store", "google-play", "notarization"]
+categories = ["development-tools"]
+
+[features]
+default = []
+metadata = ["canaveral-metadata"]
+
+[dependencies]
+# Optional metadata integration
+canaveral-metadata = { path = "../canaveral-metadata", features = ["sync"], optional = true }
+# Workspace dependencies
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true, features = ["process", "fs", "io-util"] }
+
+# Async traits
+async-trait = "0.1"
+
+# HTTP client for API calls
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# JWT for App Store Connect API
+jsonwebtoken = "9"
+
+# Base64 encoding
+base64 = "0.22"
+
+# UUID generation
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Temporary files
+tempfile = "3"
+
+# For reading plist files (Apple)
+plist = "1"
+
+# For zip file handling
+zip = "2"
+
+# For XML parsing in MSIX manifests
+regex = "1"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

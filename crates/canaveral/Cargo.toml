@@ -11,6 +11,11 @@ rust-version.workspace = true
 name = "canaveral"
 path = "src/main.rs"
 
+[features]
+default = ["metadata-integration"]
+# Enable metadata validation integration in store upload commands
+metadata-integration = ["canaveral-stores/metadata"]
+
 [dependencies]
 canaveral-core = { workspace = true }
 canaveral-git = { workspace = true }
