@@ -6,12 +6,15 @@
 //! - Android: apksigner, jarsigner
 //! - GPG: General-purpose signing
 //!
-//! It also includes a team vault for securely sharing signing credentials.
+//! It also includes:
+//! - Team vault for securely sharing signing credentials
+//! - Match-style sync for certificates and profiles
 
 pub mod error;
 pub mod identity;
 pub mod provider;
 pub mod providers;
+pub mod sync;
 pub mod team;
 
 pub use error::{Result, SigningError};

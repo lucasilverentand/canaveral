@@ -46,6 +46,7 @@ pub mod traits;
 pub mod types;
 
 pub mod apple;
+pub mod firebase;
 pub mod google_play;
 pub mod microsoft;
 

@@ -15,9 +15,14 @@
 
 mod connect;
 mod notarize;
+mod testflight;
 
 pub use connect::AppStoreConnect;
 pub use notarize::Notarizer;
+pub use testflight::{
+    TestFlight, TestFlightBuild, BuildProcessingState, BuildAudienceType,
+    BetaGroup, BetaTester, TesterInviteType, BetaAppReviewSubmission, BetaReviewState,
+};
 
 use crate::error::{Result, StoreError};
 use crate::types::AppInfo;

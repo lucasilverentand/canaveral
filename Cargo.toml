@@ -34,6 +34,7 @@ canaveral-frameworks = { path = "crates/canaveral-frameworks" }
 
 # CLI
 clap = { version = "4", features = ["derive", "env"] }
+clap_complete = "4"
 dialoguer = "0.11"
 indicatif = "0.17"
 console = "0.15"
@@ -71,6 +72,7 @@ walkdir = "2"
 tempfile = "3"
 url = "2"
 dirs = "5"
+which = "7"
 
 [profile.release]
 lto = true

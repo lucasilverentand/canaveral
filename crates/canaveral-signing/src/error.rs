@@ -91,6 +91,18 @@ pub enum SigningError {
     #[error("Signing configuration error: {0}")]
     ConfigError(String),
 
+    /// Configuration error (alternate)
+    #[error("Configuration error: {0}")]
+    Configuration(String),
+
+    /// Command execution error
+    #[error("Command '{command}' failed with exit code {status}: {stderr}")]
+    Command {
+        command: String,
+        status: i32,
+        stderr: String,
+    },
+
     /// IO error
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),

@@ -1,0 +1,123 @@
+# Canaveral Android Build Workflow
+# This workflow builds an Android app using Canaveral
+#
+# Required secrets:
+#   - ANDROID_KEYSTORE_BASE64: Base64-encoded keystore file
+#   - ANDROID_KEYSTORE_PASSWORD: Keystore password
+#   - ANDROID_KEY_ALIAS: Key alias
+#   - ANDROID_KEY_PASSWORD: Key password
+#   - GOOGLE_PLAY_SERVICE_ACCOUNT: Base64-encoded service account JSON
+
+name: Build Android
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+      artifact_type:
+        description: 'Artifact type'
+        required: true
+        default: 'apk'
+        type: choice
+        options:
+          - apk
+          - aab
+
+env:
+  JAVA_VERSION: '17'
+
+jobs:
+  build:
+    name: Build Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Canaveral
+        run: |
+          curl -fsSL https://get.canaveral.dev | sh
+          echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
+
+      - name: Check Environment
+        run: canaveral doctor
+
+      - name: Decode Keystore
+        if: inputs.build_type == 'release'
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+
+      - name: Build Android App
+        run: |
+          canaveral build \
+            --platform android \
+            --profile ${{ inputs.build_type || 'debug' }} \
+            --output-format github-actions
+        env:
+          CI: true
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Upload APK Artifact
+        if: inputs.artifact_type != 'aab' || inputs.build_type == 'debug'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ inputs.build_type || 'debug' }}-apk
+          path: build/android/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload AAB Artifact
+        if: inputs.artifact_type == 'aab' && inputs.build_type == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-aab
+          path: build/android/*.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload to Google Play (Release AAB only)
+        if: inputs.build_type == 'release' && inputs.artifact_type == 'aab' && github.ref == 'refs/heads/main'
+        run: |
+          canaveral store upload android \
+            --artifact build/android/*.aab \
+            --track internal
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+
+  notify:
+    name: Notify
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Notification
+        if: failure()
+        run: |
+          echo "Build failed! See ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

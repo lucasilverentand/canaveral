@@ -37,6 +37,8 @@ walkdir = { workspace = true }
 tempfile = { workspace = true }
 which = "6"
 sha2 = "0.10"
+shellexpand = "3"
+plist = "1"
 
 [dev-dependencies]
 tempfile = { workspace = true }

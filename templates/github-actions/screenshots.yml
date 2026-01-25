@@ -1,0 +1,307 @@
+# Canaveral Screenshot Automation Workflow
+# This workflow captures and frames screenshots for app store listings
+#
+# Required secrets:
+#   - MATCH_PASSWORD: Password for certificate decryption (iOS)
+#
+# Optional secrets:
+#   - BROWSERSTACK_USERNAME/ACCESS_KEY: For cloud device testing
+
+name: Screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platforms to capture'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+      locales:
+        description: 'Locales (comma-separated, e.g., en-US,de-DE,ja-JP)'
+        required: false
+        default: 'en-US'
+      devices:
+        description: 'Devices (comma-separated, or "all" for standard set)'
+        required: false
+        default: 'all'
+      frame:
+        description: 'Apply device frames'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  CANAVERAL_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+  MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL }}
+  MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+
+jobs:
+  screenshots-ios:
+    name: iOS Screenshots
+    if: inputs.platforms == 'all' || inputs.platforms == 'ios'
+    runs-on: macos-14
+    timeout-minutes: 120
+
+    strategy:
+      matrix:
+        # iPhone sizes for App Store
+        device:
+          - name: iPhone 15 Pro Max
+            id: iPhone-15-Pro-Max
+            size: 6.7
+          - name: iPhone 15 Pro
+            id: iPhone-15-Pro
+            size: 6.1
+          - name: iPhone SE (3rd generation)
+            id: iPhone-SE-3rd-generation
+            size: 4.7
+          - name: iPad Pro (12.9-inch) (6th generation)
+            id: iPad-Pro-12-9-inch-6th-generation
+            size: 12.9
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: |
+          if [ -f "pubspec.yaml" ]; then
+            flutter pub get
+          fi
+
+      - name: Install Canaveral
+        run: |
+          curl -fsSL https://get.canaveral.dev | sh
+          echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
+
+      - name: Sync Certificates
+        run: canaveral match sync --profile-type development --readonly
+
+      - name: Boot Simulator
+        run: |
+          xcrun simctl boot "${{ matrix.device.id }}" || true
+          xcrun simctl bootstatus "${{ matrix.device.id }}" -b
+
+      - name: Capture Screenshots
+        run: |
+          LOCALES="${{ inputs.locales }}"
+          IFS=',' read -ra LOCALE_ARRAY <<< "$LOCALES"
+
+          for locale in "${LOCALE_ARRAY[@]}"; do
+            echo "Capturing screenshots for locale: $locale"
+            canaveral screenshots capture \
+              --platform ios \
+              --device "${{ matrix.device.id }}" \
+              --locale "$locale" \
+              --output "screenshots/ios/${{ matrix.device.name }}/$locale" \
+              --output-format github-actions
+          done
+        env:
+          CI: true
+
+      - name: Frame Screenshots
+        if: inputs.frame
+        run: |
+          canaveral screenshots frame \
+            --input "screenshots/ios/${{ matrix.device.name }}" \
+            --output "screenshots/framed/ios/${{ matrix.device.name }}" \
+            --device "${{ matrix.device.name }}"
+
+      - name: Upload Raw Screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshots-${{ matrix.device.id }}
+          path: screenshots/ios/${{ matrix.device.name }}
+          retention-days: 30
+
+      - name: Upload Framed Screenshots
+        if: inputs.frame
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-framed-${{ matrix.device.id }}
+          path: screenshots/framed/ios/${{ matrix.device.name }}
+          retention-days: 30
+
+  screenshots-android:
+    name: Android Screenshots
+    if: inputs.platforms == 'all' || inputs.platforms == 'android'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    strategy:
+      matrix:
+        # Android sizes for Play Store
+        device:
+          - name: Pixel 8 Pro
+            avd: pixel_8_pro
+            api: 34
+            size: phone
+          - name: Pixel Tablet
+            avd: pixel_tablet
+            api: 34
+            size: tablet-10
+          - name: Pixel Fold
+            avd: pixel_fold
+            api: 34
+            size: foldable
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: |
+          if [ -f "pubspec.yaml" ]; then
+            flutter pub get
+          fi
+
+      - name: Install Canaveral
+        run: |
+          curl -fsSL https://get.canaveral.dev | sh
+          echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Setup Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.device.api }}
+          target: google_apis
+          arch: x86_64
+          profile: ${{ matrix.device.avd }}
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            LOCALES="${{ inputs.locales }}"
+            IFS=',' read -ra LOCALE_ARRAY <<< "$LOCALES"
+
+            for locale in "${LOCALE_ARRAY[@]}"; do
+              echo "Capturing screenshots for locale: $locale"
+              canaveral screenshots capture \
+                --platform android \
+                --device "${{ matrix.device.avd }}" \
+                --locale "$locale" \
+                --output "screenshots/android/${{ matrix.device.name }}/$locale" \
+                --output-format github-actions
+            done
+
+      - name: Frame Screenshots
+        if: inputs.frame
+        run: |
+          canaveral screenshots frame \
+            --input "screenshots/android/${{ matrix.device.name }}" \
+            --output "screenshots/framed/android/${{ matrix.device.name }}" \
+            --device "${{ matrix.device.name }}"
+
+      - name: Upload Raw Screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-screenshots-${{ matrix.device.avd }}
+          path: screenshots/android/${{ matrix.device.name }}
+          retention-days: 30
+
+      - name: Upload Framed Screenshots
+        if: inputs.frame
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-framed-${{ matrix.device.avd }}
+          path: screenshots/framed/android/${{ matrix.device.name }}
+          retention-days: 30
+
+  combine-screenshots:
+    name: Combine Screenshots
+    needs: [screenshots-ios, screenshots-android]
+    if: always() && (needs.screenshots-ios.result == 'success' || needs.screenshots-android.result == 'success')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-screenshots
+
+      - name: Organize Screenshots
+        run: |
+          mkdir -p final-screenshots/{ios,android}/{raw,framed}
+
+          # Move iOS screenshots
+          for dir in all-screenshots/ios-screenshots-*; do
+            if [ -d "$dir" ]; then
+              cp -r "$dir"/* final-screenshots/ios/raw/ || true
+            fi
+          done
+          for dir in all-screenshots/ios-framed-*; do
+            if [ -d "$dir" ]; then
+              cp -r "$dir"/* final-screenshots/ios/framed/ || true
+            fi
+          done
+
+          # Move Android screenshots
+          for dir in all-screenshots/android-screenshots-*; do
+            if [ -d "$dir" ]; then
+              cp -r "$dir"/* final-screenshots/android/raw/ || true
+            fi
+          done
+          for dir in all-screenshots/android-framed-*; do
+            if [ -d "$dir" ]; then
+              cp -r "$dir"/* final-screenshots/android/framed/ || true
+            fi
+          done
+
+          # Create manifest
+          find final-screenshots -type f -name "*.png" | sort > final-screenshots/manifest.txt
+          echo "Total screenshots: $(wc -l < final-screenshots/manifest.txt)"
+
+      - name: Upload Combined Screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-screenshots
+          path: final-screenshots
+          retention-days: 90
+
+      - name: Create Summary
+        run: |
+          echo "## Screenshot Capture Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### iOS Screenshots" >> $GITHUB_STEP_SUMMARY
+          find final-screenshots/ios -name "*.png" | wc -l | xargs echo "Total:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Android Screenshots" >> $GITHUB_STEP_SUMMARY
+          find final-screenshots/android -name "*.png" | wc -l | xargs echo "Total:" >> $GITHUB_STEP_SUMMARY

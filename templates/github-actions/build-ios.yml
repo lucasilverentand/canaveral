@@ -1,0 +1,107 @@
+# Canaveral iOS Build Workflow
+# This workflow builds an iOS app using Canaveral
+#
+# Required secrets:
+#   - MATCH_PASSWORD: Password for certificate decryption
+#   - APP_STORE_CONNECT_API_KEY: Base64-encoded API key JSON
+#
+# Optional secrets:
+#   - APPLE_ID: Apple ID for notarization (macOS only)
+#   - APPLE_ID_PASSWORD: App-specific password
+
+name: Build iOS
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+          - profile
+
+env:
+  # Canaveral configuration
+  CANAVERAL_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+  CANAVERAL_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+
+  # Match configuration
+  MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL }}
+  MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+
+jobs:
+  build:
+    name: Build iOS
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install Canaveral
+        run: |
+          curl -fsSL https://get.canaveral.dev | sh
+          echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
+
+      - name: Check Environment
+        run: canaveral doctor
+
+      - name: Sync Certificates
+        run: |
+          canaveral match sync \
+            --profile-type ${{ inputs.build_type == 'release' && 'appstore' || 'development' }} \
+            --readonly
+
+      - name: Build iOS App
+        run: |
+          canaveral build \
+            --platform ios \
+            --profile ${{ inputs.build_type || 'debug' }} \
+            --output-format github-actions
+        env:
+          CI: true
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ inputs.build_type || 'debug' }}
+          path: |
+            build/ios/*.ipa
+            build/ios/*.app.dSYM.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload to TestFlight (Release only)
+        if: inputs.build_type == 'release' && github.ref == 'refs/heads/main'
+        run: |
+          canaveral testflight upload build/ios/*.ipa \
+            --changelog "Build from commit ${{ github.sha }}"
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+
+  notify:
+    name: Notify
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Notification
+        if: failure()
+        run: |
+          echo "Build failed! See ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

@@ -53,10 +53,10 @@ impl FrameworkRegistry {
 
     /// Create a registry with all built-in adapters
     pub fn with_builtins() -> Self {
-        let registry = Self::new();
+        let mut registry = Self::new();
 
-        // Built-in adapters will be registered here
-        // For now, return empty registry - adapters will be implemented separately
+        // Register all built-in framework adapters
+        crate::frameworks::register_all(&mut registry);
 
         registry
     }
@@ -215,6 +215,21 @@ impl FrameworkRegistry {
                     message: "No test adapter found for project".to_string(),
                 })
         }
+    }
+
+    /// Get all test adapter IDs
+    pub fn test_adapter_ids(&self) -> Vec<&str> {
+        self.test_adapters.keys().map(|s| s.as_str()).collect()
+    }
+
+    /// Get all registered test adapters (for iteration)
+    pub fn test_adapters(&self) -> Vec<&dyn TestAdapter> {
+        self.test_adapters.values().map(|a| a.as_ref()).collect()
+    }
+
+    /// Get a test adapter by ID (returns reference for runner compatibility)
+    pub fn get_test_adapter(&self, id: &str) -> Option<&dyn TestAdapter> {
+        self.test_adapters.get(id).map(|a| a.as_ref())
     }
 
     // -------------------------------------------------------------------------

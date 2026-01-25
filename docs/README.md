@@ -11,11 +11,15 @@ Named after Cape Canaveral, NASA's historic launch site, Canaveral reflects the 
 ## Features
 
 - **Multi-ecosystem support**: npm, Cargo, Python, Go, Maven, Docker
+- **Mobile app CI/CD**: Flutter, Expo, React Native, native iOS/Android, Tauri
 - **Versioning strategies**: SemVer, CalVer, Build Numbers
 - **Monorepo support**: Package discovery, dependency graph, independent/fixed versioning
+- **App Store distribution**: TestFlight, App Store Connect, Google Play, Firebase
+- **Certificate management**: Match-style sync across Git, S3, GCS, Azure
+- **Screenshot automation**: Capture and frame screenshots for app store listings
 - **Extensibility**: Hook system (12 lifecycle stages), plugin system
-- **CI/CD integration**: GitHub Actions and GitLab CI template generators
-- **Migration tools**: Migrate from semantic-release and release-please
+- **CI/CD integration**: GitHub Actions, GitLab CI, Bitrise, CircleCI, Azure Pipelines
+- **Migration tools**: Migrate from semantic-release, release-please, and fastlane
 
 ## Documentation Index
 
@@ -45,6 +49,12 @@ Named after Cape Canaveral, NASA's historic launch site, Canaveral reflects the 
 ### Guides
 - [GitHub Integration](./github-integration.md) - Complete guide to using Canaveral with GitHub
 - [GitHub Action](../action/README.md) - Official GitHub Action for simplified workflows
+
+### Mobile App Development
+- [Quick Start](./guides/mobile/quick-start.md) - Get started with mobile app CI/CD
+- [Supported Frameworks](./guides/mobile/frameworks.md) - Flutter, Expo, React Native, native, Tauri
+- [Migration from Fastlane](./guides/mobile/migration-from-fastlane.md) - Migrate your fastlane setup
+- [CI/CD Templates](../templates/README.md) - Pre-built workflow templates
 
 ### Reference
 - [Comparison](./comparison.md) - Comparison with existing tools

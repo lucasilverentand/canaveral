@@ -1,0 +1,349 @@
+# Canaveral GitLab CI Configuration
+# This is the main CI/CD configuration file for mobile app builds
+#
+# Required CI/CD Variables:
+#   - APPLE_TEAM_ID: Apple Developer Team ID
+#   - MATCH_GIT_URL: Git URL for certificate storage
+#   - MATCH_PASSWORD: Password for certificate decryption
+#   - APP_STORE_CONNECT_API_KEY: Base64-encoded API key JSON
+#   - ANDROID_KEYSTORE_BASE64: Base64-encoded keystore
+#   - ANDROID_KEYSTORE_PASSWORD: Keystore password
+#   - ANDROID_KEY_ALIAS: Key alias
+#   - ANDROID_KEY_PASSWORD: Key password
+#   - GOOGLE_PLAY_SERVICE_ACCOUNT: Base64-encoded service account JSON
+
+stages:
+  - detect
+  - build
+  - test
+  - deploy
+  - release
+
+variables:
+  # Canaveral configuration
+  CANAVERAL_TEAM_ID: $APPLE_TEAM_ID
+  CANAVERAL_BUNDLE_ID: $IOS_BUNDLE_ID
+
+  # Cache configuration
+  FLUTTER_HOME: $CI_PROJECT_DIR/.flutter
+  GRADLE_USER_HOME: $CI_PROJECT_DIR/.gradle
+
+  # Build configuration
+  BUILD_TYPE: debug
+
+# Cache templates
+.flutter_cache: &flutter_cache
+  key:
+    files:
+      - pubspec.lock
+    prefix: flutter
+  paths:
+    - .flutter/
+    - .pub-cache/
+    - build/
+
+.gradle_cache: &gradle_cache
+  key:
+    files:
+      - android/gradle/wrapper/gradle-wrapper.properties
+    prefix: gradle
+  paths:
+    - .gradle/
+    - android/.gradle/
+
+.node_cache: &node_cache
+  key:
+    files:
+      - package-lock.json
+      - yarn.lock
+    prefix: node
+  paths:
+    - node_modules/
+
+# Job templates
+.install_canaveral: &install_canaveral
+  - curl -fsSL https://get.canaveral.dev | sh
+  - export PATH="$HOME/.canaveral/bin:$PATH"
+
+.setup_flutter: &setup_flutter
+  - git clone https://github.com/flutter/flutter.git -b stable $FLUTTER_HOME || true
+  - export PATH="$FLUTTER_HOME/bin:$PATH"
+  - flutter --version
+  - flutter pub get
+
+# ============================================
+# Detection Stage
+# ============================================
+
+detect-framework:
+  stage: detect
+  image: ubuntu:22.04
+  script:
+    - apt-get update && apt-get install -y curl jq
+    - *install_canaveral
+    - |
+      RESULT=$(canaveral status --format json)
+      FRAMEWORK=$(echo "$RESULT" | jq -r '.framework // "unknown"')
+      HAS_IOS=$(echo "$RESULT" | jq -r '.platforms.ios // false')
+      HAS_ANDROID=$(echo "$RESULT" | jq -r '.platforms.android // false')
+
+      echo "FRAMEWORK=$FRAMEWORK" >> detect.env
+      echo "HAS_IOS=$HAS_IOS" >> detect.env
+      echo "HAS_ANDROID=$HAS_ANDROID" >> detect.env
+
+      echo "Detected: framework=$FRAMEWORK, ios=$HAS_IOS, android=$HAS_ANDROID"
+  artifacts:
+    reports:
+      dotenv: detect.env
+
+# ============================================
+# Build Stage
+# ============================================
+
+build-ios:
+  stage: build
+  tags:
+    - macos
+    - xcode
+  needs:
+    - detect-framework
+  rules:
+    - if: $HAS_IOS == "true"
+  variables:
+    MATCH_GIT_URL: $MATCH_GIT_URL
+    MATCH_PASSWORD: $MATCH_PASSWORD
+  cache:
+    <<: *flutter_cache
+  script:
+    - *install_canaveral
+    - *setup_flutter
+    - |
+      # Sync certificates
+      canaveral match sync \
+        --profile-type ${BUILD_TYPE == "release" ? "appstore" : "development"} \
+        --readonly
+    - |
+      # Build iOS
+      canaveral build \
+        --platform ios \
+        --profile $BUILD_TYPE \
+        --output-format gitlab-ci
+  artifacts:
+    paths:
+      - build/ios/*.ipa
+      - build/ios/*.app.dSYM.zip
+    expire_in: 2 weeks
+
+build-android:
+  stage: build
+  image: cimg/android:2024.01
+  needs:
+    - detect-framework
+  rules:
+    - if: $HAS_ANDROID == "true"
+  cache:
+    - <<: *flutter_cache
+    - <<: *gradle_cache
+  before_script:
+    - |
+      if [ "$BUILD_TYPE" = "release" ]; then
+        echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+      fi
+  script:
+    - *install_canaveral
+    - *setup_flutter
+    - |
+      canaveral build \
+        --platform android \
+        --profile $BUILD_TYPE \
+        --output-format gitlab-ci
+  artifacts:
+    paths:
+      - build/android/*.apk
+      - build/android/*.aab
+    expire_in: 2 weeks
+
+# ============================================
+# Test Stage
+# ============================================
+
+test-unit:
+  stage: test
+  image: ubuntu:22.04
+  needs:
+    - detect-framework
+  cache:
+    <<: *flutter_cache
+  script:
+    - *install_canaveral
+    - *setup_flutter
+    - canaveral test --type unit --output-format junit
+  artifacts:
+    reports:
+      junit: test-results/*.xml
+    when: always
+
+test-integration-ios:
+  stage: test
+  tags:
+    - macos
+    - xcode
+  needs:
+    - build-ios
+  rules:
+    - if: $HAS_IOS == "true" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  cache:
+    <<: *flutter_cache
+  script:
+    - *install_canaveral
+    - *setup_flutter
+    - |
+      # Boot simulator
+      xcrun simctl boot "iPhone 15 Pro" || true
+    - canaveral test --type integration --platform ios --output-format junit
+  artifacts:
+    reports:
+      junit: test-results/*.xml
+    when: always
+
+test-integration-android:
+  stage: test
+  image: cimg/android:2024.01
+  needs:
+    - build-android
+  rules:
+    - if: $HAS_ANDROID == "true" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  services:
+    - name: budtmo/docker-android:emulator_14.0
+      alias: android-emulator
+  cache:
+    - <<: *flutter_cache
+    - <<: *gradle_cache
+  variables:
+    ANDROID_EMULATOR_HOST: android-emulator
+  script:
+    - *install_canaveral
+    - *setup_flutter
+    - |
+      # Wait for emulator
+      adb connect $ANDROID_EMULATOR_HOST:5555
+      adb wait-for-device
+    - canaveral test --type integration --platform android --output-format junit
+  artifacts:
+    reports:
+      junit: test-results/*.xml
+    when: always
+
+# ============================================
+# Deploy Stage
+# ============================================
+
+deploy-testflight:
+  stage: deploy
+  tags:
+    - macos
+  needs:
+    - build-ios
+    - test-unit
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $BUILD_TYPE == "release"
+  variables:
+    APP_STORE_CONNECT_API_KEY: $APP_STORE_CONNECT_API_KEY
+  script:
+    - *install_canaveral
+    - |
+      canaveral testflight upload build/ios/*.ipa \
+        --changelog "Build from commit $CI_COMMIT_SHORT_SHA"
+
+deploy-play-internal:
+  stage: deploy
+  image: ubuntu:22.04
+  needs:
+    - build-android
+    - test-unit
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $BUILD_TYPE == "release"
+  variables:
+    GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: $GOOGLE_PLAY_SERVICE_ACCOUNT
+  script:
+    - *install_canaveral
+    - |
+      canaveral store upload android \
+        --artifact build/android/*.aab \
+        --track internal
+
+# ============================================
+# Release Stage
+# ============================================
+
+create-release:
+  stage: release
+  image: ubuntu:22.04
+  needs:
+    - deploy-testflight
+    - deploy-play-internal
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+  script:
+    - apt-get update && apt-get install -y curl git
+    - *install_canaveral
+    - |
+      # Configure git
+      git config user.name "GitLab CI"
+      git config user.email "ci@gitlab.com"
+    - |
+      # Create release
+      VERSION=${CI_COMMIT_TAG#v}
+      canaveral release \
+        --version $VERSION \
+        --tag $CI_COMMIT_TAG
+    - |
+      # Create GitLab release
+      curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
+           --header "Content-Type: application/json" \
+           --data "{
+             \"name\": \"Release $VERSION\",
+             \"tag_name\": \"$CI_COMMIT_TAG\",
+             \"description\": \"$(canaveral changelog --unreleased --format markdown)\"
+           }" \
+           "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases"
+
+# ============================================
+# Manual Jobs
+# ============================================
+
+.manual-release:
+  stage: release
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+release-beta:
+  extends: .manual-release
+  tags:
+    - macos
+  script:
+    - *install_canaveral
+    - |
+      # Calculate next version
+      VERSION=$(canaveral version --bump minor --prerelease beta --format json | jq -r '.next')
+
+      # Build both platforms
+      canaveral build --platform ios --profile release
+      canaveral build --platform android --profile release
+
+      # Upload to beta channels
+      canaveral testflight upload build/ios/*.ipa
+      canaveral store upload android --artifact build/android/*.aab --track beta
+
+release-production:
+  extends: .manual-release
+  tags:
+    - macos
+  script:
+    - *install_canaveral
+    - |
+      # This should only promote existing beta builds
+      # Actual production release requires additional approval
+      echo "Production release requires manual approval in App Store Connect and Google Play Console"
+      echo "Use 'canaveral store promote' after builds are approved"

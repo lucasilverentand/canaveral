@@ -3,19 +3,21 @@
 //! Each framework adapter knows how to detect, build, test, and manage versions
 //! for a specific framework (Flutter, Expo, React Native, native, etc.).
 
-pub mod flutter;
 pub mod expo;
-pub mod react_native;
-pub mod native_ios;
+pub mod flutter;
+pub mod flutter_test;
 pub mod native_android;
+pub mod native_ios;
+pub mod react_native;
 pub mod tauri;
 
 // Re-export adapters
-pub use flutter::FlutterAdapter;
 pub use expo::ExpoAdapter;
-pub use react_native::ReactNativeAdapter;
-pub use native_ios::NativeIosAdapter;
+pub use flutter::FlutterAdapter;
+pub use flutter_test::FlutterTestAdapter;
 pub use native_android::NativeAndroidAdapter;
+pub use native_ios::NativeIosAdapter;
+pub use react_native::ReactNativeAdapter;
 pub use tauri::TauriAdapter;
 
 use crate::registry::FrameworkRegistry;
@@ -29,4 +31,7 @@ pub fn register_all(registry: &mut FrameworkRegistry) {
     registry.register_build(TauriAdapter::new());
     registry.register_build(NativeIosAdapter::new());
     registry.register_build(NativeAndroidAdapter::new());
+
+    // Test adapters
+    registry.register_test(FlutterTestAdapter::new());
 }

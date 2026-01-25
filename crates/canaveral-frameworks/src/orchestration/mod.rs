@@ -344,6 +344,13 @@ mod tests {
     #[test]
     fn test_orchestrator_creation() {
         let orchestrator = Orchestrator::new();
+        // Orchestrator::new() uses FrameworkRegistry::with_builtins() which registers default adapters
+        assert!(!orchestrator.registry().build_adapter_ids().is_empty());
+    }
+
+    #[test]
+    fn test_orchestrator_with_empty_registry() {
+        let orchestrator = Orchestrator::with_registry(crate::FrameworkRegistry::new());
         assert!(orchestrator.registry().build_adapter_ids().is_empty());
     }
 

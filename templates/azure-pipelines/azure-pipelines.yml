@@ -1,0 +1,448 @@
+# Canaveral Azure Pipelines Configuration
+# This pipeline builds iOS and Android apps using Canaveral
+#
+# Required Pipeline Variables:
+#   - APPLE_TEAM_ID: Apple Developer Team ID
+#   - MATCH_GIT_URL: Git URL for certificate storage
+#   - MATCH_PASSWORD: Password for certificate decryption (secret)
+#   - APP_STORE_CONNECT_API_KEY: Base64-encoded API key JSON (secret)
+#   - ANDROID_KEYSTORE_BASE64: Base64-encoded keystore (secret)
+#   - ANDROID_KEYSTORE_PASSWORD: Keystore password (secret)
+#   - ANDROID_KEY_ALIAS: Key alias
+#   - ANDROID_KEY_PASSWORD: Key password (secret)
+#   - GOOGLE_PLAY_SERVICE_ACCOUNT: Base64-encoded service account JSON (secret)
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - release/*
+  tags:
+    include:
+      - v*
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+parameters:
+  - name: buildType
+    displayName: Build Type
+    type: string
+    default: debug
+    values:
+      - debug
+      - release
+
+  - name: platforms
+    displayName: Platforms
+    type: string
+    default: all
+    values:
+      - all
+      - ios
+      - android
+
+variables:
+  - name: CANAVERAL_TEAM_ID
+    value: $(APPLE_TEAM_ID)
+  - name: flutterVersion
+    value: 'stable'
+  - name: javaVersion
+    value: '17'
+  - name: xcodeVersion
+    value: '15.2'
+
+stages:
+  # ============================================
+  # Detection Stage
+  # ============================================
+  - stage: Detect
+    displayName: Detect Framework
+    jobs:
+      - job: DetectFramework
+        displayName: Detect Framework
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: Bash@3
+            displayName: Install Canaveral
+            inputs:
+              targetType: inline
+              script: |
+                curl -fsSL https://get.canaveral.dev | sh
+                echo "##vso[task.prependpath]$HOME/.canaveral/bin"
+
+          - task: Bash@3
+            name: detect
+            displayName: Detect Framework
+            inputs:
+              targetType: inline
+              script: |
+                RESULT=$(canaveral status --format json)
+                FRAMEWORK=$(echo "$RESULT" | jq -r '.framework // "unknown"')
+                HAS_IOS=$(echo "$RESULT" | jq -r '.platforms.ios // false')
+                HAS_ANDROID=$(echo "$RESULT" | jq -r '.platforms.android // false')
+
+                echo "##vso[task.setvariable variable=framework;isOutput=true]$FRAMEWORK"
+                echo "##vso[task.setvariable variable=hasIos;isOutput=true]$HAS_IOS"
+                echo "##vso[task.setvariable variable=hasAndroid;isOutput=true]$HAS_ANDROID"
+
+                echo "Detected: framework=$FRAMEWORK, ios=$HAS_IOS, android=$HAS_ANDROID"
+
+  # ============================================
+  # Build Stage
+  # ============================================
+  - stage: Build
+    displayName: Build
+    dependsOn: Detect
+    variables:
+      framework: $[ stageDependencies.Detect.DetectFramework.outputs['detect.framework'] ]
+      hasIos: $[ stageDependencies.Detect.DetectFramework.outputs['detect.hasIos'] ]
+      hasAndroid: $[ stageDependencies.Detect.DetectFramework.outputs['detect.hasAndroid'] ]
+    jobs:
+      # iOS Build Job
+      - job: BuildIOS
+        displayName: Build iOS
+        condition: and(succeeded(), or(eq('${{ parameters.platforms }}', 'all'), eq('${{ parameters.platforms }}', 'ios')), eq(variables.hasIos, 'true'))
+        pool:
+          vmImage: 'macos-14'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: UseRubyVersion@0
+            displayName: Setup Ruby
+            inputs:
+              versionSpec: '>= 3.0'
+
+          - task: Bash@3
+            displayName: Setup Xcode
+            inputs:
+              targetType: inline
+              script: |
+                sudo xcode-select -s /Applications/Xcode_$(xcodeVersion).app
+
+          - task: FlutterInstall@0
+            displayName: Install Flutter
+            inputs:
+              mode: 'auto'
+              channel: 'stable'
+
+          - task: Bash@3
+            displayName: Install Canaveral
+            inputs:
+              targetType: inline
+              script: |
+                curl -fsSL https://get.canaveral.dev | sh
+                echo "##vso[task.prependpath]$HOME/.canaveral/bin"
+
+          - task: Bash@3
+            displayName: Install Dependencies
+            inputs:
+              targetType: inline
+              script: |
+                if [ -f "pubspec.yaml" ]; then
+                  flutter pub get
+                elif [ -f "package.json" ]; then
+                  npm ci
+                fi
+
+          - task: Bash@3
+            displayName: Sync Certificates
+            inputs:
+              targetType: inline
+              script: |
+                PROFILE_TYPE=$([[ "${{ parameters.buildType }}" == "release" ]] && echo "appstore" || echo "development")
+                canaveral match sync --profile-type $PROFILE_TYPE --readonly
+            env:
+              MATCH_GIT_URL: $(MATCH_GIT_URL)
+              MATCH_PASSWORD: $(MATCH_PASSWORD)
+
+          - task: Bash@3
+            displayName: Build iOS
+            inputs:
+              targetType: inline
+              script: |
+                canaveral build \
+                  --platform ios \
+                  --profile ${{ parameters.buildType }} \
+                  --output-format text
+            env:
+              CI: true
+
+          - task: CopyFiles@2
+            displayName: Copy Artifacts
+            inputs:
+              sourceFolder: 'build/ios'
+              contents: |
+                **/*.ipa
+                **/*.app.dSYM.zip
+              targetFolder: '$(Build.ArtifactStagingDirectory)/ios'
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish iOS Artifacts
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)/ios'
+              artifactName: 'ios-${{ parameters.buildType }}'
+
+      # Android Build Job
+      - job: BuildAndroid
+        displayName: Build Android
+        condition: and(succeeded(), or(eq('${{ parameters.platforms }}', 'all'), eq('${{ parameters.platforms }}', 'android')), eq(variables.hasAndroid, 'true'))
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: JavaToolInstaller@0
+            displayName: Setup Java
+            inputs:
+              versionSpec: '$(javaVersion)'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
+
+          - task: FlutterInstall@0
+            displayName: Install Flutter
+            inputs:
+              mode: 'auto'
+              channel: 'stable'
+
+          - task: Bash@3
+            displayName: Install Canaveral
+            inputs:
+              targetType: inline
+              script: |
+                curl -fsSL https://get.canaveral.dev | sh
+                echo "##vso[task.prependpath]$HOME/.canaveral/bin"
+
+          - task: Bash@3
+            displayName: Install Dependencies
+            inputs:
+              targetType: inline
+              script: |
+                if [ -f "pubspec.yaml" ]; then
+                  flutter pub get
+                elif [ -f "package.json" ]; then
+                  npm ci
+                fi
+
+          - task: Bash@3
+            displayName: Decode Keystore
+            condition: eq('${{ parameters.buildType }}', 'release')
+            inputs:
+              targetType: inline
+              script: |
+                echo "$(ANDROID_KEYSTORE_BASE64)" | base64 -d > android/app/release.keystore
+
+          - task: Bash@3
+            displayName: Build Android
+            inputs:
+              targetType: inline
+              script: |
+                canaveral build \
+                  --platform android \
+                  --profile ${{ parameters.buildType }} \
+                  --output-format text
+            env:
+              CI: true
+              ANDROID_KEYSTORE_PASSWORD: $(ANDROID_KEYSTORE_PASSWORD)
+              ANDROID_KEY_ALIAS: $(ANDROID_KEY_ALIAS)
+              ANDROID_KEY_PASSWORD: $(ANDROID_KEY_PASSWORD)
+
+          - task: CopyFiles@2
+            displayName: Copy Artifacts
+            inputs:
+              sourceFolder: 'build/android'
+              contents: |
+                **/*.apk
+                **/*.aab
+              targetFolder: '$(Build.ArtifactStagingDirectory)/android'
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish Android Artifacts
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)/android'
+              artifactName: 'android-${{ parameters.buildType }}'
+
+  # ============================================
+  # Test Stage
+  # ============================================
+  - stage: Test
+    displayName: Test
+    dependsOn: Detect
+    variables:
+      framework: $[ stageDependencies.Detect.DetectFramework.outputs['detect.framework'] ]
+    jobs:
+      - job: UnitTests
+        displayName: Unit Tests
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: FlutterInstall@0
+            displayName: Install Flutter
+            inputs:
+              mode: 'auto'
+              channel: 'stable'
+
+          - task: Bash@3
+            displayName: Install Canaveral
+            inputs:
+              targetType: inline
+              script: |
+                curl -fsSL https://get.canaveral.dev | sh
+                echo "##vso[task.prependpath]$HOME/.canaveral/bin"
+
+          - task: Bash@3
+            displayName: Install Dependencies
+            inputs:
+              targetType: inline
+              script: |
+                if [ -f "pubspec.yaml" ]; then
+                  flutter pub get
+                fi
+
+          - task: Bash@3
+            displayName: Run Unit Tests
+            inputs:
+              targetType: inline
+              script: |
+                canaveral test --type unit --output-format junit
+
+          - task: PublishTestResults@2
+            displayName: Publish Test Results
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '**/test-results/*.xml'
+              failTaskOnFailedTests: true
+
+  # ============================================
+  # Deploy Stage
+  # ============================================
+  - stage: Deploy
+    displayName: Deploy
+    dependsOn:
+      - Build
+      - Test
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq('${{ parameters.buildType }}', 'release'))
+    jobs:
+      - deployment: DeployTestFlight
+        displayName: Deploy to TestFlight
+        pool:
+          vmImage: 'macos-14'
+        environment: 'testflight'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: 'ios-release'
+
+                - task: Bash@3
+                  displayName: Install Canaveral
+                  inputs:
+                    targetType: inline
+                    script: |
+                      curl -fsSL https://get.canaveral.dev | sh
+                      echo "##vso[task.prependpath]$HOME/.canaveral/bin"
+
+                - task: Bash@3
+                  displayName: Upload to TestFlight
+                  inputs:
+                    targetType: inline
+                    script: |
+                      IPA_PATH=$(find $(Pipeline.Workspace)/ios-release -name "*.ipa" | head -1)
+                      canaveral testflight upload "$IPA_PATH" \
+                        --changelog "Build $(Build.BuildNumber) from $(Build.SourceBranchName)"
+                  env:
+                    APP_STORE_CONNECT_API_KEY: $(APP_STORE_CONNECT_API_KEY)
+
+      - deployment: DeployPlayStore
+        displayName: Deploy to Play Store
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'play-store-internal'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: 'android-release'
+
+                - task: Bash@3
+                  displayName: Install Canaveral
+                  inputs:
+                    targetType: inline
+                    script: |
+                      curl -fsSL https://get.canaveral.dev | sh
+                      echo "##vso[task.prependpath]$HOME/.canaveral/bin"
+
+                - task: Bash@3
+                  displayName: Upload to Play Store
+                  inputs:
+                    targetType: inline
+                    script: |
+                      AAB_PATH=$(find $(Pipeline.Workspace)/android-release -name "*.aab" | head -1)
+                      canaveral store upload android \
+                        --artifact "$AAB_PATH" \
+                        --track internal
+                  env:
+                    GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: $(GOOGLE_PLAY_SERVICE_ACCOUNT)
+
+  # ============================================
+  # Release Stage
+  # ============================================
+  - stage: Release
+    displayName: Create Release
+    dependsOn: Deploy
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    jobs:
+      - job: CreateRelease
+        displayName: Create GitHub Release
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - download: current
+
+          - task: Bash@3
+            displayName: Install Canaveral
+            inputs:
+              targetType: inline
+              script: |
+                curl -fsSL https://get.canaveral.dev | sh
+                echo "##vso[task.prependpath]$HOME/.canaveral/bin"
+
+          - task: Bash@3
+            displayName: Generate Changelog
+            inputs:
+              targetType: inline
+              script: |
+                canaveral changelog --unreleased --format markdown > $(Build.ArtifactStagingDirectory)/CHANGELOG.md
+
+          - task: GitHubRelease@1
+            displayName: Create GitHub Release
+            inputs:
+              gitHubConnection: 'github-connection'
+              repositoryName: '$(Build.Repository.Name)'
+              action: 'create'
+              target: '$(Build.SourceVersion)'
+              tagSource: 'gitTag'
+              releaseNotesFilePath: '$(Build.ArtifactStagingDirectory)/CHANGELOG.md'
+              assets: |
+                $(Pipeline.Workspace)/ios-release/**/*.ipa
+                $(Pipeline.Workspace)/android-release/**/*.aab
+              isDraft: false
+              isPreRelease: false

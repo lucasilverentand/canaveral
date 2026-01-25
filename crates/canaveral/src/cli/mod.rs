@@ -6,8 +6,9 @@ pub mod output;
 use clap::{Parser, Subcommand};
 
 use commands::{
-    ChangelogCommand, InitCommand, MetadataCommand, ReleaseCommand, SigningCommand, StatusCommand,
-    StoreCommand, ValidateCommand, VersionCommand,
+    BuildCommand, ChangelogCommand, CompletionsCommand, DoctorCommand, FirebaseCommand,
+    InitCommand, MatchCommand, MetadataCommand, ReleaseCommand, ScreenshotsCommand, SigningCommand,
+    StatusCommand, StoreCommand, TestCommand, TestFlightCommand, ValidateCommand, VersionCommand,
 };
 
 /// Canaveral - Universal release management CLI
@@ -75,6 +76,30 @@ pub enum Commands {
 
     /// App store metadata management
     Metadata(MetadataCommand),
+
+    /// Build project for a platform
+    Build(BuildCommand),
+
+    /// Generate shell completions
+    Completions(CompletionsCommand),
+
+    /// Check environment for required tools and configurations
+    Doctor(DoctorCommand),
+
+    /// TestFlight beta testing management
+    TestFlight(TestFlightCommand),
+
+    /// Firebase App Distribution management
+    Firebase(FirebaseCommand),
+
+    /// Run tests for a project
+    Test(TestCommand),
+
+    /// Screenshot capture and framing
+    Screenshots(ScreenshotsCommand),
+
+    /// Certificate and profile synchronization (match)
+    Match(MatchCommand),
 }
 
 impl Cli {
@@ -95,6 +120,14 @@ impl Cli {
             Commands::Signing(ref cmd) => cmd.execute(&self),
             Commands::Store(ref cmd) => cmd.execute(&self),
             Commands::Metadata(ref cmd) => cmd.execute(&self),
+            Commands::Build(ref cmd) => cmd.execute(&self),
+            Commands::Completions(ref cmd) => cmd.execute(&self),
+            Commands::Doctor(ref cmd) => cmd.execute(&self),
+            Commands::TestFlight(ref cmd) => cmd.execute(&self),
+            Commands::Firebase(ref cmd) => cmd.execute(&self),
+            Commands::Test(ref cmd) => cmd.execute(&self),
+            Commands::Screenshots(ref cmd) => cmd.execute(&self),
+            Commands::Match(ref cmd) => cmd.execute(&self),
         }
     }
 }

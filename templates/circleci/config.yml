@@ -1,0 +1,459 @@
+# Canaveral CircleCI Configuration
+# This configuration builds iOS and Android apps using Canaveral
+#
+# Required Environment Variables:
+#   - APPLE_TEAM_ID: Apple Developer Team ID
+#   - MATCH_GIT_URL: Git URL for certificate storage
+#   - MATCH_PASSWORD: Password for certificate decryption
+#   - APP_STORE_CONNECT_API_KEY: Base64-encoded API key JSON
+#   - ANDROID_KEYSTORE_BASE64: Base64-encoded keystore
+#   - ANDROID_KEYSTORE_PASSWORD: Keystore password
+#   - ANDROID_KEY_ALIAS: Key alias
+#   - ANDROID_KEY_PASSWORD: Key password
+#   - GOOGLE_PLAY_SERVICE_ACCOUNT: Base64-encoded service account JSON
+
+version: 2.1
+
+orbs:
+  flutter: circleci/flutter@2.0
+  android: circleci/android@2.4
+  macos: circleci/macos@2.4
+
+# ============================================
+# Parameters
+# ============================================
+parameters:
+  build_type:
+    type: enum
+    enum: [debug, release]
+    default: debug
+  run_ios:
+    type: boolean
+    default: true
+  run_android:
+    type: boolean
+    default: true
+
+# ============================================
+# Commands
+# ============================================
+commands:
+  install-canaveral:
+    description: Install Canaveral CLI
+    steps:
+      - run:
+          name: Install Canaveral
+          command: |
+            curl -fsSL https://get.canaveral.dev | sh
+            echo 'export PATH="$HOME/.canaveral/bin:$PATH"' >> "$BASH_ENV"
+
+  setup-flutter:
+    description: Setup Flutter SDK
+    steps:
+      - flutter/install_sdk_and_pub:
+          version: stable
+      - run:
+          name: Flutter Doctor
+          command: flutter doctor -v
+
+  sync-certificates:
+    description: Sync iOS certificates using match
+    parameters:
+      profile_type:
+        type: enum
+        enum: [development, appstore, adhoc]
+        default: development
+    steps:
+      - run:
+          name: Sync Certificates
+          command: |
+            canaveral match sync \
+              --profile-type << parameters.profile_type >> \
+              --readonly
+
+  decode-keystore:
+    description: Decode Android keystore
+    steps:
+      - run:
+          name: Decode Keystore
+          command: |
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+
+  build-ios:
+    description: Build iOS app
+    parameters:
+      profile:
+        type: enum
+        enum: [debug, release, profile]
+        default: debug
+    steps:
+      - run:
+          name: Build iOS
+          command: |
+            canaveral build \
+              --platform ios \
+              --profile << parameters.profile >> \
+              --output-format text
+          no_output_timeout: 30m
+
+  build-android:
+    description: Build Android app
+    parameters:
+      profile:
+        type: enum
+        enum: [debug, release]
+        default: debug
+    steps:
+      - run:
+          name: Build Android
+          command: |
+            canaveral build \
+              --platform android \
+              --profile << parameters.profile >> \
+              --output-format text
+          no_output_timeout: 20m
+
+  run-tests:
+    description: Run tests
+    parameters:
+      type:
+        type: enum
+        enum: [unit, integration, e2e]
+        default: unit
+    steps:
+      - run:
+          name: Run << parameters.type >> tests
+          command: |
+            canaveral test \
+              --type << parameters.type >> \
+              --output-format junit
+      - store_test_results:
+          path: test-results
+
+  upload-testflight:
+    description: Upload to TestFlight
+    steps:
+      - run:
+          name: Upload to TestFlight
+          command: |
+            IPA_PATH=$(find build/ios -name "*.ipa" | head -1)
+            canaveral testflight upload "$IPA_PATH" \
+              --changelog "Build #${CIRCLE_BUILD_NUM} from ${CIRCLE_BRANCH}"
+
+  upload-play-store:
+    description: Upload to Google Play Store
+    parameters:
+      track:
+        type: enum
+        enum: [internal, alpha, beta, production]
+        default: internal
+    steps:
+      - run:
+          name: Upload to Google Play
+          command: |
+            AAB_PATH=$(find build/android -name "*.aab" | head -1)
+            canaveral store upload android \
+              --artifact "$AAB_PATH" \
+              --track << parameters.track >>
+
+# ============================================
+# Jobs
+# ============================================
+jobs:
+  detect-framework:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - install-canaveral
+      - run:
+          name: Detect Framework
+          command: |
+            RESULT=$(canaveral status --format json)
+            echo "export FRAMEWORK=$(echo $RESULT | jq -r '.framework // \"unknown\"')" >> "$BASH_ENV"
+            echo "export HAS_IOS=$(echo $RESULT | jq -r '.platforms.ios // false')" >> "$BASH_ENV"
+            echo "export HAS_ANDROID=$(echo $RESULT | jq -r '.platforms.android // false')" >> "$BASH_ENV"
+            canaveral status
+
+  build-ios-debug:
+    macos:
+      xcode: "15.2.0"
+    resource_class: macos.m1.medium.gen1
+    environment:
+      CANAVERAL_TEAM_ID: << pipeline.parameters.APPLE_TEAM_ID >>
+    steps:
+      - checkout
+      - install-canaveral
+      - setup-flutter
+      - sync-certificates:
+          profile_type: development
+      - build-ios:
+          profile: debug
+      - persist_to_workspace:
+          root: build
+          paths:
+            - ios/*.app
+      - store_artifacts:
+          path: build/ios
+
+  build-ios-release:
+    macos:
+      xcode: "15.2.0"
+    resource_class: macos.m1.large.gen1
+    environment:
+      CANAVERAL_TEAM_ID: << pipeline.parameters.APPLE_TEAM_ID >>
+    steps:
+      - checkout
+      - install-canaveral
+      - setup-flutter
+      - sync-certificates:
+          profile_type: appstore
+      - build-ios:
+          profile: release
+      - persist_to_workspace:
+          root: build
+          paths:
+            - ios/*.ipa
+            - ios/*.app.dSYM.zip
+      - store_artifacts:
+          path: build/ios
+
+  build-android-debug:
+    docker:
+      - image: cimg/android:2024.01
+    resource_class: large
+    steps:
+      - checkout
+      - install-canaveral
+      - setup-flutter
+      - build-android:
+          profile: debug
+      - persist_to_workspace:
+          root: build
+          paths:
+            - android/*.apk
+      - store_artifacts:
+          path: build/android
+
+  build-android-release:
+    docker:
+      - image: cimg/android:2024.01
+    resource_class: large
+    steps:
+      - checkout
+      - install-canaveral
+      - setup-flutter
+      - decode-keystore
+      - build-android:
+          profile: release
+      - persist_to_workspace:
+          root: build
+          paths:
+            - android/*.aab
+            - android/*.apk
+      - store_artifacts:
+          path: build/android
+
+  test-unit:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - install-canaveral
+      - setup-flutter
+      - run-tests:
+          type: unit
+
+  test-integration-ios:
+    macos:
+      xcode: "15.2.0"
+    resource_class: macos.m1.medium.gen1
+    steps:
+      - checkout
+      - install-canaveral
+      - setup-flutter
+      - attach_workspace:
+          at: build
+      - run:
+          name: Boot Simulator
+          command: |
+            xcrun simctl boot "iPhone 15 Pro" || true
+            xcrun simctl bootstatus "iPhone 15 Pro" -b
+      - run-tests:
+          type: integration
+
+  deploy-testflight:
+    macos:
+      xcode: "15.2.0"
+    resource_class: macos.m1.medium.gen1
+    steps:
+      - checkout
+      - install-canaveral
+      - attach_workspace:
+          at: build
+      - upload-testflight
+
+  deploy-play-internal:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - install-canaveral
+      - attach_workspace:
+          at: build
+      - upload-play-store:
+          track: internal
+
+  create-release:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - install-canaveral
+      - attach_workspace:
+          at: build
+      - run:
+          name: Create Release
+          command: |
+            VERSION=${CIRCLE_TAG#v}
+            canaveral release \
+              --version $VERSION \
+              --tag $CIRCLE_TAG
+      - run:
+          name: Generate Changelog
+          command: |
+            canaveral changelog --unreleased --format markdown > RELEASE_NOTES.md
+      - store_artifacts:
+          path: RELEASE_NOTES.md
+
+# ============================================
+# Workflows
+# ============================================
+workflows:
+  version: 2
+
+  # PR and branch builds
+  build-and-test:
+    jobs:
+      - detect-framework:
+          filters:
+            tags:
+              ignore: /^v.*/
+
+      - build-ios-debug:
+          requires:
+            - detect-framework
+          filters:
+            branches:
+              ignore: main
+
+      - build-android-debug:
+          requires:
+            - detect-framework
+          filters:
+            branches:
+              ignore: main
+
+      - test-unit:
+          requires:
+            - detect-framework
+
+  # Main branch builds
+  main-branch:
+    jobs:
+      - detect-framework:
+          filters:
+            branches:
+              only: main
+
+      - build-ios-release:
+          requires:
+            - detect-framework
+
+      - build-android-release:
+          requires:
+            - detect-framework
+
+      - test-unit:
+          requires:
+            - detect-framework
+
+      - deploy-testflight:
+          requires:
+            - build-ios-release
+            - test-unit
+
+      - deploy-play-internal:
+          requires:
+            - build-android-release
+            - test-unit
+
+  # Release workflow (tags)
+  release:
+    jobs:
+      - build-ios-release:
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+.*/
+            branches:
+              ignore: /.*/
+
+      - build-android-release:
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+.*/
+            branches:
+              ignore: /.*/
+
+      - test-unit:
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+.*/
+            branches:
+              ignore: /.*/
+
+      - deploy-testflight:
+          requires:
+            - build-ios-release
+            - test-unit
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+.*/
+            branches:
+              ignore: /.*/
+
+      - deploy-play-internal:
+          requires:
+            - build-android-release
+            - test-unit
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+.*/
+            branches:
+              ignore: /.*/
+
+      - create-release:
+          requires:
+            - deploy-testflight
+            - deploy-play-internal
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+.*/
+            branches:
+              ignore: /.*/
+
+  # Scheduled nightly builds
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 2 * * *"
+          filters:
+            branches:
+              only: main
+    jobs:
+      - build-ios-release
+      - build-android-release
+      - test-unit
+      - test-integration-ios:
+          requires:
+            - build-ios-release

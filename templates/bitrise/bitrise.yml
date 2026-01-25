@@ -1,0 +1,410 @@
+# Canaveral Bitrise Configuration
+# This workflow configuration builds iOS and Android apps using Canaveral
+#
+# Required Secrets:
+#   - APPLE_TEAM_ID: Apple Developer Team ID
+#   - MATCH_GIT_URL: Git URL for certificate storage
+#   - MATCH_PASSWORD: Password for certificate decryption
+#   - APP_STORE_CONNECT_API_KEY: Base64-encoded API key JSON
+#   - ANDROID_KEYSTORE_BASE64: Base64-encoded keystore
+#   - ANDROID_KEYSTORE_PASSWORD: Keystore password
+#   - ANDROID_KEY_ALIAS: Key alias
+#   - ANDROID_KEY_PASSWORD: Key password
+#   - GOOGLE_PLAY_SERVICE_ACCOUNT: Base64-encoded service account JSON
+
+format_version: "13"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+project_type: flutter
+
+app:
+  envs:
+    - CANAVERAL_TEAM_ID: $APPLE_TEAM_ID
+    - CANAVERAL_BUNDLE_ID: $IOS_BUNDLE_ID
+
+trigger_map:
+  - push_branch: main
+    workflow: primary
+  - push_branch: develop
+    workflow: develop
+  - pull_request_source_branch: "*"
+    workflow: pr
+  - tag: "v*"
+    workflow: release
+
+workflows:
+  # ============================================
+  # Primary Workflow (main branch)
+  # ============================================
+  primary:
+    title: Primary Build
+    description: Build and test on main branch
+    before_run:
+      - _setup
+    steps:
+      - script@1:
+          title: Build iOS Release
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+
+                # Sync certificates
+                canaveral match sync --profile-type appstore --readonly
+
+                # Build iOS
+                canaveral build \
+                  --platform ios \
+                  --profile release \
+                  --output-format text
+
+      - script@1:
+          title: Build Android Release
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+
+                # Decode keystore
+                echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+
+                # Build Android
+                canaveral build \
+                  --platform android \
+                  --profile release \
+                  --output-format text
+
+      - script@1:
+          title: Run Tests
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral test --type unit --output-format junit
+
+      - deploy-to-bitrise-io@2:
+          inputs:
+            - deploy_path: build/ios/
+            - notify_user_groups: none
+
+      - deploy-to-bitrise-io@2:
+          inputs:
+            - deploy_path: build/android/
+            - notify_user_groups: none
+
+    after_run:
+      - _deploy_testflight
+      - _deploy_play_internal
+
+  # ============================================
+  # Develop Workflow
+  # ============================================
+  develop:
+    title: Develop Build
+    description: Debug build for develop branch
+    before_run:
+      - _setup
+    steps:
+      - script@1:
+          title: Build iOS Debug
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral match sync --profile-type development --readonly
+                canaveral build --platform ios --profile debug
+
+      - script@1:
+          title: Build Android Debug
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral build --platform android --profile debug
+
+      - script@1:
+          title: Run Tests
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral test --type unit
+
+      - deploy-to-bitrise-io@2:
+          inputs:
+            - deploy_path: build/
+
+  # ============================================
+  # PR Workflow
+  # ============================================
+  pr:
+    title: Pull Request
+    description: Validate pull requests
+    before_run:
+      - _setup
+    steps:
+      - script@1:
+          title: Check Environment
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral doctor
+
+      - script@1:
+          title: Build iOS Debug
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral match sync --profile-type development --readonly
+                canaveral build --platform ios --profile debug
+
+      - script@1:
+          title: Build Android Debug
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral build --platform android --profile debug
+
+      - script@1:
+          title: Run Unit Tests
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral test --type unit --output-format junit
+
+      - custom-test-results-export@1:
+          inputs:
+            - search_pattern: "test-results/*.xml"
+            - test_name: Unit Tests
+
+  # ============================================
+  # Release Workflow
+  # ============================================
+  release:
+    title: Release Build
+    description: Full release workflow for tags
+    before_run:
+      - _setup
+    steps:
+      - script@1:
+          title: Calculate Version
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+
+                # Extract version from tag
+                VERSION=${BITRISE_GIT_TAG#v}
+                echo "Release version: $VERSION"
+
+                # Set version in project
+                canaveral version --set $VERSION
+
+                envman add --key RELEASE_VERSION --value "$VERSION"
+
+      - script@1:
+          title: Build iOS Release
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral match sync --profile-type appstore --readonly
+                canaveral build --platform ios --profile release
+
+      - script@1:
+          title: Build Android Release
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+                canaveral build --platform android --profile release
+
+      - script@1:
+          title: Run All Tests
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral test --type unit
+                # Integration tests run on simulators
+                canaveral test --type integration --platform ios || true
+
+      - deploy-to-bitrise-io@2:
+          inputs:
+            - deploy_path: build/
+            - notify_user_groups: team
+
+    after_run:
+      - _deploy_testflight
+      - _deploy_play_internal
+      - _create_github_release
+
+  # ============================================
+  # Utility Workflows
+  # ============================================
+  _setup:
+    title: Setup Environment
+    steps:
+      - activate-ssh-key@4:
+          run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+
+      - git-clone@8: {}
+
+      - flutter-installer@0:
+          inputs:
+            - version: stable
+
+      - script@1:
+          title: Install Canaveral
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                curl -fsSL https://get.canaveral.dev | sh
+                echo 'export PATH="$HOME/.canaveral/bin:$PATH"' >> ~/.bashrc
+                export PATH="$HOME/.canaveral/bin:$PATH"
+
+      - script@1:
+          title: Install Dependencies
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                if [ -f "pubspec.yaml" ]; then
+                  flutter pub get
+                elif [ -f "package.json" ]; then
+                  npm ci
+                fi
+
+  _deploy_testflight:
+    title: Deploy to TestFlight
+    steps:
+      - script@1:
+          title: Upload to TestFlight
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+
+                IPA_PATH=$(find build/ios -name "*.ipa" | head -1)
+                if [ -n "$IPA_PATH" ]; then
+                  canaveral testflight upload "$IPA_PATH" \
+                    --changelog "Build $BITRISE_BUILD_NUMBER from $BITRISE_GIT_BRANCH"
+                else
+                  echo "No IPA found, skipping TestFlight upload"
+                fi
+
+  _deploy_play_internal:
+    title: Deploy to Play Internal
+    steps:
+      - script@1:
+          title: Upload to Google Play Internal
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+
+                AAB_PATH=$(find build/android -name "*.aab" | head -1)
+                if [ -n "$AAB_PATH" ]; then
+                  canaveral store upload android \
+                    --artifact "$AAB_PATH" \
+                    --track internal
+                else
+                  echo "No AAB found, skipping Play Store upload"
+                fi
+
+  _create_github_release:
+    title: Create GitHub Release
+    steps:
+      - script@1:
+          title: Create Release
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+
+                if [ -z "$BITRISE_GIT_TAG" ]; then
+                  echo "No tag, skipping release creation"
+                  exit 0
+                fi
+
+                # Generate changelog
+                CHANGELOG=$(canaveral changelog --unreleased --format markdown)
+
+                # Create GitHub release using gh CLI or API
+                if command -v gh &> /dev/null; then
+                  gh release create "$BITRISE_GIT_TAG" \
+                    --title "Release $RELEASE_VERSION" \
+                    --notes "$CHANGELOG" \
+                    build/ios/*.ipa \
+                    build/android/*.aab
+                fi
+
+  # ============================================
+  # Manual Workflows
+  # ============================================
+  screenshots:
+    title: Capture Screenshots
+    description: Capture app store screenshots
+    before_run:
+      - _setup
+    steps:
+      - script@1:
+          title: Build Debug
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral match sync --profile-type development --readonly
+                canaveral build --platform ios --profile debug
+
+      - script@1:
+          title: Capture iOS Screenshots
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+
+                DEVICES=(
+                  "iPhone 15 Pro Max"
+                  "iPhone 15 Pro"
+                  "iPad Pro (12.9-inch)"
+                )
+
+                LOCALES=("en-US" "de-DE" "ja-JP" "es-ES" "fr-FR")
+
+                for device in "${DEVICES[@]}"; do
+                  for locale in "${LOCALES[@]}"; do
+                    echo "Capturing: $device - $locale"
+                    canaveral screenshots capture \
+                      --platform ios \
+                      --device "$device" \
+                      --locale "$locale" \
+                      --output "screenshots/ios/$device/$locale"
+                  done
+                done
+
+      - script@1:
+          title: Frame Screenshots
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                canaveral screenshots frame \
+                  --input screenshots/ios \
+                  --output screenshots/framed
+
+      - deploy-to-bitrise-io@2:
+          inputs:
+            - deploy_path: screenshots/
+            - notify_user_groups: team
+
+meta:
+  bitrise.io:
+    stack: osx-xcode-15.2.x
+    machine_type_id: g2-m1.4core

@@ -29,6 +29,8 @@ pub mod frameworks;
 pub mod orchestration;
 pub mod output;
 pub mod registry;
+pub mod screenshots;
+pub mod testing;
 pub mod traits;
 
 pub use artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
@@ -39,6 +41,13 @@ pub use error::{FrameworkError, Result};
 pub use orchestration::{BuildOrchestrator, Orchestrator, OrchestratorConfig};
 pub use output::{Output, OutputFormat};
 pub use registry::FrameworkRegistry;
+pub use screenshots::{
+    AppStoreScreenSize, DeviceConfig, DeviceManager, FrameConfig, FrameTemplate,
+    PlayStoreScreenSize, ScreenConfig, ScreenshotCapture, ScreenshotConfig, ScreenshotFramer,
+    ScreenshotResult, ScreenshotSession,
+};
+pub use testing::{ReportGenerator, TestRunner, TestRunnerConfig};
 pub use traits::{
-    BuildAdapter, DistributeAdapter, OtaAdapter, ScreenshotAdapter, TestAdapter, VersionAdapter,
+    BuildAdapter, DistributeAdapter, OtaAdapter, ScreenshotAdapter, TestAdapter, TestReport,
+    TestCase, TestStatus, TestSuite, VersionAdapter,
 };
