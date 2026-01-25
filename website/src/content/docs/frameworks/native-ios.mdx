@@ -1,0 +1,255 @@
+---
+title: Native iOS
+description: Build native iOS and macOS apps with Xcode.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Native iOS (Xcode)
+
+Canaveral supports native iOS and macOS applications built with Xcode.
+
+**Supported platforms**: iOS, macOS
+
+## Detection
+
+Canaveral detects native iOS projects by the presence of:
+- `.xcworkspace` (with CocoaPods or SPM)
+- `.xcodeproj` (standalone projects)
+
+## Build Commands
+
+### iOS Build
+
+```bash
+# Auto-detects scheme from workspace/project
+canaveral build --platform ios --profile release
+
+# Specify scheme
+canaveral build --platform ios --profile release --config scheme=MyAppRelease
+
+# Build for simulator
+canaveral build --platform ios --profile debug --config destination=simulator
+```
+
+### macOS Build
+
+```bash
+canaveral build --platform macos --profile release
+```
+
+## Project Types
+
+Canaveral supports:
+
+| Type | Description |
+|------|-------------|
+| `.xcworkspace` | Workspace with CocoaPods or Swift Package Manager |
+| `.xcodeproj` | Standalone Xcode project |
+| Swift Package Manager | Projects using SPM exclusively |
+
+## Version Management
+
+Version is read from `Info.plist`:
+
+```xml title="Info.plist"
+<key>CFBundleShortVersionString</key>
+<string>1.2.3</string>
+<key>CFBundleVersion</key>
+<string>42</string>
+```
+
+```bash
+# Show version
+canaveral version
+
+# Bump version (updates both keys)
+canaveral version --bump patch
+
+# Set specific version
+canaveral version --set 2.0.0
+
+# Only bump build number
+canaveral version --build
+```
+
+## Code Signing
+
+### Using Match (Recommended)
+
+```bash
+# Sync certificates
+canaveral match sync --profile-type appstore
+
+# Build with automatic signing
+canaveral build --platform ios --profile release
+```
+
+### Manual Signing
+
+Configure in `canaveral.toml`:
+
+```toml
+[ios.signing]
+identity = "Apple Distribution: Your Company (TEAMID)"
+provisioning_profile = "path/to/profile.mobileprovision"
+```
+
+Or use environment variables:
+
+```bash
+export CODE_SIGN_IDENTITY="Apple Distribution: Your Company (TEAMID)"
+export PROVISIONING_PROFILE_SPECIFIER="Your App Store Profile"
+```
+
+## Configuration
+
+Native iOS-specific options in `canaveral.toml`:
+
+```toml
+[ios]
+bundle_id = "com.example.myapp"
+team_id = "TEAMID123"
+
+# Xcode project/workspace (auto-detected)
+workspace = "MyApp.xcworkspace"
+# or
+project = "MyApp.xcodeproj"
+
+# Build scheme (auto-detected)
+scheme = "MyApp"
+
+# Build configuration
+configuration = "Release"
+
+# Export options
+export_method = "app-store"  # app-store, ad-hoc, development, enterprise
+
+# Destination
+destination = "generic/platform=iOS"
+
+# Additional xcodebuild args
+xcodebuild_args = ["-allowProvisioningUpdates"]
+```
+
+## Testing
+
+### XCTest
+
+```bash
+# Run unit tests
+canaveral test --type unit --platform ios
+
+# Run UI tests
+canaveral test --type integration --platform ios
+
+# Run on specific simulator
+canaveral test --type unit --platform ios --config destination="platform=iOS Simulator,name=iPhone 15 Pro"
+```
+
+## Archives and Exports
+
+### Create Archive
+
+```bash
+canaveral build --platform ios --profile release --config archive=true
+```
+
+### Export Options
+
+Control the export with export options plist:
+
+```toml title="canaveral.toml"
+[ios.export]
+method = "app-store"
+upload_bitcode = true
+compile_bitcode = true
+upload_symbols = true
+```
+
+Or provide a custom export options plist:
+
+```bash
+canaveral build --platform ios --profile release --config export_options=ExportOptions.plist
+```
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+name: iOS Build
+on: [push]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.2.app
+
+      - name: Install Canaveral
+        run: curl -fsSL https://get.canaveral.dev | sh
+
+      - name: Install CocoaPods
+        run: pod install
+        working-directory: ./ios
+
+      - name: Sync Certificates
+        run: canaveral match sync --profile-type appstore --readonly
+        env:
+          MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+
+      - name: Build
+        run: canaveral build --platform ios --profile release
+
+      - name: Upload to TestFlight
+        run: canaveral testflight upload build/ios/*.ipa
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_ISSUER: ${{ secrets.ASC_API_KEY_ISSUER }}
+          ASC_API_KEY_PATH: ${{ secrets.ASC_API_KEY_PATH }}
+```
+
+## Troubleshooting
+
+### "No scheme found"
+
+List available schemes:
+
+```bash
+xcodebuild -list -workspace MyApp.xcworkspace
+```
+
+Then specify the scheme:
+
+```bash
+canaveral build --platform ios --config scheme=MyScheme
+```
+
+### "Signing failed"
+
+Check your signing configuration:
+
+```bash
+canaveral doctor
+```
+
+Ensure certificates are synced:
+
+```bash
+canaveral match sync --profile-type development
+```
+
+### "Pod install failed"
+
+Update CocoaPods:
+
+```bash
+sudo gem install cocoapods
+pod repo update
+pod install
+```

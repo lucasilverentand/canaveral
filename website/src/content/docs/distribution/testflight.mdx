@@ -1,0 +1,54 @@
+---
+title: TestFlight
+description: Distribute iOS beta builds via TestFlight.
+---
+
+# TestFlight
+
+Distribute iOS beta builds to testers via TestFlight.
+
+## Upload
+
+```bash
+# Upload to TestFlight
+canaveral testflight upload build/ios/MyApp.ipa
+
+# With changelog
+canaveral testflight upload build/ios/MyApp.ipa --changelog "Bug fixes and improvements"
+
+# Skip waiting for processing
+canaveral testflight upload build/ios/MyApp.ipa --skip-waiting
+```
+
+## Check Status
+
+```bash
+# Check build processing status
+canaveral testflight status
+
+# Check specific build
+canaveral testflight status --build-number 42
+```
+
+## Manage Testers
+
+```bash
+# List testers
+canaveral testflight testers list
+
+# Add tester
+canaveral testflight testers add user@example.com
+
+# Add to group
+canaveral testflight testers add user@example.com --group "Beta Testers"
+
+# Remove tester
+canaveral testflight testers remove user@example.com
+```
+
+## Submit for Review
+
+```bash
+# Submit build for external testing review
+canaveral testflight submit --build-number 42 --changelog "New features"
+```

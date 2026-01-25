@@ -1,0 +1,45 @@
+---
+title: testflight
+description: Upload and manage TestFlight builds.
+---
+
+# canaveral testflight
+
+Upload builds to TestFlight and manage beta testing.
+
+## Synopsis
+
+```bash
+canaveral testflight <COMMAND> [OPTIONS]
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `upload` | Upload a build to TestFlight |
+| `status` | Check build processing status |
+| `testers` | Manage beta testers |
+| `submit` | Submit for external testing review |
+
+## Upload
+
+```bash
+canaveral testflight upload build/ios/MyApp.ipa
+canaveral testflight upload build/ios/MyApp.ipa --changelog "Bug fixes"
+```
+
+## Status
+
+```bash
+canaveral testflight status
+canaveral testflight status --build-number 42
+```
+
+## Testers
+
+```bash
+canaveral testflight testers list
+canaveral testflight testers add user@example.com
+canaveral testflight testers remove user@example.com
+```

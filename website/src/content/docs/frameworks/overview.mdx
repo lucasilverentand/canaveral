@@ -1,0 +1,141 @@
+---
+title: Framework Overview
+description: Supported frameworks and how Canaveral detects them.
+---
+
+import { Aside, Card, CardGrid } from '@astrojs/starlight/components';
+
+# Framework Overview
+
+Canaveral provides framework-agnostic build, test, and release automation. Each framework adapter auto-detects your project type and provides optimized workflows.
+
+## Supported Frameworks
+
+<CardGrid>
+  <Card title="Flutter" icon="puzzle">
+    iOS, Android, macOS, Windows, Linux, Web
+
+    **Detection**: `pubspec.yaml` with `flutter:` section
+  </Card>
+  <Card title="Expo" icon="puzzle">
+    iOS, Android
+
+    **Detection**: `app.json` with `expo` field
+  </Card>
+  <Card title="React Native" icon="puzzle">
+    iOS, Android
+
+    **Detection**: `package.json` with `react-native` dependency
+  </Card>
+  <Card title="Native iOS" icon="puzzle">
+    iOS, macOS
+
+    **Detection**: `.xcworkspace` or `.xcodeproj`
+  </Card>
+  <Card title="Native Android" icon="puzzle">
+    Android
+
+    **Detection**: `build.gradle` with `android` plugin
+  </Card>
+  <Card title="Tauri" icon="puzzle">
+    macOS, Windows, Linux
+
+    **Detection**: `src-tauri/tauri.conf.json`
+  </Card>
+</CardGrid>
+
+## Auto-Detection
+
+Canaveral automatically detects your framework based on project markers:
+
+| Framework | Detection Method | Confidence |
+|-----------|-----------------|------------|
+| Flutter | `pubspec.yaml` with `flutter:` | 95% |
+| Expo | `app.json` with `expo` field | 95% |
+| React Native | `package.json` with `react-native` | 90% |
+| Native iOS | `.xcworkspace` or `.xcodeproj` | 95% |
+| Native Android | `build.gradle` with `android` plugin | 95% |
+| Tauri | `src-tauri/tauri.conf.json` | 95% |
+
+To manually specify a framework:
+
+```bash
+canaveral build --framework flutter --platform ios
+```
+
+Or in `canaveral.toml`:
+
+```toml
+[project]
+framework = "flutter"
+```
+
+## Capability Matrix
+
+### Build Capabilities
+
+| Capability | Flutter | Expo | React Native | iOS | Android | Tauri |
+|------------|:-------:|:----:|:------------:|:---:|:-------:|:-----:|
+| iOS build | ✓ | ✓ | ✓ | ✓ | - | - |
+| Android build | ✓ | ✓ | ✓ | - | ✓ | - |
+| macOS build | ✓ | - | - | ✓ | - | ✓ |
+| Windows build | ✓ | - | - | - | - | ✓ |
+| Linux build | ✓ | - | - | - | - | ✓ |
+| Debug build | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Release build | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Build flavors | ✓ | - | - | - | ✓ | - |
+
+### Testing Capabilities
+
+| Capability | Flutter | Expo | React Native | iOS | Android | Tauri |
+|------------|:-------:|:----:|:------------:|:---:|:-------:|:-----:|
+| Unit tests | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Widget tests | ✓ | - | - | - | - | - |
+| Integration tests | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Screenshot tests | ✓ | ✓ | ✓ | ✓ | ✓ | - |
+
+### Distribution Capabilities
+
+| Capability | Flutter | Expo | React Native | iOS | Android | Tauri |
+|------------|:-------:|:----:|:------------:|:---:|:-------:|:-----:|
+| TestFlight | ✓ | ✓ | ✓ | ✓ | - | - |
+| App Store | ✓ | ✓ | ✓ | ✓ | - | - |
+| Play Store | ✓ | ✓ | ✓ | - | ✓ | - |
+| Firebase | ✓ | ✓ | ✓ | ✓ | ✓ | - |
+| OTA updates | ✓ | ✓ | ✓ | - | - | ✓ |
+
+## Common Commands
+
+All frameworks share the same command interface:
+
+```bash
+# Build
+canaveral build --platform <platform> --profile <profile>
+
+# Test
+canaveral test --type <unit|integration|e2e>
+
+# Version
+canaveral version --bump <patch|minor|major>
+
+# Upload
+canaveral testflight upload <artifact>
+canaveral store upload android --artifact <artifact>
+```
+
+<Aside type="tip">
+  The same commands work regardless of framework. Canaveral handles the framework-specific details automatically.
+</Aside>
+
+## Framework-Specific Features
+
+Each framework has unique capabilities:
+
+- **Flutter**: Widget tests, flavor-based builds, Dart analyzer
+- **Expo**: EAS Build integration, OTA updates via EAS Update
+- **React Native**: Metro bundler, CodePush OTA updates
+- **Native iOS**: Multiple schemes, CocoaPods/SPM integration
+- **Native Android**: Gradle flavors, ProGuard/R8 configuration
+- **Tauri**: Multi-platform bundles, auto-updater
+
+See the individual framework guides for detailed documentation.

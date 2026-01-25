@@ -1,0 +1,31 @@
+---
+title: Configuration File
+description: Complete reference for canaveral.toml.
+---
+
+# Configuration Reference
+
+Complete reference for the `canaveral.toml` configuration file.
+
+See [Configuration](/canaveral/getting-started/configuration/) for a detailed guide.
+
+## Sections
+
+- `[project]` - Project settings
+- `[ios]` - iOS-specific settings
+- `[android]` - Android-specific settings
+- `[build]` - Build settings
+- `[signing]` - Certificate sync settings
+- `[testflight]` - TestFlight settings
+- `[play_store]` - Google Play settings
+- `[firebase]` - Firebase settings
+- `[screenshots]` - Screenshot settings
+
+## Environment Variables
+
+Use `${VAR_NAME}` syntax for environment variable substitution:
+
+```toml
+[signing]
+password = "${MATCH_PASSWORD}"
+```

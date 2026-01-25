@@ -1,0 +1,46 @@
+---
+title: CI/CD Overview
+description: Integrate Canaveral with your CI/CD pipeline.
+---
+
+# CI/CD Overview
+
+Canaveral is designed for CI/CD from the ground up with structured output formats, environment variable support, and integrations for major CI platforms.
+
+## Output Formats
+
+Canaveral supports multiple output formats for CI/CD integration:
+
+| Format | Description |
+|--------|-------------|
+| `text` | Human-readable output (default) |
+| `json` | Machine-readable JSON |
+| `github-actions` | GitHub Actions outputs and annotations |
+| `gitlab-ci` | GitLab CI variables and reports |
+
+```bash
+canaveral build --platform ios --output-format github-actions
+```
+
+## Supported Platforms
+
+- [GitHub Actions](/canaveral/ci-cd/github-actions/)
+- [GitLab CI](/canaveral/ci-cd/gitlab-ci/)
+- [Bitrise](/canaveral/ci-cd/bitrise/)
+- [CircleCI](/canaveral/ci-cd/circleci/)
+
+## Best Practices
+
+1. **Use read-only certificate sync** in CI:
+   ```bash
+   canaveral match sync --readonly
+   ```
+
+2. **Store secrets securely** using your CI's secret management
+
+3. **Cache dependencies** to speed up builds
+
+4. **Use structured output** for downstream steps:
+   ```bash
+   canaveral build --output-format github-actions
+   ```

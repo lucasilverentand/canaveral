@@ -1,0 +1,222 @@
+---
+title: React Native
+description: Build React Native apps for iOS and Android.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# React Native
+
+Canaveral supports React Native applications with native iOS and Android builds.
+
+**Supported platforms**: iOS, Android
+
+## Detection
+
+Canaveral detects React Native projects by the presence of `package.json` with `react-native` as a dependency.
+
+## Build Commands
+
+### iOS Build
+
+```bash
+# Debug build
+canaveral build --platform ios --profile debug
+
+# Release build
+canaveral build --platform ios --profile release
+```
+
+Uses Xcode under the hood with Metro bundler integration.
+
+### Android Build
+
+```bash
+# Debug APK
+canaveral build --platform android --profile debug
+
+# Release AAB
+canaveral build --platform android --profile release
+```
+
+Uses Gradle under the hood.
+
+## Version Management
+
+Version is read from multiple sources:
+- `package.json` - JavaScript version
+- `ios/[App]/Info.plist` - iOS version
+- `android/app/build.gradle` - Android version
+
+```bash
+# Show version
+canaveral version              # Shows version from package.json
+
+# Bump version (updates all sources)
+canaveral version --bump patch
+canaveral version --bump minor
+canaveral version --bump major
+
+# Set specific version
+canaveral version --set 2.0.0
+```
+
+<Aside type="note">
+  When you bump the version, Canaveral updates all version files to keep them in sync.
+</Aside>
+
+## Metro Bundler
+
+Canaveral automatically manages the Metro bundler:
+- Starts Metro if needed for debug builds
+- Uses the running instance if already started
+- Bundles JS for release builds without Metro
+
+## Testing
+
+### Jest Tests
+
+```bash
+canaveral test --type unit
+```
+
+Runs Jest tests configured in your project.
+
+### Detox E2E Tests
+
+```bash
+# iOS E2E tests
+canaveral test --type e2e --platform ios
+
+# Android E2E tests
+canaveral test --type e2e --platform android
+```
+
+Requires Detox to be configured in your project.
+
+## Configuration
+
+React Native-specific options in `canaveral.toml`:
+
+```toml
+[react_native]
+# Path to the project (if not root)
+project_path = "."
+
+# Hermes engine (auto-detected)
+hermes_enabled = true
+
+# iOS scheme (auto-detected)
+ios_scheme = "MyApp"
+
+# Android flavor
+android_flavor = "production"
+```
+
+## OTA Updates
+
+### CodePush
+
+```bash
+# Release to CodePush
+canaveral ota publish --service codepush --deployment Production --description "Bug fixes"
+```
+
+Configure CodePush in `canaveral.toml`:
+
+```toml
+[react_native.codepush]
+app_name = "MyOrg/MyApp"
+deployment_key = "${CODEPUSH_DEPLOYMENT_KEY}"
+```
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+name: React Native Build
+on: [push]
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install pods
+        run: cd ios && pod install
+
+      - name: Install Canaveral
+        run: curl -fsSL https://get.canaveral.dev | sh
+
+      - name: Build iOS
+        run: canaveral build --platform ios --profile release
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Canaveral
+        run: curl -fsSL https://get.canaveral.dev | sh
+
+      - name: Build Android
+        run: canaveral build --platform android --profile release
+```
+
+## Troubleshooting
+
+### "Metro bundler not found"
+
+Start Metro manually:
+
+```bash
+npx react-native start
+```
+
+Or check if Watchman is installed:
+
+```bash
+brew install watchman
+```
+
+### "CocoaPods not installed"
+
+Install pods:
+
+```bash
+cd ios
+pod install
+```
+
+### "Build failed with Hermes"
+
+Check Hermes configuration in `react-native.config.js` or `android/app/build.gradle`.
+
+### "Version mismatch"
+
+Sync all version files:
+
+```bash
+canaveral version --set $(node -p "require('./package.json').version")
+```

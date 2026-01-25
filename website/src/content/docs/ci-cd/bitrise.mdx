@@ -1,0 +1,43 @@
+---
+title: Bitrise
+description: Set up CI/CD with Bitrise.
+---
+
+# Bitrise
+
+Set up Canaveral with Bitrise.
+
+## Quick Start
+
+Add to your `bitrise.yml`:
+
+```yaml
+workflows:
+  build:
+    steps:
+      - script:
+          title: Install Canaveral
+          inputs:
+            - content: |
+                curl -fsSL https://get.canaveral.dev | sh
+                export PATH="$HOME/.canaveral/bin:$PATH"
+      - script:
+          title: Build iOS
+          inputs:
+            - content: |
+                canaveral match sync --profile-type appstore --readonly
+                canaveral build --platform ios --profile release
+      - script:
+          title: Build Android
+          inputs:
+            - content: |
+                canaveral build --platform android --profile release
+```
+
+## Secrets
+
+Configure in Bitrise Secrets:
+
+- `MATCH_PASSWORD`
+- `ASC_API_KEY_ID`
+- `ASC_API_KEY_ISSUER`

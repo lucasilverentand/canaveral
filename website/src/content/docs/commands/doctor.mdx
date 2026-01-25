@@ -1,0 +1,45 @@
+---
+title: doctor
+description: Check your development environment.
+---
+
+# canaveral doctor
+
+Check your development environment for issues.
+
+## Synopsis
+
+```bash
+canaveral doctor [OPTIONS]
+```
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `--fix` | Show suggestions for fixing issues |
+| `--verbose` | Show detailed information |
+
+## Example Output
+
+```
+Checking environment...
+  [OK] Rust 1.75.0
+  [OK] Flutter 3.16.0
+  [OK] Xcode 15.2
+  [OK] Android SDK 34
+  [OK] Node.js 20.10.0
+  [WARN] CocoaPods 1.12.0 (1.14.0 recommended)
+  [OK] App Store Connect credentials configured
+  [FAIL] Google Play service account not configured
+
+1 issue found. Run 'canaveral doctor --fix' for suggestions.
+```
+
+## Checks
+
+- Framework CLIs (Flutter, Node.js, etc.)
+- Platform tools (Xcode, Android SDK)
+- Code signing setup
+- Store credentials
+- Environment variables

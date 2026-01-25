@@ -1,0 +1,58 @@
+---
+title: From Bitrise Steps
+description: Migrate from Bitrise steps to Canaveral.
+---
+
+# Migrating from Bitrise Steps
+
+Migrate your Bitrise workflow from using Bitrise steps to Canaveral commands.
+
+## Comparison
+
+| Bitrise Step | Canaveral |
+|--------------|-----------|
+| `xcode-archive` | `canaveral build --platform ios` |
+| `gradle-runner` | `canaveral build --platform android` |
+| `deploy-to-itunesconnect-deliver` | `canaveral testflight upload` |
+| `google-play-deploy` | `canaveral store upload android` |
+| `certificate-and-profile-installer` | `canaveral match sync` |
+
+## Example Migration
+
+### Before (Bitrise Steps)
+
+```yaml
+workflows:
+  deploy:
+    steps:
+      - certificate-and-profile-installer: {}
+      - xcode-archive:
+          inputs:
+            - scheme: MyApp
+            - export_method: app-store
+      - deploy-to-itunesconnect-deliver:
+          inputs:
+            - ipa_path: $BITRISE_IPA_PATH
+```
+
+### After (Canaveral)
+
+```yaml
+workflows:
+  deploy:
+    steps:
+      - script:
+          inputs:
+            - content: |
+                curl -fsSL https://get.canaveral.dev | sh
+                export PATH="$HOME/.canaveral/bin:$PATH"
+                canaveral match sync --profile-type appstore --readonly
+                canaveral build --platform ios --profile release
+                canaveral testflight upload build/ios/*.ipa
+```
+
+## Benefits
+
+- Single tool for all platforms
+- Consistent commands across CI providers
+- No vendor lock-in to Bitrise steps

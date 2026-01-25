@@ -1,0 +1,235 @@
+---
+title: Quick Start
+description: Get started with Canaveral in under 5 minutes.
+---
+
+import { Tabs, TabItem, Aside, Steps, Card, CardGrid } from '@astrojs/starlight/components';
+
+# Quick Start
+
+Get your first app built with Canaveral in under 5 minutes.
+
+## Initialize Your Project
+
+<Steps>
+1. Navigate to your project directory:
+   ```bash
+   cd my-app
+   ```
+
+2. Run the init command:
+   ```bash
+   canaveral init
+   ```
+
+   This creates a `canaveral.toml` configuration file with auto-detected settings.
+
+3. Review the generated configuration:
+   ```toml title="canaveral.toml"
+   [project]
+   name = "MyApp"
+   # Framework is auto-detected
+
+   [ios]
+   bundle_id = "com.example.myapp"
+   team_id = "YOUR_TEAM_ID"
+
+   [android]
+   package_name = "com.example.myapp"
+   ```
+</Steps>
+
+<Aside type="tip">
+  Canaveral auto-detects your framework based on project files like `pubspec.yaml` (Flutter), `app.json` (Expo), or `package.json` with `react-native`.
+</Aside>
+
+## Build Your App
+
+### iOS Build
+
+```bash
+# Debug build
+canaveral build --platform ios --profile debug
+
+# Release build
+canaveral build --platform ios --profile release
+```
+
+### Android Build
+
+```bash
+# Debug APK
+canaveral build --platform android --profile debug
+
+# Release AAB (for Play Store)
+canaveral build --platform android --profile release
+```
+
+### Build Both Platforms
+
+```bash
+# Release builds for both platforms
+canaveral build --profile release
+```
+
+## Run Tests
+
+```bash
+# Unit tests
+canaveral test --type unit
+
+# Integration tests
+canaveral test --type integration
+
+# With coverage report
+canaveral test --type unit --coverage
+```
+
+## Version Management
+
+```bash
+# Show current version
+canaveral version
+
+# Bump version
+canaveral version --bump patch  # 1.0.0 -> 1.0.1
+canaveral version --bump minor  # 1.0.0 -> 1.1.0
+canaveral version --bump major  # 1.0.0 -> 2.0.0
+
+# Set specific version
+canaveral version --set 2.0.0
+
+# Also bump build number
+canaveral version --bump patch --build
+```
+
+## Distribution
+
+### TestFlight (iOS)
+
+<Steps>
+1. Build your iOS app:
+   ```bash
+   canaveral build --platform ios --profile release
+   ```
+
+2. Upload to TestFlight:
+   ```bash
+   canaveral testflight upload build/ios/App.ipa --changelog "Bug fixes"
+   ```
+
+3. Check processing status:
+   ```bash
+   canaveral testflight status
+   ```
+</Steps>
+
+### Google Play (Android)
+
+<Steps>
+1. Build your Android app:
+   ```bash
+   canaveral build --platform android --profile release
+   ```
+
+2. Upload to internal track:
+   ```bash
+   canaveral store upload android --artifact build/android/app.aab --track internal
+   ```
+</Steps>
+
+## Certificate Management
+
+Set up certificate sync for your team:
+
+<Steps>
+1. Initialize certificate storage:
+   ```bash
+   # Using Git
+   canaveral match init --storage git --git-url git@github.com:org/certs.git --team-id TEAMID
+
+   # Using S3
+   canaveral match init --storage s3 --bucket my-certs-bucket --team-id TEAMID
+   ```
+
+2. Sync certificates (creates if needed):
+   ```bash
+   canaveral match sync --profile-type development
+   canaveral match sync --profile-type appstore
+   ```
+
+3. In CI, use read-only mode:
+   ```bash
+   canaveral match sync --profile-type appstore --readonly
+   ```
+</Steps>
+
+## CI/CD Integration
+
+### GitHub Actions
+
+Create `.github/workflows/build.yml`:
+
+```yaml
+name: Build
+on: [push]
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Canaveral
+        run: |
+          curl -fsSL https://get.canaveral.dev | sh
+          echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
+
+      - name: Sync Certificates
+        run: canaveral match sync --profile-type appstore --readonly
+        env:
+          MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+
+      - name: Build iOS
+        run: canaveral build --platform ios --profile release --output-format github-actions
+
+      - name: Upload to TestFlight
+        run: canaveral testflight upload build/ios/*.ipa
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_ISSUER: ${{ secrets.ASC_API_KEY_ISSUER }}
+          ASC_API_KEY_PATH: ${{ secrets.ASC_API_KEY_PATH }}
+```
+
+<Aside type="note">
+  The `--output-format github-actions` flag sets output variables and annotations automatically for GitHub Actions.
+</Aside>
+
+## Troubleshooting
+
+Run the doctor command to diagnose issues:
+
+```bash
+canaveral doctor
+```
+
+Common fixes:
+- **Missing Xcode**: `xcode-select --install`
+- **Missing Android SDK**: Set `ANDROID_HOME` environment variable
+- **Missing Flutter**: Install from https://flutter.dev
+- **Certificate issues**: Run `canaveral match sync --force`
+
+## Next Steps
+
+<CardGrid>
+  <Card title="Framework Guides" icon="puzzle">
+    Learn about [framework-specific features](/canaveral/frameworks/overview/).
+  </Card>
+  <Card title="CI/CD Templates" icon="rocket">
+    Get [pre-built workflows](/canaveral/ci-cd/github-actions/) for your CI platform.
+  </Card>
+  <Card title="Configuration" icon="setting">
+    Explore all [configuration options](/canaveral/getting-started/configuration/).
+  </Card>
+</CardGrid>

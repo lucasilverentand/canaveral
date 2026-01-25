@@ -1,0 +1,260 @@
+---
+title: Flutter
+description: Build Flutter apps for iOS, Android, and desktop.
+---
+
+import { Aside, Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+# Flutter
+
+Canaveral provides full support for Flutter applications, including iOS, Android, macOS, Windows, Linux, and Web builds.
+
+**Supported platforms**: iOS, Android, macOS, Windows, Linux, Web
+
+## Detection
+
+Canaveral detects Flutter projects by the presence of `pubspec.yaml` with a `flutter:` section.
+
+## Build Commands
+
+### Debug Builds
+
+```bash
+# iOS simulator
+canaveral build --platform ios --profile debug
+
+# Android emulator
+canaveral build --platform android --profile debug
+```
+
+### Release Builds
+
+```bash
+# iOS App Store / TestFlight
+canaveral build --platform ios --profile release
+
+# Android Play Store (AAB)
+canaveral build --platform android --profile release
+
+# All platforms
+canaveral build --profile release
+```
+
+### Desktop Builds
+
+```bash
+# macOS
+canaveral build --platform macos --profile release
+
+# Windows
+canaveral build --platform windows --profile release
+
+# Linux
+canaveral build --platform linux --profile release
+```
+
+### Web Builds
+
+```bash
+canaveral build --platform web --profile release
+```
+
+## Version Management
+
+Version is read from and written to `pubspec.yaml`:
+
+```yaml title="pubspec.yaml"
+name: my_app
+version: 1.2.3+42  # version+build_number
+```
+
+```bash
+# Show version
+canaveral version              # Shows 1.2.3 (build 42)
+
+# Bump version
+canaveral version --bump patch # 1.2.3+42 -> 1.2.4+43
+canaveral version --bump minor # 1.2.3+42 -> 1.3.0+43
+canaveral version --bump major # 1.2.3+42 -> 2.0.0+43
+
+# Set specific version
+canaveral version --set 2.0.0
+
+# Only bump build number
+canaveral version --build
+```
+
+<Aside type="note">
+  Canaveral automatically increments the build number when you bump the version.
+</Aside>
+
+## Testing
+
+### Unit Tests
+
+```bash
+canaveral test --type unit
+```
+
+Runs `flutter test` for unit and widget tests.
+
+### Widget Tests
+
+```bash
+canaveral test --type widget
+```
+
+### Integration Tests
+
+```bash
+canaveral test --type integration
+```
+
+Runs tests in the `integration_test/` directory.
+
+### With Coverage
+
+```bash
+canaveral test --type unit --coverage
+```
+
+Generates a coverage report in `coverage/lcov.info`.
+
+## Screenshots
+
+Integrates with Flutter's `integration_test` for screenshot capture:
+
+<Steps>
+1. Create a screenshot configuration:
+   ```yaml title="screenshots.yaml"
+   devices:
+     - name: "iPhone 15 Pro"
+       platform: ios
+     - name: "Pixel 7"
+       platform: android
+
+   locales:
+     - en_US
+     - de_DE
+
+   screens:
+     - name: home
+       route: /
+     - name: settings
+       route: /settings
+   ```
+
+2. Run screenshot capture:
+   ```bash
+   canaveral screenshots capture --config screenshots.yaml
+   ```
+</Steps>
+
+## Flavors
+
+Support for Flutter flavor builds:
+
+```bash
+# Build with flavor
+canaveral build --platform ios --profile release --config flavor=production
+
+# Android with flavor
+canaveral build --platform android --profile release --config flavor=production
+```
+
+Configure flavors in `canaveral.toml`:
+
+```toml
+[flutter]
+default_flavor = "production"
+
+[flutter.flavors.development]
+bundle_id_suffix = ".dev"
+android_application_id_suffix = ".dev"
+
+[flutter.flavors.staging]
+bundle_id_suffix = ".staging"
+
+[flutter.flavors.production]
+# No suffix for production
+```
+
+## Build Configuration
+
+Additional Flutter-specific options in `canaveral.toml`:
+
+```toml
+[flutter]
+# Dart defines
+dart_defines = ["FLAVOR=production", "API_URL=https://api.example.com"]
+
+# Split debug info (for crash reporting)
+split_debug_info = true
+debug_info_output = "build/symbols"
+
+# Obfuscation
+obfuscate = true
+
+# Tree shake icons
+tree_shake_icons = true
+
+# Additional build args
+extra_args = ["--no-sound-null-safety"]
+```
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+name: Flutter Build
+on: [push]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+
+      - name: Install Canaveral
+        run: curl -fsSL https://get.canaveral.dev | sh
+
+      - name: Build iOS
+        run: canaveral build --platform ios --profile release --output-format github-actions
+
+      - name: Build Android
+        run: canaveral build --platform android --profile release --output-format github-actions
+```
+
+## Troubleshooting
+
+### "Flutter not found"
+
+Ensure Flutter is in your PATH:
+
+```bash
+export PATH="$PATH:/path/to/flutter/bin"
+flutter doctor
+```
+
+### "Xcode build failed"
+
+Run Flutter's iOS build directly to see detailed errors:
+
+```bash
+flutter build ios --release
+```
+
+### "Gradle build failed"
+
+Check your Android SDK setup:
+
+```bash
+flutter doctor -v
+```
+
+Ensure `ANDROID_HOME` is set correctly.

@@ -1,0 +1,55 @@
+---
+title: screenshots
+description: Capture and frame app store screenshots.
+---
+
+# canaveral screenshots
+
+Capture and frame screenshots for app store listings.
+
+## Synopsis
+
+```bash
+canaveral screenshots <COMMAND> [OPTIONS]
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `capture` | Capture screenshots on devices |
+| `frame` | Add device frames to screenshots |
+
+## Capture
+
+```bash
+canaveral screenshots capture --config screenshots.yaml
+canaveral screenshots capture --devices "iPhone 15 Pro,Pixel 7"
+```
+
+## Frame
+
+```bash
+canaveral screenshots frame --template white
+canaveral screenshots frame --template black --text "Welcome to MyApp"
+```
+
+## Configuration
+
+```yaml title="screenshots.yaml"
+devices:
+  - name: "iPhone 15 Pro"
+    platform: ios
+  - name: "Pixel 7"
+    platform: android
+
+locales:
+  - en_US
+  - de_DE
+
+screens:
+  - name: home
+    route: /
+  - name: settings
+    route: /settings
+```

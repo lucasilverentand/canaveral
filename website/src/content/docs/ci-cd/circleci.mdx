@@ -1,0 +1,56 @@
+---
+title: CircleCI
+description: Set up CI/CD with CircleCI.
+---
+
+# CircleCI
+
+Set up Canaveral with CircleCI.
+
+## Quick Start
+
+Create `.circleci/config.yml`:
+
+```yaml
+version: 2.1
+
+jobs:
+  build-ios:
+    macos:
+      xcode: 15.2.0
+    steps:
+      - checkout
+      - run:
+          name: Install Canaveral
+          command: curl -fsSL https://get.canaveral.dev | sh
+      - run:
+          name: Build iOS
+          command: |
+            export PATH="$HOME/.canaveral/bin:$PATH"
+            canaveral match sync --profile-type appstore --readonly
+            canaveral build --platform ios --profile release
+
+  build-android:
+    docker:
+      - image: cimg/android:2024.01
+    steps:
+      - checkout
+      - run:
+          name: Install Canaveral
+          command: curl -fsSL https://get.canaveral.dev | sh
+      - run:
+          name: Build Android
+          command: |
+            export PATH="$HOME/.canaveral/bin:$PATH"
+            canaveral build --platform android --profile release
+
+workflows:
+  build:
+    jobs:
+      - build-ios
+      - build-android
+```
+
+## Environment Variables
+
+Set in CircleCI project settings or context.

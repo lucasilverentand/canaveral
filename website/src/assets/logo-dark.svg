@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="rocketGradientDark" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ff6b35"/>
+      <stop offset="100%" style="stop-color:#ffb347"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Rocket body with glow -->
+  <path d="M16 2C16 2 10 8 10 16C10 20 12 24 16 28C20 24 22 20 22 16C22 8 16 2 16 2Z" fill="url(#rocketGradientDark)" filter="url(#glow)"/>
+  <!-- Rocket window -->
+  <circle cx="16" cy="12" r="3" fill="#0f0f1a"/>
+  <circle cx="16" cy="12" r="2" fill="#1a1a2e"/>
+  <circle cx="15" cy="11" r="0.5" fill="#ffffff" opacity="0.6"/>
+  <!-- Left fin -->
+  <path d="M10 20L6 26L10 24V20Z" fill="#ff8c42"/>
+  <!-- Right fin -->
+  <path d="M22 20L26 26L22 24V20Z" fill="#ff8c42"/>
+  <!-- Flame -->
+  <path d="M14 28C14 28 15 30 16 32C17 30 18 28 18 28C17 29 16 30 16 30C16 30 15 29 14 28Z" fill="#ff6b35" filter="url(#glow)"/>
+  <path d="M15 28C15 28 15.5 29.5 16 31C16.5 29.5 17 28 17 28" stroke="#ffb347" stroke-width="0.75" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,292 @@
+---
+title: Tauri
+description: Build Tauri desktop apps for macOS, Windows, and Linux.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Tauri
+
+Canaveral supports Tauri applications for building cross-platform desktop apps.
+
+**Supported platforms**: macOS, Windows, Linux
+
+## Detection
+
+Canaveral detects Tauri projects by the presence of `src-tauri/tauri.conf.json`.
+
+## Build Commands
+
+### Build for Current Platform
+
+```bash
+# macOS
+canaveral build --platform macos
+
+# Windows
+canaveral build --platform windows
+
+# Linux
+canaveral build --platform linux
+```
+
+### Debug Build
+
+```bash
+canaveral build --platform macos --profile debug
+```
+
+### Release Build
+
+```bash
+canaveral build --platform macos --profile release
+```
+
+## Bundle Types
+
+Tauri produces different bundle types per platform:
+
+| Platform | Bundles |
+|----------|---------|
+| macOS | `.app`, `.dmg`, `.pkg` |
+| Windows | `.exe`, `.msi` |
+| Linux | `.deb`, `.rpm`, `.AppImage` |
+
+Specify bundle type:
+
+```bash
+# macOS DMG only
+canaveral build --platform macos --config bundle=dmg
+
+# Windows MSI only
+canaveral build --platform windows --config bundle=msi
+
+# Linux AppImage only
+canaveral build --platform linux --config bundle=appimage
+```
+
+## Version Management
+
+Version is read from `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`:
+
+<Tabs>
+  <TabItem label="tauri.conf.json">
+    ```json title="src-tauri/tauri.conf.json"
+    {
+      "version": "1.2.3"
+    }
+    ```
+  </TabItem>
+  <TabItem label="Cargo.toml">
+    ```toml title="src-tauri/Cargo.toml"
+    [package]
+    name = "my-app"
+    version = "1.2.3"
+    ```
+  </TabItem>
+</Tabs>
+
+```bash
+# Show version
+canaveral version
+
+# Bump version (updates both files)
+canaveral version --bump patch
+
+# Set specific version
+canaveral version --set 2.0.0
+```
+
+<Aside type="note">
+  Canaveral automatically keeps `tauri.conf.json` and `Cargo.toml` versions in sync.
+</Aside>
+
+## Package Manager Support
+
+Canaveral auto-detects and uses your project's package manager:
+
+| Package Manager | Lock File |
+|----------------|-----------|
+| npm | `package-lock.json` |
+| yarn | `yarn.lock` |
+| pnpm | `pnpm-lock.yaml` |
+| bun | `bun.lockb` |
+
+## Configuration
+
+Tauri-specific options in `canaveral.toml`:
+
+```toml
+[tauri]
+# Path to tauri directory (default: src-tauri)
+tauri_dir = "src-tauri"
+
+# Bundle targets
+bundles = ["dmg", "app"]  # macOS
+# bundles = ["msi", "nsis"]  # Windows
+# bundles = ["deb", "appimage"]  # Linux
+
+# Build features
+features = ["custom-protocol"]
+
+# CI mode (skip frontend dev server)
+ci = true
+```
+
+## Auto-Updater
+
+Configure the Tauri updater:
+
+```json title="src-tauri/tauri.conf.json"
+{
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://releases.example.com/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "pubkey": "YOUR_PUBLIC_KEY"
+    }
+  }
+}
+```
+
+Generate update files:
+
+```bash
+canaveral build --platform macos --profile release --config updater=true
+```
+
+This generates:
+- The app bundle
+- Update signature file
+- JSON manifest for the updater
+
+## Code Signing
+
+### macOS
+
+```bash
+export APPLE_CERTIFICATE="base64-encoded-p12"
+export APPLE_CERTIFICATE_PASSWORD="password"
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Company"
+
+canaveral build --platform macos --profile release
+```
+
+For notarization:
+
+```bash
+export APPLE_ID="your@email.com"
+export APPLE_PASSWORD="app-specific-password"
+export APPLE_TEAM_ID="TEAMID"
+
+canaveral build --platform macos --profile release --config notarize=true
+```
+
+### Windows
+
+```bash
+export WINDOWS_CERTIFICATE="path/to/certificate.pfx"
+export WINDOWS_CERTIFICATE_PASSWORD="password"
+
+canaveral build --platform windows --profile release
+```
+
+## CI/CD Integration
+
+### GitHub Actions (Multi-Platform)
+
+```yaml
+name: Tauri Build
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - platform: macos-latest
+            target: macos
+          - platform: ubuntu-latest
+            target: linux
+          - platform: windows-latest
+            target: windows
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install dependencies (Linux)
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev librsvg2-dev
+
+      - name: Install Canaveral
+        run: curl -fsSL https://get.canaveral.dev | sh
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build
+        run: canaveral build --platform ${{ matrix.target }} --profile release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-build
+          path: |
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.app
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.AppImage
+```
+
+## Troubleshooting
+
+### "Tauri CLI not found"
+
+Install the Tauri CLI:
+
+```bash
+cargo install tauri-cli
+```
+
+### "Frontend build failed"
+
+Build the frontend separately first:
+
+```bash
+npm run build
+```
+
+Check your `tauri.conf.json` build configuration.
+
+### "Linux dependencies missing"
+
+Install required system libraries:
+
+```bash
+sudo apt-get install libgtk-3-dev libwebkit2gtk-4.0-dev librsvg2-dev
+```
+
+### "Code signing failed (macOS)"
+
+Verify your certificate:
+
+```bash
+security find-identity -v -p codesigning
+```
+
+Ensure the certificate is installed in your keychain.

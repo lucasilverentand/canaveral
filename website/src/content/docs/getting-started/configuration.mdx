@@ -1,0 +1,306 @@
+---
+title: Configuration
+description: Configure Canaveral with canaveral.toml.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Configuration
+
+Canaveral uses a `canaveral.toml` file in your project root for configuration. The `canaveral init` command generates this file with sensible defaults based on your project.
+
+## Basic Structure
+
+```toml title="canaveral.toml"
+[project]
+name = "MyApp"
+# framework = "flutter"  # Auto-detected if not specified
+
+[ios]
+bundle_id = "com.example.myapp"
+team_id = "TEAMID123"
+
+[android]
+package_name = "com.example.myapp"
+
+[build]
+output_format = "text"  # text, json, github-actions, gitlab-ci
+
+[signing]
+storage = "git"
+git_url = "git@github.com:org/certs.git"
+
+[testflight]
+api_key_id = "${ASC_API_KEY_ID}"
+api_key_issuer = "${ASC_API_KEY_ISSUER}"
+api_key_path = "${ASC_API_KEY_PATH}"
+
+[play_store]
+service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
+```
+
+## Project Section
+
+```toml
+[project]
+# Project name (used in outputs and logs)
+name = "MyApp"
+
+# Framework override (auto-detected by default)
+# Options: flutter, expo, react-native, native-ios, native-android, tauri
+framework = "flutter"
+
+# Default profile for builds
+default_profile = "release"
+
+# Output directory for build artifacts
+output_dir = "build"
+```
+
+## iOS Section
+
+```toml
+[ios]
+# Bundle identifier (required for iOS builds)
+bundle_id = "com.example.myapp"
+
+# Apple Developer Team ID
+team_id = "TEAMID123"
+
+# Xcode scheme (auto-detected if not specified)
+scheme = "MyApp"
+
+# Export method for IPA
+# Options: app-store, ad-hoc, development, enterprise
+export_method = "app-store"
+
+# Minimum iOS version
+minimum_ios_version = "14.0"
+```
+
+## Android Section
+
+```toml
+[android]
+# Application ID / package name
+package_name = "com.example.myapp"
+
+# Build flavor (optional)
+flavor = "production"
+
+# Build type (defaults based on profile)
+# build_type = "Release"
+
+# Keystore configuration (can use environment variables)
+keystore_path = "${ANDROID_KEYSTORE_PATH}"
+keystore_password = "${ANDROID_KEYSTORE_PASSWORD}"
+key_alias = "${ANDROID_KEY_ALIAS}"
+key_password = "${ANDROID_KEY_PASSWORD}"
+
+# Minimum SDK version
+min_sdk_version = 24
+target_sdk_version = 34
+```
+
+## Build Section
+
+```toml
+[build]
+# Output format for build information
+# Options: text, json, github-actions, gitlab-ci
+output_format = "text"
+
+# Enable verbose logging
+verbose = false
+
+# Number of parallel jobs (defaults to CPU count)
+jobs = 4
+
+# Additional arguments passed to underlying build tools
+[build.ios_args]
+extra_args = ["-allowProvisioningUpdates"]
+
+[build.android_args]
+extra_args = ["--stacktrace"]
+```
+
+## Signing Section
+
+```toml
+[signing]
+# Certificate storage backend
+# Options: git, s3, gcs, azure
+storage = "git"
+
+# Git storage configuration
+git_url = "git@github.com:org/certs.git"
+git_branch = "main"
+
+# S3 storage configuration
+# storage = "s3"
+# bucket = "my-certs-bucket"
+# region = "us-east-1"
+# prefix = "certificates/"
+
+# GCS storage configuration
+# storage = "gcs"
+# bucket = "my-certs-bucket"
+# prefix = "certificates/"
+
+# Azure Blob storage configuration
+# storage = "azure"
+# container = "certificates"
+# connection_string = "${AZURE_STORAGE_CONNECTION_STRING}"
+
+# Encryption password (use environment variable)
+password = "${MATCH_PASSWORD}"
+```
+
+## TestFlight Section
+
+```toml
+[testflight]
+# App Store Connect API Key
+api_key_id = "${ASC_API_KEY_ID}"
+api_key_issuer = "${ASC_API_KEY_ISSUER}"
+api_key_path = "${ASC_API_KEY_PATH}"
+
+# Or use base64-encoded key content
+# api_key_content = "${ASC_API_KEY_CONTENT_BASE64}"
+
+# Skip waiting for build processing
+skip_waiting = false
+
+# Automatically submit for review
+submit_for_review = false
+
+# Default changelog
+default_changelog = "Bug fixes and improvements"
+```
+
+## Play Store Section
+
+```toml
+[play_store]
+# Service account JSON file path
+service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
+
+# Or use base64-encoded JSON content
+# service_account_json = "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON}"
+
+# Default track for uploads
+default_track = "internal"
+
+# Release status
+# Options: completed, draft, halted, inProgress
+release_status = "completed"
+```
+
+## Firebase Section
+
+```toml
+[firebase]
+# Firebase project ID
+project_id = "my-project"
+
+# App IDs (optional, auto-detected from config)
+ios_app_id = "1:123456789:ios:abcdef"
+android_app_id = "1:123456789:android:abcdef"
+
+# Default distribution groups
+default_groups = ["testers", "qa"]
+
+# Firebase token (use environment variable)
+token = "${FIREBASE_TOKEN}"
+```
+
+## Screenshots Section
+
+```toml
+[screenshots]
+# Output directory for screenshots
+output_dir = "screenshots"
+
+# Devices to capture on
+devices = [
+  { name = "iPhone 15 Pro", platform = "ios" },
+  { name = "iPhone 15 Pro Max", platform = "ios" },
+  { name = "Pixel 7", platform = "android" },
+]
+
+# Locales to capture
+locales = ["en_US", "de_DE", "ja_JP", "fr_FR"]
+
+# Add clean status bar
+clean_status_bar = true
+```
+
+## Environment Variables
+
+Canaveral supports environment variable substitution using `${VAR_NAME}` syntax:
+
+```toml
+[signing]
+password = "${MATCH_PASSWORD}"  # Uses MATCH_PASSWORD env var
+```
+
+<Aside type="tip">
+  Always use environment variables for sensitive values like passwords and API keys.
+</Aside>
+
+### Common Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `MATCH_PASSWORD` | Encryption password for certificates |
+| `MATCH_GIT_URL` | Git URL for certificate storage |
+| `ASC_API_KEY_ID` | App Store Connect API key ID |
+| `ASC_API_KEY_ISSUER` | App Store Connect API key issuer |
+| `ASC_API_KEY_PATH` | Path to App Store Connect API key file |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT` | Path to Google Play service account JSON |
+| `ANDROID_KEYSTORE_PATH` | Path to Android keystore |
+| `ANDROID_KEYSTORE_PASSWORD` | Android keystore password |
+| `ANDROID_KEY_ALIAS` | Android signing key alias |
+| `ANDROID_KEY_PASSWORD` | Android signing key password |
+| `FIREBASE_TOKEN` | Firebase CLI token |
+
+## Multiple Environments
+
+Use different configurations for different environments:
+
+```toml title="canaveral.toml"
+[project]
+name = "MyApp"
+
+# Default iOS config
+[ios]
+bundle_id = "com.example.myapp"
+
+# Development environment overrides
+[environments.development.ios]
+bundle_id = "com.example.myapp.dev"
+
+# Staging environment overrides
+[environments.staging.ios]
+bundle_id = "com.example.myapp.staging"
+```
+
+Use with the `--env` flag:
+
+```bash
+canaveral build --platform ios --env staging
+```
+
+## Validation
+
+Validate your configuration:
+
+```bash
+canaveral config validate
+```
+
+Show resolved configuration (with environment variables expanded):
+
+```bash
+canaveral config show
+```

@@ -1,0 +1,418 @@
+/* Canaveral Custom Theme - Space Launch Theme */
+
+:root {
+	/* Primary colors - Deep space blue to launch orange gradient */
+	--sl-color-accent-low: #1a1a2e;
+	--sl-color-accent: #ff6b35;
+	--sl-color-accent-high: #ffb347;
+
+	/* Background gradients */
+	--sl-color-bg: #0f0f1a;
+	--sl-color-bg-nav: rgba(15, 15, 26, 0.95);
+	--sl-color-bg-sidebar: rgba(20, 20, 35, 0.98);
+
+	/* Text colors */
+	--sl-color-text: #e8e8f0;
+	--sl-color-text-accent: #ff6b35;
+
+	/* Borders */
+	--sl-color-hairline-light: rgba(255, 107, 53, 0.1);
+	--sl-color-hairline: rgba(255, 107, 53, 0.2);
+
+	/* Code blocks */
+	--sl-color-bg-inline-code: rgba(255, 107, 53, 0.1);
+
+	/* Custom properties */
+	--canaveral-gradient: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #2d1b4e 100%);
+	--canaveral-accent-gradient: linear-gradient(135deg, #ff6b35 0%, #ffb347 100%);
+	--canaveral-glow: 0 0 20px rgba(255, 107, 53, 0.3);
+}
+
+/* Light theme adjustments */
+:root[data-theme='light'] {
+	--sl-color-accent-low: #fff5f0;
+	--sl-color-accent: #e05a2b;
+	--sl-color-accent-high: #c04920;
+	--sl-color-bg: #ffffff;
+	--sl-color-bg-nav: rgba(255, 255, 255, 0.95);
+	--sl-color-bg-sidebar: rgba(250, 248, 246, 0.98);
+	--sl-color-text: #1a1a2e;
+	--sl-color-text-accent: #e05a2b;
+	--sl-color-hairline-light: rgba(224, 90, 43, 0.1);
+	--sl-color-hairline: rgba(224, 90, 43, 0.2);
+	--sl-color-bg-inline-code: rgba(224, 90, 43, 0.08);
+}
+
+/* Global styles */
+html {
+	scroll-behavior: smooth;
+}
+
+/* Header with subtle gradient */
+header.header {
+	backdrop-filter: blur(12px);
+	border-bottom: 1px solid var(--sl-color-hairline);
+}
+
+/* Sidebar styling */
+.sidebar-pane {
+	backdrop-filter: blur(8px);
+}
+
+/* Navigation links with hover effect */
+nav.sidebar a {
+	transition: all 0.2s ease;
+	border-radius: 6px;
+}
+
+nav.sidebar a:hover {
+	background: var(--sl-color-accent-low);
+	transform: translateX(4px);
+}
+
+nav.sidebar a[aria-current="page"] {
+	background: var(--canaveral-accent-gradient);
+	color: white;
+	font-weight: 600;
+}
+
+/* Hero section enhancement */
+.hero {
+	background: var(--canaveral-gradient);
+	position: relative;
+	overflow: hidden;
+}
+
+.hero::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background:
+		radial-gradient(circle at 20% 80%, rgba(255, 107, 53, 0.1) 0%, transparent 50%),
+		radial-gradient(circle at 80% 20%, rgba(255, 179, 71, 0.1) 0%, transparent 50%);
+	pointer-events: none;
+}
+
+/* Code blocks with glow effect */
+.expressive-code {
+	border-radius: 12px;
+	overflow: hidden;
+	box-shadow: var(--canaveral-glow);
+}
+
+.expressive-code pre {
+	border: 1px solid var(--sl-color-hairline);
+}
+
+/* Inline code styling */
+:not(pre) > code {
+	background: var(--sl-color-bg-inline-code);
+	padding: 0.15em 0.4em;
+	border-radius: 4px;
+	font-size: 0.9em;
+	border: 1px solid var(--sl-color-hairline-light);
+}
+
+/* Buttons with gradient */
+.sl-link-button {
+	background: var(--canaveral-accent-gradient) !important;
+	border: none !important;
+	transition: all 0.3s ease;
+	box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+}
+
+.sl-link-button:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+}
+
+/* Cards with subtle animation */
+.card {
+	transition: all 0.3s ease;
+	border: 1px solid var(--sl-color-hairline);
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.card:hover {
+	transform: translateY(-4px);
+	box-shadow: var(--canaveral-glow);
+	border-color: var(--sl-color-accent);
+}
+
+/* Headings with accent underline */
+.sl-markdown-content h2 {
+	border-bottom: 2px solid var(--sl-color-hairline);
+	padding-bottom: 0.5em;
+}
+
+.sl-markdown-content h2::after {
+	content: '';
+	display: block;
+	width: 60px;
+	height: 3px;
+	background: var(--canaveral-accent-gradient);
+	margin-top: 0.5em;
+	border-radius: 2px;
+}
+
+/* Tables with better styling */
+.sl-markdown-content table {
+	border-collapse: separate;
+	border-spacing: 0;
+	border-radius: 8px;
+	overflow: hidden;
+	border: 1px solid var(--sl-color-hairline);
+}
+
+.sl-markdown-content th {
+	background: var(--sl-color-accent-low);
+	font-weight: 600;
+}
+
+.sl-markdown-content td,
+.sl-markdown-content th {
+	border: none;
+	border-bottom: 1px solid var(--sl-color-hairline-light);
+	padding: 0.75em 1em;
+}
+
+.sl-markdown-content tr:last-child td {
+	border-bottom: none;
+}
+
+.sl-markdown-content tr:hover td {
+	background: rgba(255, 107, 53, 0.03);
+}
+
+/* Blockquotes with left border accent */
+.sl-markdown-content blockquote {
+	border-left: 4px solid var(--sl-color-accent);
+	background: var(--sl-color-accent-low);
+	padding: 1em 1.5em;
+	border-radius: 0 8px 8px 0;
+	margin: 1.5em 0;
+}
+
+/* Aside/callout enhancements */
+.starlight-aside {
+	border-radius: 12px;
+	border-left-width: 4px;
+}
+
+.starlight-aside--tip {
+	border-color: #10b981;
+	background: rgba(16, 185, 129, 0.1);
+}
+
+.starlight-aside--caution {
+	border-color: #f59e0b;
+	background: rgba(245, 158, 11, 0.1);
+}
+
+.starlight-aside--danger {
+	border-color: #ef4444;
+	background: rgba(239, 68, 68, 0.1);
+}
+
+/* Search input styling */
+site-search button {
+	border-radius: 8px;
+	transition: all 0.2s ease;
+}
+
+site-search button:hover {
+	box-shadow: var(--canaveral-glow);
+}
+
+/* Footer styling */
+.page-footer {
+	border-top: 1px solid var(--sl-color-hairline);
+	margin-top: 3rem;
+	padding-top: 2rem;
+}
+
+/* Mobile navigation */
+@media (max-width: 50rem) {
+	nav.sidebar {
+		background: var(--sl-color-bg-sidebar);
+		backdrop-filter: blur(12px);
+	}
+}
+
+/* Smooth scrollbar for webkit browsers */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: var(--sl-color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+	background: var(--sl-color-hairline);
+	border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: var(--sl-color-accent);
+}
+
+/* Animation keyframes */
+@keyframes fadeInUp {
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes glow {
+	0%, 100% {
+		box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+	}
+	50% {
+		box-shadow: 0 0 40px rgba(255, 107, 53, 0.5);
+	}
+}
+
+/* Apply animations to content */
+.sl-markdown-content > * {
+	animation: fadeInUp 0.5s ease forwards;
+}
+
+/* Feature grid for homepage */
+.feature-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 1.5rem;
+	margin: 2rem 0;
+}
+
+.feature-card {
+	padding: 1.5rem;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.02);
+	border: 1px solid var(--sl-color-hairline);
+	transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+	transform: translateY(-4px);
+	box-shadow: var(--canaveral-glow);
+	border-color: var(--sl-color-accent);
+}
+
+.feature-card h3 {
+	margin-top: 0;
+	color: var(--sl-color-accent);
+}
+
+/* Terminal-like command display */
+.command-display {
+	background: #1a1a2e;
+	border-radius: 8px;
+	padding: 1rem 1.5rem;
+	font-family: 'JetBrains Mono', 'Fira Code', monospace;
+	position: relative;
+	overflow: hidden;
+}
+
+.command-display::before {
+	content: '$ ';
+	color: var(--sl-color-accent);
+}
+
+.command-display code {
+	background: none;
+	border: none;
+	padding: 0;
+}
+
+/* Framework badges */
+.framework-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.25rem 0.75rem;
+	border-radius: 9999px;
+	font-size: 0.875rem;
+	font-weight: 500;
+	background: var(--sl-color-accent-low);
+	border: 1px solid var(--sl-color-hairline);
+}
+
+.framework-badge.flutter {
+	--badge-color: #02569b;
+}
+
+.framework-badge.expo {
+	--badge-color: #000020;
+}
+
+.framework-badge.react-native {
+	--badge-color: #61dafb;
+}
+
+.framework-badge.ios {
+	--badge-color: #000000;
+}
+
+.framework-badge.android {
+	--badge-color: #3ddc84;
+}
+
+.framework-badge.tauri {
+	--badge-color: #ffc131;
+}
+
+/* Copy button enhancement */
+.copy button {
+	transition: all 0.2s ease;
+}
+
+.copy button:hover {
+	background: var(--sl-color-accent) !important;
+}
+
+/* Version badge */
+.version-badge {
+	display: inline-block;
+	padding: 0.25rem 0.5rem;
+	border-radius: 4px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	background: var(--canaveral-accent-gradient);
+	color: white;
+}
+
+/* Platform support indicator */
+.platform-support {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.platform-support span {
+	padding: 0.125rem 0.5rem;
+	border-radius: 4px;
+	font-size: 0.75rem;
+	background: var(--sl-color-accent-low);
+}
+
+.platform-support span.supported {
+	background: rgba(16, 185, 129, 0.2);
+	color: #10b981;
+}
+
+.platform-support span.unsupported {
+	background: rgba(156, 163, 175, 0.2);
+	color: #9ca3af;
+}

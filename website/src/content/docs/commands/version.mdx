@@ -1,0 +1,88 @@
+---
+title: version
+description: Manage your app's version number.
+---
+
+# canaveral version
+
+Manage your app's version number across all platform-specific files.
+
+## Synopsis
+
+```bash
+canaveral version [OPTIONS]
+```
+
+## Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--bump <LEVEL>` | Bump version: `patch`, `minor`, `major` | - |
+| `--set <VERSION>` | Set specific version | - |
+| `--build` | Also bump build number | `false` |
+| `--output-format <FORMAT>` | Output format: `text`, `json` | `text` |
+
+## Examples
+
+### Show Current Version
+
+```bash
+canaveral version
+# Output: 1.2.3 (build 42)
+```
+
+### Bump Version
+
+```bash
+# Patch: 1.2.3 -> 1.2.4
+canaveral version --bump patch
+
+# Minor: 1.2.3 -> 1.3.0
+canaveral version --bump minor
+
+# Major: 1.2.3 -> 2.0.0
+canaveral version --bump major
+
+# Also bump build number
+canaveral version --bump patch --build
+```
+
+### Set Specific Version
+
+```bash
+canaveral version --set 2.0.0
+
+# With build number
+canaveral version --set 2.0.0 --build
+```
+
+### JSON Output
+
+```bash
+canaveral version --output-format json
+```
+
+```json
+{
+  "version": "1.2.3",
+  "build_number": 42,
+  "files_updated": [
+    "pubspec.yaml",
+    "ios/Runner/Info.plist",
+    "android/app/build.gradle"
+  ]
+}
+```
+
+## Files Updated
+
+Canaveral updates version in all relevant files for your framework:
+
+| Framework | Files |
+|-----------|-------|
+| Flutter | `pubspec.yaml` |
+| Expo | `app.json`, `app.config.js` |
+| React Native | `package.json`, `ios/*/Info.plist`, `android/app/build.gradle` |
+| Native iOS | `Info.plist` |
+| Native Android | `build.gradle` or `build.gradle.kts` |
+| Tauri | `tauri.conf.json`, `Cargo.toml` |

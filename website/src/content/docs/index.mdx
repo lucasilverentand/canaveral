@@ -1,0 +1,154 @@
+---
+title: Canaveral
+description: Universal Release Management CLI - Build, test, and ship mobile apps with a single tool.
+template: splash
+hero:
+  title: |
+    Launch Your Apps
+    With Confidence
+  tagline: One CLI to build, test, sign, and ship mobile apps across all frameworks. Replace fastlane, Bitrise steps, and custom scripts with a unified solution.
+  image:
+    file: ../../assets/logo-dark.svg
+  actions:
+    - text: Get Started
+      link: /canaveral/getting-started/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/anthropics/canaveral
+      icon: external
+---
+
+import { Card, CardGrid, LinkCard, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Why Canaveral?
+
+<CardGrid stagger>
+  <Card title="Framework Agnostic" icon="puzzle">
+    Build Flutter, Expo, React Native, native iOS/Android, and Tauri apps with the same commands. No more learning different tools for each framework.
+  </Card>
+  <Card title="CI/CD First" icon="rocket">
+    Designed for automation from day one. JSON output, GitHub Actions integration, and structured errors make CI/CD pipelines reliable.
+  </Card>
+  <Card title="Match-style Signing" icon="shield">
+    Sync certificates and profiles across your team with encrypted storage in Git, S3, or Azure. Never deal with signing issues again.
+  </Card>
+  <Card title="Fast & Native" icon="star">
+    Written in Rust for speed and reliability. No Ruby runtime, no dependency conflicts, just a single binary that works everywhere.
+  </Card>
+</CardGrid>
+
+## Quick Start
+
+<Tabs>
+  <TabItem label="macOS/Linux">
+    ```bash
+    # Install Canaveral
+    curl -fsSL https://get.canaveral.dev | sh
+
+    # Initialize your project
+    cd my-app
+    canaveral init
+
+    # Build for release
+    canaveral build --platform ios --profile release
+    canaveral build --platform android --profile release
+    ```
+  </TabItem>
+  <TabItem label="With Cargo">
+    ```bash
+    # Install via Cargo
+    cargo install canaveral
+
+    # Initialize your project
+    cd my-app
+    canaveral init
+
+    # Build for release
+    canaveral build --platform ios --profile release
+    ```
+  </TabItem>
+</Tabs>
+
+## Supported Frameworks
+
+<CardGrid>
+  <LinkCard
+    title="Flutter"
+    description="Full support for iOS, Android, macOS, Windows, Linux, and Web builds."
+    href="/canaveral/frameworks/flutter/"
+  />
+  <LinkCard
+    title="Expo"
+    description="EAS Build integration and local builds with expo prebuild."
+    href="/canaveral/frameworks/expo/"
+  />
+  <LinkCard
+    title="React Native"
+    description="Metro bundler integration with native iOS and Android builds."
+    href="/canaveral/frameworks/react-native/"
+  />
+  <LinkCard
+    title="Native iOS"
+    description="Xcode projects with CocoaPods and Swift Package Manager support."
+    href="/canaveral/frameworks/native-ios/"
+  />
+  <LinkCard
+    title="Native Android"
+    description="Gradle builds with flavor support and both Groovy and Kotlin DSL."
+    href="/canaveral/frameworks/native-android/"
+  />
+  <LinkCard
+    title="Tauri"
+    description="Desktop apps for macOS, Windows, and Linux with auto-updater support."
+    href="/canaveral/frameworks/tauri/"
+  />
+</CardGrid>
+
+## Distribution Made Easy
+
+```bash
+# Upload to TestFlight
+canaveral testflight upload build/ios/App.ipa --changelog "Bug fixes"
+
+# Upload to Google Play
+canaveral store upload android --artifact build/android/app.aab --track internal
+
+# Upload to Firebase App Distribution
+canaveral firebase upload build/android/app.apk --groups "testers"
+```
+
+## Coming from Fastlane?
+
+Canaveral provides equivalent functionality with a simpler, more consistent interface:
+
+| Fastlane | Canaveral |
+|----------|-----------|
+| `gym` | `canaveral build --platform ios` |
+| `gradle` | `canaveral build --platform android` |
+| `pilot` | `canaveral testflight upload` |
+| `deliver` | `canaveral upload ios` |
+| `supply` | `canaveral upload android` |
+| `match` | `canaveral match sync` |
+| `snapshot` | `canaveral screenshots capture` |
+
+<LinkCard
+  title="Migration Guide"
+  description="Step-by-step guide to migrate from fastlane to Canaveral."
+  href="/canaveral/migration/from-fastlane/"
+/>
+
+## Join the Community
+
+<CardGrid>
+  <LinkCard
+    title="GitHub"
+    description="Star the repo, report issues, and contribute."
+    href="https://github.com/anthropics/canaveral"
+  />
+  <LinkCard
+    title="Documentation"
+    description="Read the full documentation."
+    href="/canaveral/getting-started/introduction/"
+  />
+</CardGrid>

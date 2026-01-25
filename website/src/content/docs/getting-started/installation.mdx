@@ -1,0 +1,240 @@
+---
+title: Installation
+description: Install Canaveral on macOS, Linux, or Windows.
+---
+
+import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+
+# Installation
+
+Canaveral can be installed on macOS, Linux, and Windows. Choose your preferred installation method below.
+
+## Quick Install
+
+<Tabs>
+  <TabItem label="macOS/Linux">
+    ```bash
+    curl -fsSL https://get.canaveral.dev | sh
+    ```
+
+    This downloads the latest release and installs it to `~/.canaveral/bin`.
+
+    Add to your PATH:
+    ```bash
+    export PATH="$HOME/.canaveral/bin:$PATH"
+    ```
+
+    Or restart your terminal.
+  </TabItem>
+  <TabItem label="Homebrew">
+    ```bash
+    brew install anthropics/tap/canaveral
+    ```
+  </TabItem>
+  <TabItem label="Cargo">
+    ```bash
+    cargo install canaveral
+    ```
+
+    Requires [Rust](https://rustup.rs/) to be installed.
+  </TabItem>
+  <TabItem label="Windows">
+    ```powershell
+    # Using winget (recommended)
+    winget install anthropics.canaveral
+
+    # Or download from GitHub releases
+    # https://github.com/anthropics/canaveral/releases
+    ```
+  </TabItem>
+</Tabs>
+
+## Verify Installation
+
+```bash
+canaveral --version
+```
+
+You should see output like:
+```
+canaveral 0.1.0
+```
+
+## Prerequisites
+
+Canaveral requires certain tools depending on what platforms you're building for:
+
+### iOS Development
+
+<Steps>
+1. **Xcode** - Install from the Mac App Store or [developer.apple.com](https://developer.apple.com/xcode/)
+2. **Xcode Command Line Tools**
+   ```bash
+   xcode-select --install
+   ```
+3. **CocoaPods** (if your project uses it)
+   ```bash
+   sudo gem install cocoapods
+   ```
+</Steps>
+
+### Android Development
+
+<Steps>
+1. **Android Studio** - Download from [developer.android.com](https://developer.android.com/studio)
+2. **Android SDK** - Set the `ANDROID_HOME` environment variable:
+   ```bash
+   export ANDROID_HOME=$HOME/Library/Android/sdk
+   export PATH=$PATH:$ANDROID_HOME/emulator
+   export PATH=$PATH:$ANDROID_HOME/platform-tools
+   ```
+3. **Java 17** - Required for Gradle builds
+   ```bash
+   brew install openjdk@17
+   ```
+</Steps>
+
+### Framework-Specific Requirements
+
+<Tabs>
+  <TabItem label="Flutter">
+    ```bash
+    # Install Flutter SDK
+    # https://docs.flutter.dev/get-started/install
+
+    # Verify installation
+    flutter doctor
+    ```
+  </TabItem>
+  <TabItem label="Expo">
+    ```bash
+    # Install Node.js (18+)
+    brew install node
+
+    # Install EAS CLI (optional, for cloud builds)
+    npm install -g eas-cli
+    ```
+  </TabItem>
+  <TabItem label="React Native">
+    ```bash
+    # Install Node.js (18+)
+    brew install node
+
+    # Install Watchman (recommended)
+    brew install watchman
+    ```
+  </TabItem>
+  <TabItem label="Tauri">
+    ```bash
+    # Install Rust
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+    # Install Node.js (18+)
+    brew install node
+    ```
+  </TabItem>
+</Tabs>
+
+## Doctor Command
+
+Run the doctor command to verify your environment is set up correctly:
+
+```bash
+canaveral doctor
+```
+
+This will check for:
+- Required tools and their versions
+- Environment variables
+- Code signing setup
+- Store credentials
+
+Example output:
+```
+Checking environment...
+  [OK] Rust 1.75.0
+  [OK] Flutter 3.16.0
+  [OK] Xcode 15.2
+  [OK] Android SDK 34
+  [OK] Node.js 20.10.0
+  [WARN] CocoaPods 1.12.0 (1.14.0 recommended)
+  [OK] App Store Connect credentials configured
+  [FAIL] Google Play service account not configured
+
+1 issue found. Run 'canaveral doctor --fix' for suggestions.
+```
+
+<Aside type="tip">
+  Run `canaveral doctor --fix` for suggestions on how to resolve any issues.
+</Aside>
+
+## Shell Completions
+
+Enable tab completion for your shell:
+
+<Tabs>
+  <TabItem label="Bash">
+    ```bash
+    canaveral completions bash > ~/.bash_completion.d/canaveral
+    source ~/.bash_completion.d/canaveral
+    ```
+  </TabItem>
+  <TabItem label="Zsh">
+    ```bash
+    canaveral completions zsh > ~/.zfunc/_canaveral
+    # Add to ~/.zshrc: fpath+=~/.zfunc
+    ```
+  </TabItem>
+  <TabItem label="Fish">
+    ```bash
+    canaveral completions fish > ~/.config/fish/completions/canaveral.fish
+    ```
+  </TabItem>
+</Tabs>
+
+## Updating
+
+Update to the latest version:
+
+<Tabs>
+  <TabItem label="Quick Install">
+    ```bash
+    canaveral self-update
+    ```
+  </TabItem>
+  <TabItem label="Homebrew">
+    ```bash
+    brew upgrade canaveral
+    ```
+  </TabItem>
+  <TabItem label="Cargo">
+    ```bash
+    cargo install canaveral --force
+    ```
+  </TabItem>
+</Tabs>
+
+## Uninstalling
+
+<Tabs>
+  <TabItem label="Quick Install">
+    ```bash
+    rm -rf ~/.canaveral
+    # Remove PATH entry from your shell config
+    ```
+  </TabItem>
+  <TabItem label="Homebrew">
+    ```bash
+    brew uninstall canaveral
+    ```
+  </TabItem>
+  <TabItem label="Cargo">
+    ```bash
+    cargo uninstall canaveral
+    ```
+  </TabItem>
+</Tabs>
+
+## Next Steps
+
+Now that you have Canaveral installed, [initialize your first project](/canaveral/getting-started/quick-start/).

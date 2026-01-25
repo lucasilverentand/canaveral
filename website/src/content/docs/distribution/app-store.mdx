@@ -1,0 +1,50 @@
+---
+title: App Store Connect
+description: Upload and distribute iOS apps to the App Store.
+---
+
+# App Store Connect
+
+Upload and distribute iOS apps to the App Store.
+
+## Authentication
+
+Canaveral uses App Store Connect API keys for authentication. No Apple ID/password required.
+
+### Generate API Key
+
+1. Go to [App Store Connect](https://appstoreconnect.apple.com/access/api)
+2. Click "Generate API Key"
+3. Select "App Manager" role
+4. Download the .p8 file
+
+### Configure
+
+```bash
+export ASC_API_KEY_ID="XXXXXXXXXX"
+export ASC_API_KEY_ISSUER="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+export ASC_API_KEY_PATH="/path/to/AuthKey_XXXXXXXXXX.p8"
+```
+
+## Upload
+
+```bash
+# Upload IPA
+canaveral upload ios --artifact build/ios/MyApp.ipa
+
+# Upload and submit for review
+canaveral upload ios --artifact build/ios/MyApp.ipa --submit-for-review
+```
+
+## Metadata Management
+
+```bash
+# Sync metadata from App Store
+canaveral metadata pull ios
+
+# Push metadata to App Store
+canaveral metadata push ios
+
+# Preview changes
+canaveral metadata diff ios
+```

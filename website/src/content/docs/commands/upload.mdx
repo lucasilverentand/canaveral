@@ -1,0 +1,83 @@
+---
+title: upload
+description: Upload your app to the App Store or Google Play.
+---
+
+# canaveral upload
+
+Upload your app to the App Store or Google Play Store.
+
+## Synopsis
+
+```bash
+canaveral upload <PLATFORM> [OPTIONS]
+```
+
+## Platforms
+
+- `ios` - Upload to App Store Connect
+- `android` - Upload to Google Play Console
+
+## Options
+
+### iOS Options
+
+| Option | Description |
+|--------|-------------|
+| `--artifact <PATH>` | Path to IPA file |
+| `--skip-metadata` | Skip metadata upload |
+| `--skip-screenshots` | Skip screenshot upload |
+| `--submit-for-review` | Submit for App Store review |
+
+### Android Options
+
+| Option | Description |
+|--------|-------------|
+| `--artifact <PATH>` | Path to AAB or APK file |
+| `--track <TRACK>` | Release track: `internal`, `alpha`, `beta`, `production` |
+| `--release-status <STATUS>` | Status: `completed`, `draft`, `halted`, `inProgress` |
+| `--release-notes <TEXT>` | Release notes |
+
+## Examples
+
+### App Store
+
+```bash
+# Upload IPA
+canaveral upload ios --artifact build/ios/MyApp.ipa
+
+# Upload and submit for review
+canaveral upload ios --artifact build/ios/MyApp.ipa --submit-for-review
+
+# Skip metadata
+canaveral upload ios --artifact build/ios/MyApp.ipa --skip-metadata
+```
+
+### Google Play
+
+```bash
+# Upload to internal testing
+canaveral store upload android --artifact build/android/app.aab --track internal
+
+# Upload to production
+canaveral store upload android --artifact build/android/app.aab --track production
+
+# With release notes
+canaveral store upload android --artifact build/android/app.aab --track internal --release-notes "Bug fixes"
+```
+
+## Environment Variables
+
+### iOS (App Store Connect)
+
+| Variable | Description |
+|----------|-------------|
+| `ASC_API_KEY_ID` | API key ID |
+| `ASC_API_KEY_ISSUER` | API key issuer ID |
+| `ASC_API_KEY_PATH` | Path to .p8 key file |
+
+### Android (Google Play)
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_PLAY_SERVICE_ACCOUNT` | Path to service account JSON |

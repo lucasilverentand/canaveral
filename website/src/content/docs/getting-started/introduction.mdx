@@ -1,0 +1,107 @@
+---
+title: Introduction
+description: Learn what Canaveral is and why you should use it for mobile app CI/CD.
+---
+
+import { Card, CardGrid, Aside } from '@astrojs/starlight/components';
+
+# What is Canaveral?
+
+Canaveral is a **universal release management CLI** designed to replace the fragmented ecosystem of package-specific release tools (fastlane, release-please, semantic-release, etc.) with a single, extensible solution that works across multiple frameworks and platforms.
+
+Named after **Cape Canaveral**, NASA's historic launch site, Canaveral reflects the tool's mission to "launch" software releases to their target registries with precision and reliability.
+
+<Aside type="tip">
+  Unlike fastlane which focuses primarily on native iOS/Android, Canaveral is **framework-agnostic** and provides a unified interface for Flutter, Expo, React Native, native Swift/Kotlin, Tauri, and more.
+</Aside>
+
+## Key Features
+
+<CardGrid>
+  <Card title="Multi-Framework Support" icon="puzzle">
+    Build apps with Flutter, Expo, React Native, native iOS/Android, or Tauri using the same commands.
+  </Card>
+  <Card title="CI/CD First Design" icon="rocket">
+    JSON output, structured errors, and integrations for GitHub Actions, GitLab CI, Bitrise, and more.
+  </Card>
+  <Card title="Match-style Signing" icon="shield">
+    Sync certificates and profiles across your team with encrypted storage in Git, S3, GCS, or Azure.
+  </Card>
+  <Card title="Store Distribution" icon="external">
+    Upload to TestFlight, App Store, Google Play, and Firebase App Distribution.
+  </Card>
+</CardGrid>
+
+## Why Canaveral?
+
+### The Problem
+
+Mobile app development typically requires managing multiple tools:
+
+- **fastlane** for iOS builds and distribution
+- **Gradle** or custom scripts for Android
+- **Framework-specific CLIs** (Flutter, Expo, etc.)
+- **Custom CI/CD configurations** that vary by platform
+- **Manual certificate management** that causes team friction
+
+This fragmentation leads to:
+- Duplicated configuration across platforms
+- Inconsistent CI/CD pipelines
+- Steep learning curves for each tool
+- Certificate and signing chaos
+
+### The Solution
+
+Canaveral provides **one unified interface** for all mobile app operations:
+
+```bash
+# Same command works for all frameworks
+canaveral build --platform ios --profile release
+canaveral build --platform android --profile release
+
+# One tool for all distribution targets
+canaveral testflight upload build/ios/App.ipa
+canaveral store upload android --artifact build/android/app.aab
+
+# Unified certificate management
+canaveral match sync --profile-type appstore
+```
+
+## Comparison with Existing Tools
+
+| Feature | Canaveral | Fastlane | Bitrise |
+|---------|-----------|----------|---------|
+| Framework support | All major | Native focus | Step-based |
+| Language | Rust (fast) | Ruby | Go |
+| Configuration | TOML | Ruby DSL | YAML |
+| CI/CD output | JSON, structured | Text | JSON |
+| Certificate sync | Built-in | Via match | External |
+| Learning curve | Low | Medium | Low |
+
+## Architecture
+
+Canaveral is built with a modular architecture:
+
+```
+canaveral-cli        # Command-line interface
+├── canaveral-frameworks   # Build adapters for each framework
+├── canaveral-stores       # Store distribution (App Store, Play Store)
+├── canaveral-signing      # Certificate and profile management
+└── canaveral-core        # Shared utilities
+```
+
+Each framework adapter implements a common interface, ensuring consistent behavior across all supported platforms.
+
+## Next Steps
+
+<CardGrid>
+  <Card title="Installation" icon="download">
+    [Install Canaveral](/canaveral/getting-started/installation/) on your machine.
+  </Card>
+  <Card title="Quick Start" icon="rocket">
+    [Get started](/canaveral/getting-started/quick-start/) with your first build.
+  </Card>
+  <Card title="Migration" icon="right-arrow">
+    [Migrate from fastlane](/canaveral/migration/from-fastlane/) if you're an existing user.
+  </Card>
+</CardGrid>

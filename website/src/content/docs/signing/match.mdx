@@ -1,0 +1,61 @@
+---
+title: Match (Sync)
+description: Sync iOS certificates and profiles across your team.
+---
+
+# Match (Certificate Sync)
+
+Sync iOS certificates and provisioning profiles across your team with encrypted storage.
+
+## Storage Backends
+
+| Backend | Description |
+|---------|-------------|
+| `git` | Git repository (recommended) |
+| `s3` | Amazon S3 bucket |
+| `gcs` | Google Cloud Storage |
+| `azure` | Azure Blob Storage |
+
+## Initialize
+
+```bash
+# Git storage
+canaveral match init --storage git --git-url git@github.com:org/certs.git --team-id TEAMID
+
+# S3 storage
+canaveral match init --storage s3 --bucket my-certs-bucket --team-id TEAMID
+
+# GCS storage
+canaveral match init --storage gcs --bucket my-certs-bucket --team-id TEAMID
+```
+
+## Sync Certificates
+
+```bash
+# Development certificates
+canaveral match sync --profile-type development
+
+# App Store certificates
+canaveral match sync --profile-type appstore
+
+# Ad Hoc certificates
+canaveral match sync --profile-type adhoc
+
+# Read-only mode (for CI)
+canaveral match sync --profile-type appstore --readonly
+```
+
+## Force Regenerate
+
+```bash
+# Regenerate certificates (use with caution)
+canaveral match sync --profile-type appstore --force
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `MATCH_GIT_URL` | Git URL for certificate storage |
+| `MATCH_PASSWORD` | Encryption password |
+| `MATCH_GIT_BRANCH` | Git branch (default: main) |

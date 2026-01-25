@@ -1,0 +1,47 @@
+---
+title: Firebase App Distribution
+description: Distribute apps to testers via Firebase.
+---
+
+# Firebase App Distribution
+
+Distribute iOS and Android apps to testers via Firebase App Distribution.
+
+## Authentication
+
+```bash
+# Using Firebase CLI token
+export FIREBASE_TOKEN="your-firebase-token"
+
+# Or using service account
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+```
+
+## Upload
+
+```bash
+# Upload iOS
+canaveral firebase upload build/ios/MyApp.ipa --app 1:123456789:ios:abcdef
+
+# Upload Android
+canaveral firebase upload build/android/app.apk --app 1:123456789:android:abcdef
+
+# With tester groups
+canaveral firebase upload build/android/app.apk --app APP_ID --groups "qa,testers"
+
+# With release notes
+canaveral firebase upload build/android/app.apk --app APP_ID --notes "Bug fixes"
+```
+
+## Manage Testers
+
+```bash
+# List testers
+canaveral firebase testers list --app APP_ID
+
+# Add testers
+canaveral firebase testers add user@example.com --app APP_ID
+
+# Add to group
+canaveral firebase testers add user@example.com --app APP_ID --group qa
+```

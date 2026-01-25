@@ -1,0 +1,45 @@
+---
+title: match
+description: Sync iOS certificates and profiles.
+---
+
+# canaveral match
+
+Sync iOS certificates and provisioning profiles across your team.
+
+## Synopsis
+
+```bash
+canaveral match <COMMAND> [OPTIONS]
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `init` | Initialize certificate storage |
+| `sync` | Sync certificates and profiles |
+| `nuke` | Remove and regenerate certificates |
+
+## Init
+
+```bash
+canaveral match init --storage git --git-url git@github.com:org/certs.git --team-id TEAMID
+canaveral match init --storage s3 --bucket my-certs --team-id TEAMID
+```
+
+## Sync
+
+```bash
+canaveral match sync --profile-type development
+canaveral match sync --profile-type appstore
+canaveral match sync --profile-type appstore --readonly
+```
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `--profile-type` | Type: `development`, `appstore`, `adhoc`, `enterprise` |
+| `--readonly` | Don't create new certificates |
+| `--force` | Regenerate certificates |

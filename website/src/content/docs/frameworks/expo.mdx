@@ -1,0 +1,231 @@
+---
+title: Expo
+description: Build Expo apps for iOS and Android.
+---
+
+import { Aside, Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+# Expo
+
+Canaveral supports Expo applications with both EAS Build (cloud) and local builds.
+
+**Supported platforms**: iOS, Android
+
+## Detection
+
+Canaveral detects Expo projects by the presence of `app.json` or `app.config.js` with an `expo` field.
+
+## Build Modes
+
+### Local Build (Default)
+
+Uses `expo prebuild` and native build tools:
+
+```bash
+canaveral build --platform ios --profile release
+canaveral build --platform android --profile release
+```
+
+### EAS Build (Cloud)
+
+For cloud-based builds via EAS:
+
+```bash
+canaveral build --platform ios --profile release --config eas=true
+canaveral build --platform android --profile release --config eas=true
+```
+
+<Aside type="tip">
+  EAS Build is recommended for CI/CD as it doesn't require local Xcode/Android SDK.
+</Aside>
+
+## Version Management
+
+Version is managed in `app.json` or `app.config.js`:
+
+```json title="app.json"
+{
+  "expo": {
+    "version": "1.2.3",
+    "ios": {
+      "buildNumber": "42"
+    },
+    "android": {
+      "versionCode": 42
+    }
+  }
+}
+```
+
+```bash
+# Show version
+canaveral version
+
+# Bump version (updates all fields)
+canaveral version --bump patch
+
+# Only bump build number
+canaveral version --build
+```
+
+## OTA Updates
+
+Push over-the-air updates via EAS Update:
+
+```bash
+# Publish update to production channel
+canaveral ota publish --channel production --message "Bug fixes"
+
+# Publish to specific branch
+canaveral ota publish --branch main --message "New feature"
+```
+
+<Aside type="note">
+  OTA updates require EAS Update to be configured in your project.
+</Aside>
+
+## Configuration
+
+Expo-specific options in `canaveral.toml`:
+
+```toml
+[expo]
+# Use EAS Build by default
+use_eas = false
+
+# EAS project ID (from app.json or app.config.js)
+project_id = "your-eas-project-id"
+
+# Build profiles
+[expo.profiles]
+development = { distribution = "internal" }
+preview = { distribution = "internal" }
+production = { distribution = "store" }
+```
+
+## Testing
+
+### Jest Tests
+
+```bash
+canaveral test --type unit
+```
+
+Runs Jest tests configured in your project.
+
+### Detox E2E Tests
+
+```bash
+canaveral test --type e2e --platform ios
+canaveral test --type e2e --platform android
+```
+
+## EAS Configuration
+
+If using EAS Build, configure in `eas.json`:
+
+```json title="eas.json"
+{
+  "build": {
+    "development": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "distribution": "store"
+    }
+  }
+}
+```
+
+## CI/CD Integration
+
+### GitHub Actions with EAS
+
+```yaml
+name: Expo Build
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Canaveral
+        run: curl -fsSL https://get.canaveral.dev | sh
+
+      - name: Build with EAS
+        run: canaveral build --platform ios --profile release --config eas=true
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+```
+
+### Local Builds
+
+```yaml
+name: Expo Local Build
+on: [push]
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Canaveral
+        run: curl -fsSL https://get.canaveral.dev | sh
+
+      - name: Prebuild
+        run: npx expo prebuild --platform ios
+
+      - name: Build iOS
+        run: canaveral build --platform ios --profile release
+```
+
+## Troubleshooting
+
+### "Expo CLI not found"
+
+Install the Expo CLI:
+
+```bash
+npm install -g expo-cli
+# or
+npx expo --version
+```
+
+### "EAS Build failed"
+
+Check your EAS configuration:
+
+```bash
+eas build:configure
+eas whoami
+```
+
+### "Prebuild failed"
+
+Clean and rebuild:
+
+```bash
+rm -rf ios android
+npx expo prebuild --clean
+```

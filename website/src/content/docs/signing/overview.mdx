@@ -1,0 +1,42 @@
+---
+title: Code Signing Overview
+description: Manage iOS certificates and Android keystores.
+---
+
+# Code Signing
+
+Canaveral provides match-style certificate and profile management for iOS, and keystore management for Android.
+
+## iOS Signing
+
+iOS code signing requires:
+- **Certificate**: Identifies the developer or organization
+- **Provisioning Profile**: Links app, devices, and certificate
+
+### Match-style Sync
+
+Canaveral's match command syncs certificates across your team:
+
+```bash
+# Initialize
+canaveral match init --storage git --git-url git@github.com:org/certs.git
+
+# Sync certificates
+canaveral match sync --profile-type development
+canaveral match sync --profile-type appstore
+```
+
+See [Match (Sync)](/canaveral/signing/match/) for details.
+
+## Android Signing
+
+Android signing requires a keystore file:
+
+```bash
+export ANDROID_KEYSTORE_PATH=/path/to/release.keystore
+export ANDROID_KEYSTORE_PASSWORD=password
+export ANDROID_KEY_ALIAS=release
+export ANDROID_KEY_PASSWORD=password
+```
+
+See [Android Keystore](/canaveral/signing/android-keystore/) for details.

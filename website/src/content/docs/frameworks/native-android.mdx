@@ -1,0 +1,304 @@
+---
+title: Native Android
+description: Build native Android apps with Gradle.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Native Android (Gradle)
+
+Canaveral supports native Android applications built with Gradle.
+
+**Supported platforms**: Android
+
+## Detection
+
+Canaveral detects native Android projects by the presence of `build.gradle` or `build.gradle.kts` with the Android plugin.
+
+## Build Commands
+
+### APK Build
+
+```bash
+# Debug APK
+canaveral build --platform android --profile debug
+
+# Release APK
+canaveral build --platform android --profile release --config format=apk
+```
+
+### AAB Build (Play Store)
+
+```bash
+# Release AAB
+canaveral build --platform android --profile release
+```
+
+<Aside type="note">
+  AAB (Android App Bundle) is the default format for release builds as it's required for Play Store.
+</Aside>
+
+### Build with Flavor
+
+```bash
+canaveral build --platform android --profile release --config flavor=production
+```
+
+## Gradle Support
+
+Canaveral supports:
+
+| Type | Description |
+|------|-------------|
+| `./gradlew` | Gradle wrapper (recommended) |
+| `build.gradle.kts` | Kotlin DSL |
+| `build.gradle` | Groovy DSL |
+| Build flavors | Multiple app variants |
+
+## Version Management
+
+Version is read from `app/build.gradle` or `app/build.gradle.kts`:
+
+<Tabs>
+  <TabItem label="Kotlin DSL">
+    ```kotlin title="app/build.gradle.kts"
+    android {
+        defaultConfig {
+            versionCode = 42
+            versionName = "1.2.3"
+        }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Groovy DSL">
+    ```groovy title="app/build.gradle"
+    android {
+        defaultConfig {
+            versionCode 42
+            versionName "1.2.3"
+        }
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+```bash
+# Show version
+canaveral version
+
+# Bump version (updates versionName and versionCode)
+canaveral version --bump patch
+
+# Set specific version
+canaveral version --set 2.0.0
+
+# Only bump versionCode
+canaveral version --build
+```
+
+## Signing
+
+### Environment Variables (Recommended)
+
+```bash
+export ANDROID_KEYSTORE_PATH=/path/to/release.keystore
+export ANDROID_KEYSTORE_PASSWORD=password
+export ANDROID_KEY_ALIAS=release
+export ANDROID_KEY_PASSWORD=password
+```
+
+### Configuration File
+
+```toml title="canaveral.toml"
+[android.signing]
+keystore_path = "${ANDROID_KEYSTORE_PATH}"
+keystore_password = "${ANDROID_KEYSTORE_PASSWORD}"
+key_alias = "${ANDROID_KEY_ALIAS}"
+key_password = "${ANDROID_KEY_PASSWORD}"
+```
+
+### Gradle Signing Config
+
+You can also configure signing in Gradle directly:
+
+```kotlin title="app/build.gradle.kts"
+android {
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH"))
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+        }
+    }
+}
+```
+
+## Build Flavors
+
+Configure flavors in your Gradle file:
+
+```kotlin title="app/build.gradle.kts"
+android {
+    flavorDimensions += "environment"
+    productFlavors {
+        create("development") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+        }
+        create("staging") {
+            dimension = "environment"
+            applicationIdSuffix = ".staging"
+        }
+        create("production") {
+            dimension = "environment"
+        }
+    }
+}
+```
+
+Build with flavor:
+
+```bash
+canaveral build --platform android --profile release --config flavor=production
+```
+
+## Configuration
+
+Android-specific options in `canaveral.toml`:
+
+```toml
+[android]
+package_name = "com.example.myapp"
+
+# Gradle project directory (if not root)
+project_dir = "android"
+
+# Module name (default: app)
+module = "app"
+
+# Build type (default based on profile)
+build_type = "Release"
+
+# Flavor
+flavor = "production"
+
+# Output format
+output_format = "aab"  # aab or apk
+
+# ProGuard/R8
+minify_enabled = true
+shrink_resources = true
+
+# Additional Gradle args
+gradle_args = ["--stacktrace", "--info"]
+```
+
+## Testing
+
+### Unit Tests
+
+```bash
+canaveral test --type unit --platform android
+```
+
+Runs `./gradlew test`.
+
+### Instrumented Tests
+
+```bash
+canaveral test --type integration --platform android
+```
+
+Runs `./gradlew connectedAndroidTest`.
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+name: Android Build
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Canaveral
+        run: curl -fsSL https://get.canaveral.dev | sh
+
+      - name: Decode Keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+
+      - name: Build
+        run: canaveral build --platform android --profile release
+        env:
+          ANDROID_KEYSTORE_PATH: release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Upload to Play Store
+        run: canaveral store upload android --artifact build/android/*.aab --track internal
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+```
+
+## Troubleshooting
+
+### "Gradle not found"
+
+Ensure Gradle wrapper is present:
+
+```bash
+gradle wrapper
+```
+
+Or install Gradle:
+
+```bash
+brew install gradle
+```
+
+### "JAVA_HOME not set"
+
+Set the Java home:
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+```
+
+### "Build failed with R8"
+
+Check ProGuard rules in `proguard-rules.pro`. Common issues:
+- Missing keep rules for reflection
+- Serialization issues
+
+### "Keystore not found"
+
+Verify the keystore path:
+
+```bash
+ls -la $ANDROID_KEYSTORE_PATH
+```
+
+Ensure it's accessible in CI:
+
+```bash
+echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+```

@@ -1,0 +1,473 @@
+---
+import type { Props } from '@astrojs/starlight/props';
+
+const { data } = Astro.props.entry;
+const { title = data.title, tagline, image, actions = [] } = data.hero || {};
+---
+
+<div class="hero">
+	<div class="hero-background">
+		<div class="stars"></div>
+		<div class="stars2"></div>
+		<div class="stars3"></div>
+	</div>
+
+	<div class="hero-content sl-flex">
+		<div class="hero-text">
+			<h1 id="_top" data-page-title set:html={title} />
+			{tagline && <p class="tagline" set:html={tagline} />}
+
+			<div class="hero-features">
+				<div class="feature">
+					<span class="feature-icon">🚀</span>
+					<span class="feature-text">Universal Build System</span>
+				</div>
+				<div class="feature">
+					<span class="feature-icon">📱</span>
+					<span class="feature-text">All Mobile Frameworks</span>
+				</div>
+				<div class="feature">
+					<span class="feature-icon">⚡</span>
+					<span class="feature-text">CI/CD First</span>
+				</div>
+			</div>
+
+			{actions.length > 0 && (
+				<div class="sl-flex actions">
+					{actions.map(({ text, link, variant }) => (
+						<a href={link} class={`action-btn ${variant === 'primary' ? 'primary' : 'secondary'}`}>
+							{text}
+							{variant === 'primary' && <span class="arrow">→</span>}
+						</a>
+					))}
+				</div>
+			)}
+
+			<div class="install-command">
+				<code>curl -fsSL https://get.canaveral.dev | sh</code>
+				<button class="copy-btn" onclick="navigator.clipboard.writeText('curl -fsSL https://get.canaveral.dev | sh')">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+						<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+					</svg>
+				</button>
+			</div>
+		</div>
+
+		<div class="hero-visual">
+			<div class="framework-orbit">
+				<div class="orbit-ring ring-1">
+					<div class="framework-icon flutter" title="Flutter">
+						<img src="https://cdn.simpleicons.org/flutter/02569B" alt="Flutter" width="28" height="28" />
+					</div>
+					<div class="framework-icon expo" title="Expo">
+						<img src="https://cdn.simpleicons.org/expo/000020" alt="Expo" width="28" height="28" />
+					</div>
+				</div>
+				<div class="orbit-ring ring-2">
+					<div class="framework-icon react" title="React Native">
+						<img src="https://cdn.simpleicons.org/react/61DAFB" alt="React Native" width="28" height="28" />
+					</div>
+					<div class="framework-icon apple" title="Native iOS">
+						<img src="https://cdn.simpleicons.org/apple/ffffff" alt="iOS" width="28" height="28" />
+					</div>
+					<div class="framework-icon android" title="Native Android">
+						<img src="https://cdn.simpleicons.org/android/3DDC84" alt="Android" width="28" height="28" />
+					</div>
+				</div>
+				<div class="orbit-ring ring-3">
+					<div class="framework-icon tauri" title="Tauri">
+						<img src="https://cdn.simpleicons.org/tauri/FFC131" alt="Tauri" width="28" height="28" />
+					</div>
+				</div>
+				<div class="center-logo">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" width="48" height="48">
+						<defs>
+							<linearGradient id="heroRocketGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+								<stop offset="0%" style="stop-color:#ff6b35"/>
+								<stop offset="100%" style="stop-color:#ffb347"/>
+							</linearGradient>
+						</defs>
+						<path d="M16 2C16 2 10 8 10 16C10 20 12 24 16 28C20 24 22 20 22 16C22 8 16 2 16 2Z" fill="url(#heroRocketGradient)"/>
+						<circle cx="16" cy="12" r="3" fill="#0f0f1a"/>
+						<circle cx="16" cy="12" r="2" fill="#1a1a2e"/>
+						<path d="M10 20L6 26L10 24V20Z" fill="#ff8c42"/>
+						<path d="M22 20L26 26L22 24V20Z" fill="#ff8c42"/>
+						<path d="M14 28C14 28 15 30 16 32C17 30 18 28 18 28" fill="#ff6b35"/>
+					</svg>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	.hero {
+		position: relative;
+		padding: 4rem 1rem;
+		min-height: 70vh;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #2d1b4e 100%);
+	}
+
+	.hero-background {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+	}
+
+	/* Stars animation */
+	.stars, .stars2, .stars3 {
+		position: absolute;
+		inset: 0;
+		background-repeat: repeat;
+	}
+
+	.stars {
+		background-image: radial-gradient(2px 2px at 20px 30px, #fff, transparent),
+			radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+			radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+			radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.6), transparent);
+		background-size: 200px 100px;
+		animation: stars 100s linear infinite;
+	}
+
+	.stars2 {
+		background-image: radial-gradient(1px 1px at 50px 50px, rgba(255,255,255,0.5), transparent),
+			radial-gradient(2px 2px at 100px 20px, rgba(255,255,255,0.4), transparent);
+		background-size: 150px 150px;
+		animation: stars 150s linear infinite;
+	}
+
+	.stars3 {
+		background-image: radial-gradient(1px 1px at 30px 80px, rgba(255,255,255,0.3), transparent);
+		background-size: 100px 100px;
+		animation: stars 200s linear infinite;
+	}
+
+	@keyframes stars {
+		from { transform: translateY(0); }
+		to { transform: translateY(-100%); }
+	}
+
+	.hero-content {
+		position: relative;
+		z-index: 1;
+		max-width: 1200px;
+		width: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 3rem;
+		flex-wrap: wrap;
+	}
+
+	.hero-text {
+		flex: 1;
+		min-width: 300px;
+		max-width: 600px;
+	}
+
+	h1 {
+		font-size: clamp(2.5rem, 5vw, 4rem);
+		font-weight: 800;
+		line-height: 1.1;
+		margin-bottom: 1rem;
+		background: linear-gradient(135deg, #fff 0%, #e8e8f0 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+	}
+
+	.tagline {
+		font-size: clamp(1.1rem, 2vw, 1.4rem);
+		color: #a8a8b8;
+		margin-bottom: 2rem;
+		line-height: 1.6;
+	}
+
+	.hero-features {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		margin-bottom: 2rem;
+	}
+
+	.feature {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		background: rgba(255, 107, 53, 0.1);
+		border: 1px solid rgba(255, 107, 53, 0.2);
+		border-radius: 9999px;
+		font-size: 0.9rem;
+		color: #e8e8f0;
+	}
+
+	.feature-icon {
+		font-size: 1.1rem;
+	}
+
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		margin-bottom: 2rem;
+	}
+
+	.action-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.75rem 1.5rem;
+		border-radius: 8px;
+		font-weight: 600;
+		text-decoration: none;
+		transition: all 0.3s ease;
+	}
+
+	.action-btn.primary {
+		background: linear-gradient(135deg, #ff6b35 0%, #ffb347 100%);
+		color: white;
+		box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+	}
+
+	.action-btn.primary:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+	}
+
+	.action-btn.secondary {
+		background: rgba(255, 255, 255, 0.1);
+		color: #e8e8f0;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.action-btn.secondary:hover {
+		background: rgba(255, 255, 255, 0.15);
+		border-color: rgba(255, 255, 255, 0.3);
+	}
+
+	.action-btn .arrow {
+		transition: transform 0.2s ease;
+	}
+
+	.action-btn:hover .arrow {
+		transform: translateX(4px);
+	}
+
+	.install-command {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		background: rgba(0, 0, 0, 0.3);
+		border: 1px solid rgba(255, 107, 53, 0.3);
+		border-radius: 8px;
+		padding: 0.75rem 1rem;
+		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+		font-size: 0.9rem;
+	}
+
+	.install-command code {
+		color: #ff6b35;
+		background: none;
+		padding: 0;
+		border: none;
+	}
+
+	.copy-btn {
+		background: none;
+		border: none;
+		color: #a8a8b8;
+		cursor: pointer;
+		padding: 0.25rem;
+		border-radius: 4px;
+		transition: all 0.2s ease;
+	}
+
+	.copy-btn:hover {
+		color: #ff6b35;
+		background: rgba(255, 107, 53, 0.1);
+	}
+
+	/* Framework orbit visualization */
+	.hero-visual {
+		flex: 0 0 auto;
+		width: 320px;
+		height: 320px;
+		position: relative;
+	}
+
+	.framework-orbit {
+		position: relative;
+		width: 100%;
+		height: 100%;
+	}
+
+	.center-logo {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: 80px;
+		height: 80px;
+		background: rgba(255, 107, 53, 0.1);
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 0 40px rgba(255, 107, 53, 0.3);
+		animation: pulse 3s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% { box-shadow: 0 0 40px rgba(255, 107, 53, 0.3); }
+		50% { box-shadow: 0 0 60px rgba(255, 107, 53, 0.5); }
+	}
+
+	.orbit-ring {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		border: 1px dashed rgba(255, 107, 53, 0.2);
+		border-radius: 50%;
+		transform: translate(-50%, -50%);
+	}
+
+	.ring-1 {
+		width: 150px;
+		height: 150px;
+		animation: orbit 20s linear infinite;
+	}
+
+	.ring-2 {
+		width: 220px;
+		height: 220px;
+		animation: orbit 30s linear infinite reverse;
+	}
+
+	.ring-3 {
+		width: 290px;
+		height: 290px;
+		animation: orbit 40s linear infinite;
+	}
+
+	@keyframes orbit {
+		from { transform: translate(-50%, -50%) rotate(0deg); }
+		to { transform: translate(-50%, -50%) rotate(360deg); }
+	}
+
+	.framework-icon {
+		position: absolute;
+		width: 44px;
+		height: 44px;
+		background: rgba(26, 26, 46, 0.9);
+		border: 1px solid rgba(255, 107, 53, 0.3);
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		animation: counterOrbit 20s linear infinite;
+		transition: all 0.3s ease;
+	}
+
+	.framework-icon:hover {
+		transform: scale(1.2);
+		box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+	}
+
+	.ring-1 .framework-icon {
+		animation: counterOrbit 20s linear infinite;
+	}
+
+	.ring-2 .framework-icon {
+		animation: counterOrbit 30s linear infinite reverse;
+	}
+
+	.ring-3 .framework-icon {
+		animation: counterOrbit 40s linear infinite;
+	}
+
+	@keyframes counterOrbit {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(-360deg); }
+	}
+
+	/* Position icons on orbits */
+	.ring-1 .flutter { top: -22px; left: 50%; transform: translateX(-50%); }
+	.ring-1 .expo { bottom: -22px; left: 50%; transform: translateX(-50%); }
+
+	.ring-2 .react { top: -22px; left: 50%; transform: translateX(-50%); }
+	.ring-2 .apple { bottom: 20px; left: -22px; }
+	.ring-2 .android { bottom: 20px; right: -22px; }
+
+	.ring-3 .tauri { top: 50%; right: -22px; transform: translateY(-50%); }
+
+	/* Responsive adjustments */
+	@media (max-width: 900px) {
+		.hero-content {
+			flex-direction: column;
+			text-align: center;
+		}
+
+		.hero-text {
+			max-width: 100%;
+		}
+
+		.hero-features {
+			justify-content: center;
+		}
+
+		.actions {
+			justify-content: center;
+		}
+
+		.hero-visual {
+			width: 280px;
+			height: 280px;
+		}
+	}
+
+	/* Light theme adjustments */
+	:root[data-theme='light'] .hero {
+		background: linear-gradient(135deg, #f8f6f4 0%, #fff5f0 50%, #ffeee6 100%);
+	}
+
+	:root[data-theme='light'] h1 {
+		background: linear-gradient(135deg, #1a1a2e 0%, #2d2d4e 100%);
+		-webkit-background-clip: text;
+		background-clip: text;
+	}
+
+	:root[data-theme='light'] .tagline {
+		color: #666;
+	}
+
+	:root[data-theme='light'] .feature {
+		color: #1a1a2e;
+	}
+
+	:root[data-theme='light'] .stars,
+	:root[data-theme='light'] .stars2,
+	:root[data-theme='light'] .stars3 {
+		display: none;
+	}
+
+	:root[data-theme='light'] .center-logo {
+		background: rgba(255, 107, 53, 0.1);
+	}
+
+	:root[data-theme='light'] .framework-icon {
+		background: white;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	}
+
+	:root[data-theme='light'] .install-command {
+		background: rgba(26, 26, 46, 0.05);
+		border-color: rgba(224, 90, 43, 0.2);
+	}
+</style>

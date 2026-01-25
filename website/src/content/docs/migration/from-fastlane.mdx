@@ -1,0 +1,358 @@
+---
+title: Migrating from Fastlane
+description: Step-by-step guide to migrate from fastlane to Canaveral.
+---
+
+import { Aside, Tabs, TabItem, Steps, Card, CardGrid } from '@astrojs/starlight/components';
+
+# Migrating from Fastlane
+
+This guide helps you migrate from fastlane to Canaveral for mobile app CI/CD. Canaveral provides the same capabilities with a framework-agnostic approach that works across Flutter, React Native, Expo, native iOS/Android, and Tauri.
+
+## Quick Comparison
+
+| Fastlane | Canaveral | Notes |
+|----------|-----------|-------|
+| `Fastfile` (Ruby DSL) | `canaveral.toml` | Declarative config instead of Ruby |
+| `gym` | `canaveral build --platform ios` | Auto-detects framework |
+| `gradle` | `canaveral build --platform android` | Works with any Android framework |
+| `pilot` | `canaveral testflight upload` | TestFlight uploads |
+| `deliver` | `canaveral upload ios` | App Store submission |
+| `supply` | `canaveral upload android` | Google Play submission |
+| `match` | `canaveral match` | Certificate sync |
+| `snapshot` | `canaveral screenshots capture` | Screenshot automation |
+| `scan` | `canaveral test` | Test running |
+| `frameit` | `canaveral screenshots frame` | Screenshot framing |
+| `pem` | (built into match) | APNs cert handling |
+| `sigh` | (built into match) | Profile management |
+
+## Step 1: Install Canaveral
+
+```bash
+# macOS/Linux
+curl -fsSL https://get.canaveral.dev | sh
+
+# Or with Cargo
+cargo install canaveral
+```
+
+## Step 2: Create Configuration
+
+Create `canaveral.toml` in your project root:
+
+```toml title="canaveral.toml"
+[project]
+name = "MyApp"
+# Framework is auto-detected, but you can specify it
+# framework = "flutter"
+
+[ios]
+bundle_id = "com.example.myapp"
+team_id = "TEAMID123"
+
+[android]
+package_name = "com.example.myapp"
+
+[build]
+output_format = "text"  # text, json, github-actions, gitlab-ci
+
+[signing]
+storage = "git"
+git_url = "git@github.com:org/certs.git"
+
+[testflight]
+api_key_id = "${ASC_API_KEY_ID}"
+api_key_issuer = "${ASC_API_KEY_ISSUER}"
+api_key_path = "${ASC_API_KEY_PATH}"
+
+[play_store]
+service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
+```
+
+## Step 3: Migrate Common Lanes
+
+### Building iOS
+
+<Tabs>
+  <TabItem label="Fastlane">
+    ```ruby title="Fastfile"
+    lane :build_ios do
+      gym(
+        scheme: "MyApp",
+        export_method: "app-store",
+        output_directory: "build",
+        output_name: "MyApp.ipa"
+      )
+    end
+    ```
+  </TabItem>
+  <TabItem label="Canaveral">
+    ```bash
+    canaveral build --platform ios --profile release
+    ```
+  </TabItem>
+</Tabs>
+
+### Building Android
+
+<Tabs>
+  <TabItem label="Fastlane">
+    ```ruby title="Fastfile"
+    lane :build_android do
+      gradle(
+        task: "bundle",
+        build_type: "Release",
+        project_dir: "android/"
+      )
+    end
+    ```
+  </TabItem>
+  <TabItem label="Canaveral">
+    ```bash
+    canaveral build --platform android --profile release
+    ```
+  </TabItem>
+</Tabs>
+
+### TestFlight Upload
+
+<Tabs>
+  <TabItem label="Fastlane">
+    ```ruby title="Fastfile"
+    lane :beta do
+      build_ios
+      pilot(
+        skip_waiting_for_build_processing: true,
+        changelog: "Bug fixes and improvements"
+      )
+    end
+    ```
+  </TabItem>
+  <TabItem label="Canaveral">
+    ```bash
+    canaveral build --platform ios --profile release
+    canaveral testflight upload build/ios/*.ipa --changelog "Bug fixes and improvements"
+    ```
+  </TabItem>
+</Tabs>
+
+### Play Store Upload
+
+<Tabs>
+  <TabItem label="Fastlane">
+    ```ruby title="Fastfile"
+    lane :deploy_android do
+      build_android
+      supply(
+        track: "internal",
+        aab: "android/app/build/outputs/bundle/release/app-release.aab"
+      )
+    end
+    ```
+  </TabItem>
+  <TabItem label="Canaveral">
+    ```bash
+    canaveral build --platform android --profile release
+    canaveral store upload android --artifact build/android/*.aab --track internal
+    ```
+  </TabItem>
+</Tabs>
+
+### Certificate Sync (Match)
+
+<Tabs>
+  <TabItem label="Fastlane">
+    ```ruby title="Fastfile"
+    lane :sync_certs do
+      match(
+        type: "appstore",
+        readonly: true,
+        git_url: "git@github.com:org/certs.git"
+      )
+    end
+    ```
+  </TabItem>
+  <TabItem label="Canaveral">
+    ```bash
+    # Initialize (first time)
+    canaveral match init --storage git --git-url git@github.com:org/certs.git
+
+    # Sync certificates
+    canaveral match sync --profile-type appstore --readonly
+    ```
+  </TabItem>
+</Tabs>
+
+### Screenshots
+
+<Tabs>
+  <TabItem label="Fastlane">
+    ```ruby title="Fastfile"
+    lane :screenshots do
+      capture_screenshots
+      frame_screenshots(white: true)
+    end
+    ```
+  </TabItem>
+  <TabItem label="Canaveral">
+    ```bash
+    canaveral screenshots capture --config screenshots.yaml
+    canaveral screenshots frame --template white
+    ```
+  </TabItem>
+</Tabs>
+
+### Running Tests
+
+<Tabs>
+  <TabItem label="Fastlane">
+    ```ruby title="Fastfile"
+    lane :test do
+      scan(
+        scheme: "MyApp",
+        output_types: "junit"
+      )
+    end
+    ```
+  </TabItem>
+  <TabItem label="Canaveral">
+    ```bash
+    canaveral test --type unit --output-format junit
+    ```
+  </TabItem>
+</Tabs>
+
+## Step 4: Migrate CI/CD
+
+### GitHub Actions
+
+<Tabs>
+  <TabItem label="Fastlane">
+    ```yaml
+    - run: bundle exec fastlane ios build
+    ```
+  </TabItem>
+  <TabItem label="Canaveral">
+    ```yaml
+    - name: Install Canaveral
+      run: curl -fsSL https://get.canaveral.dev | sh
+
+    - name: Build iOS
+      run: canaveral build --platform ios --output-format github-actions
+    ```
+  </TabItem>
+</Tabs>
+
+Canaveral's `github-actions` output format automatically sets environment variables and outputs for downstream steps.
+
+### GitLab CI
+
+<Tabs>
+  <TabItem label="Fastlane">
+    ```yaml
+    build:
+      script:
+        - bundle exec fastlane android build
+    ```
+  </TabItem>
+  <TabItem label="Canaveral">
+    ```yaml
+    build:
+      script:
+        - curl -fsSL https://get.canaveral.dev | sh
+        - canaveral build --platform android --output-format gitlab-ci
+    ```
+  </TabItem>
+</Tabs>
+
+## Step 5: Environment Variables
+
+### Mapping Fastlane Environment Variables
+
+| Fastlane | Canaveral |
+|----------|-----------|
+| `MATCH_PASSWORD` | `MATCH_PASSWORD` (same) |
+| `MATCH_GIT_URL` | `MATCH_GIT_URL` (same) |
+| `FASTLANE_USER` | Not needed (uses API keys) |
+| `FASTLANE_PASSWORD` | Not needed (uses API keys) |
+| `APP_STORE_CONNECT_API_KEY_*` | `ASC_API_KEY_*` |
+| `SUPPLY_JSON_KEY` | `GOOGLE_PLAY_SERVICE_ACCOUNT` |
+
+### App Store Connect API Key
+
+Canaveral uses App Store Connect API keys exclusively (no password-based auth):
+
+```bash
+export ASC_API_KEY_ID="XXXXXXXXXX"
+export ASC_API_KEY_ISSUER="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+export ASC_API_KEY_PATH="/path/to/AuthKey_XXXXXXXXXX.p8"
+```
+
+### Google Play Service Account
+
+```bash
+export GOOGLE_PLAY_SERVICE_ACCOUNT="/path/to/service-account.json"
+# Or base64 encoded for CI
+export GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(base64 -i service-account.json)"
+```
+
+## Step 6: Delete Fastlane
+
+Once you've verified Canaveral works:
+
+```bash
+rm -rf fastlane/
+rm Gemfile Gemfile.lock
+```
+
+## Common Migration Issues
+
+### "Framework not detected"
+
+Ensure your project has the expected framework markers:
+- **Flutter**: `pubspec.yaml` with `flutter` dependency
+- **Expo**: `app.json` with `expo` field
+- **React Native**: `package.json` with `react-native` dependency
+- **Native iOS**: `.xcodeproj` or `.xcworkspace`
+- **Native Android**: `build.gradle` in root or `android/` directory
+- **Tauri**: `src-tauri/tauri.conf.json`
+
+### "Certificate not found"
+
+Ensure match is initialized:
+
+```bash
+canaveral match init --storage git --git-url git@github.com:org/certs.git
+canaveral match sync --profile-type development
+```
+
+### "Build failed"
+
+Run the doctor command to check prerequisites:
+
+```bash
+canaveral doctor
+```
+
+## Advantages Over Fastlane
+
+<CardGrid>
+  <Card title="No Ruby Required" icon="star">
+    Canaveral is a single binary with no runtime dependencies.
+  </Card>
+  <Card title="Framework Agnostic" icon="puzzle">
+    Same commands for Flutter, Expo, React Native, and native apps.
+  </Card>
+  <Card title="Faster Execution" icon="rocket">
+    Written in Rust for speed. No gem installation or bundle exec.
+  </Card>
+  <Card title="Better CI/CD" icon="setting">
+    Structured output formats designed for automation.
+  </Card>
+</CardGrid>
+
+## Getting Help
+
+- Run `canaveral --help` for command reference
+- Run `canaveral <command> --help` for command-specific help
+- Report issues at https://github.com/anthropics/canaveral/issues

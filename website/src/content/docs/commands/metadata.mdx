@@ -1,0 +1,64 @@
+---
+title: metadata
+description: Manage app store metadata.
+---
+
+# canaveral metadata
+
+Sync and manage app store metadata.
+
+## Synopsis
+
+```bash
+canaveral metadata <COMMAND> [OPTIONS]
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `pull` | Download metadata from store |
+| `push` | Upload metadata to store |
+| `diff` | Show pending changes |
+
+## Pull
+
+```bash
+canaveral metadata pull ios
+canaveral metadata pull android
+```
+
+## Push
+
+```bash
+canaveral metadata push ios
+canaveral metadata push android
+```
+
+## Diff
+
+```bash
+canaveral metadata diff ios
+canaveral metadata diff android
+```
+
+## Metadata Structure
+
+```
+metadata/
+├── ios/
+│   ├── en-US/
+│   │   ├── name.txt
+│   │   ├── subtitle.txt
+│   │   ├── description.txt
+│   │   └── keywords.txt
+│   └── de-DE/
+│       └── ...
+└── android/
+    ├── en-US/
+    │   ├── title.txt
+    │   ├── short_description.txt
+    │   └── full_description.txt
+    └── de-DE/
+        └── ...
+```

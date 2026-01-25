@@ -1,0 +1,47 @@
+---
+title: Google Play
+description: Upload and distribute Android apps to Google Play.
+---
+
+# Google Play
+
+Upload and distribute Android apps to Google Play Console.
+
+## Authentication
+
+Canaveral uses Google Play Developer API with a service account.
+
+### Create Service Account
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a service account with "Service Account User" role
+3. Download the JSON key file
+4. In Play Console, add the service account email with "Release manager" access
+
+### Configure
+
+```bash
+export GOOGLE_PLAY_SERVICE_ACCOUNT="/path/to/service-account.json"
+```
+
+## Upload
+
+```bash
+# Upload to internal testing
+canaveral store upload android --artifact build/android/app.aab --track internal
+
+# Upload to production
+canaveral store upload android --artifact build/android/app.aab --track production
+
+# With release notes
+canaveral store upload android --artifact build/android/app.aab --track internal --release-notes "Bug fixes"
+```
+
+## Tracks
+
+| Track | Description |
+|-------|-------------|
+| `internal` | Internal testing (up to 100 testers) |
+| `alpha` | Closed testing |
+| `beta` | Open testing |
+| `production` | Production release |

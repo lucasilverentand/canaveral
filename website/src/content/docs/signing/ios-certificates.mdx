@@ -1,0 +1,42 @@
+---
+title: iOS Certificates
+description: Manage iOS code signing certificates.
+---
+
+# iOS Certificates
+
+iOS apps must be signed with a valid certificate to run on devices or be submitted to the App Store.
+
+## Certificate Types
+
+| Type | Use Case |
+|------|----------|
+| Development | Run on development devices |
+| Distribution | App Store and TestFlight |
+| Ad Hoc | Beta testing outside TestFlight |
+| Enterprise | Internal distribution |
+
+## Using Match
+
+The recommended way to manage certificates is with Canaveral's match command:
+
+```bash
+canaveral match init --storage git --git-url git@github.com:org/certs.git
+canaveral match sync --profile-type development
+canaveral match sync --profile-type appstore
+```
+
+See [Match (Sync)](/canaveral/signing/match/) for details.
+
+## Manual Setup
+
+If you prefer manual certificate management:
+
+1. Create certificate in Apple Developer Portal
+2. Download and install in Keychain
+3. Configure in `canaveral.toml`:
+
+```toml
+[ios.signing]
+identity = "Apple Distribution: Your Company (TEAMID)"
+```

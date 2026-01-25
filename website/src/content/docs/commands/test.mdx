@@ -1,0 +1,88 @@
+---
+title: test
+description: Run tests for your mobile app.
+---
+
+# canaveral test
+
+Run tests for your mobile app. Supports unit tests, widget tests (Flutter), integration tests, and E2E tests.
+
+## Synopsis
+
+```bash
+canaveral test [OPTIONS]
+```
+
+## Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--type <TYPE>` | Test type: `unit`, `widget`, `integration`, `e2e` | `unit` |
+| `--platform <PLATFORM>` | Platform for device tests: `ios`, `android` | Auto |
+| `--coverage` | Generate coverage report | `false` |
+| `--output-format <FORMAT>` | Output format: `text`, `junit`, `json` | `text` |
+| `--device <ID>` | Device/simulator ID for E2E tests | Auto |
+| `--verbose` | Enable verbose output | `false` |
+
+## Examples
+
+### Unit Tests
+
+```bash
+# Run unit tests
+canaveral test --type unit
+
+# With coverage
+canaveral test --type unit --coverage
+
+# JUnit output for CI
+canaveral test --type unit --output-format junit
+```
+
+### Widget Tests (Flutter)
+
+```bash
+canaveral test --type widget
+```
+
+### Integration Tests
+
+```bash
+# Run integration tests
+canaveral test --type integration
+
+# On specific platform
+canaveral test --type integration --platform ios
+```
+
+### E2E Tests
+
+```bash
+# iOS E2E
+canaveral test --type e2e --platform ios
+
+# Android E2E
+canaveral test --type e2e --platform android
+
+# Specific device
+canaveral test --type e2e --platform ios --device "iPhone 15 Pro"
+```
+
+## Coverage Reports
+
+```bash
+# Generate coverage
+canaveral test --type unit --coverage
+
+# Coverage report is saved to:
+# - coverage/lcov.info (LCOV format)
+# - coverage/html/ (HTML report)
+```
+
+## Exit Codes
+
+| Code | Description |
+|------|-------------|
+| 0 | All tests passed |
+| 1 | Some tests failed |
+| 2 | Configuration error |
