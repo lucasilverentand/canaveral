@@ -10,6 +10,7 @@ pub mod native_android;
 pub mod native_ios;
 pub mod react_native;
 pub mod tauri;
+pub mod vite;
 
 // Re-export adapters
 pub use expo::ExpoAdapter;
@@ -19,6 +20,7 @@ pub use native_android::NativeAndroidAdapter;
 pub use native_ios::NativeIosAdapter;
 pub use react_native::ReactNativeAdapter;
 pub use tauri::TauriAdapter;
+pub use vite::ViteAdapter;
 
 use crate::registry::FrameworkRegistry;
 
@@ -29,6 +31,7 @@ pub fn register_all(registry: &mut FrameworkRegistry) {
     registry.register_build(ExpoAdapter::new());
     registry.register_build(ReactNativeAdapter::new());
     registry.register_build(TauriAdapter::new());
+    registry.register_build(ViteAdapter::new());
     registry.register_build(NativeIosAdapter::new());
     registry.register_build(NativeAndroidAdapter::new());
 
