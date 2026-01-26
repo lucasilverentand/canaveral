@@ -15,6 +15,16 @@ pub enum StoreType {
     GooglePlay,
     /// Microsoft Store
     Microsoft,
+    /// NPM package registry
+    Npm,
+    /// Crates.io Rust package registry
+    Crates,
+    /// Python Package Index (PyPI)
+    PyPI,
+    /// Docker Hub container registry
+    DockerHub,
+    /// GitHub Releases
+    GitHubReleases,
 }
 
 impl std::fmt::Display for StoreType {
@@ -23,6 +33,11 @@ impl std::fmt::Display for StoreType {
             StoreType::Apple => write!(f, "Apple"),
             StoreType::GooglePlay => write!(f, "Google Play"),
             StoreType::Microsoft => write!(f, "Microsoft"),
+            StoreType::Npm => write!(f, "NPM"),
+            StoreType::Crates => write!(f, "Crates.io"),
+            StoreType::PyPI => write!(f, "PyPI"),
+            StoreType::DockerHub => write!(f, "Docker Hub"),
+            StoreType::GitHubReleases => write!(f, "GitHub Releases"),
         }
     }
 }
