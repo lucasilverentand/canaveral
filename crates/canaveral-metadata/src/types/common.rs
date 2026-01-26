@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use crate::MetadataError;
 
-/// Supported app store platforms.
+/// Supported publishing platforms (app stores and package registries).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Platform {
@@ -13,6 +13,12 @@ pub enum Platform {
     Apple,
     /// Google Play Store (Android).
     GooglePlay,
+    /// NPM package registry (JavaScript/TypeScript).
+    Npm,
+    /// Crates.io Rust package registry.
+    Crates,
+    /// Python Package Index (PyPI).
+    PyPI,
 }
 
 impl Default for Platform {

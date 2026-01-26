@@ -788,6 +788,13 @@ impl MetadataStorage for FastlaneStorage {
                 self.write_yaml_file(&app_path.join("store_info.yaml"), &store_info)
                     .await?;
             }
+            // Package registries don't use Fastlane metadata format
+            Platform::Npm | Platform::Crates | Platform::PyPI => {
+                return Err(MetadataError::InvalidFormat(format!(
+                    "Fastlane storage is not applicable to platform: {:?}",
+                    platform
+                )));
+            }
         }
 
         Ok(())
@@ -826,6 +833,13 @@ impl MetadataStorage for FastlaneStorage {
                 ];
                 let screenshot_subdirs = vec!["phone", "tablet", "tv", "wear"];
                 (path, files, screenshot_subdirs)
+            }
+            // Package registries don't use Fastlane metadata format
+            Platform::Npm | Platform::Crates | Platform::PyPI => {
+                return Err(MetadataError::InvalidFormat(format!(
+                    "Fastlane storage is not applicable to platform: {:?}",
+                    platform
+                )));
             }
         };
 
@@ -918,6 +932,13 @@ impl MetadataStorage for FastlaneStorage {
         let app_path = match platform {
             Platform::Apple => self.apple_path(app_id),
             Platform::GooglePlay => self.google_play_path(app_id),
+            // Package registries don't use Fastlane metadata format
+            Platform::Npm | Platform::Crates | Platform::PyPI => {
+                return Err(MetadataError::InvalidFormat(format!(
+                    "Fastlane storage is not applicable to platform: {:?}",
+                    platform
+                )));
+            }
         };
 
         if !app_path.exists() {

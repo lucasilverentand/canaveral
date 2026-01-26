@@ -116,6 +116,9 @@ impl UnifiedStorage {
         let platform_suffix = match platform {
             Platform::Apple => "apple",
             Platform::GooglePlay => "google_play",
+            Platform::Npm => "npm",
+            Platform::Crates => "crates",
+            Platform::PyPI => "pypi",
         };
         self.base_path.join(format!("{}.{}.yaml", app_id, platform_suffix))
     }
@@ -842,6 +845,13 @@ impl MetadataStorage for UnifiedStorage {
                     fs::create_dir_all(locale_path.join("wear")).await?;
                 }
             }
+            // Package registries don't use traditional app store metadata
+            Platform::Npm | Platform::Crates | Platform::PyPI => {
+                return Err(MetadataError::InvalidFormat(format!(
+                    "Unified storage is not yet implemented for platform: {:?}",
+                    platform
+                )));
+            }
         }
 
         Ok(())
@@ -957,6 +967,13 @@ impl MetadataStorage for UnifiedStorage {
                 fs::create_dir_all(locale_path.join("tv")).await?;
                 fs::create_dir_all(locale_path.join("wear")).await?;
             }
+            // Package registries don't use traditional app store metadata
+            Platform::Npm | Platform::Crates | Platform::PyPI => {
+                return Err(MetadataError::InvalidFormat(format!(
+                    "Unified storage is not yet implemented for platform: {:?}",
+                    platform
+                )));
+            }
         }
 
         Ok(())
@@ -1043,6 +1060,13 @@ impl MetadataStorage for UnifiedStorage {
                 if screenshots_path.exists() {
                     fs::remove_dir_all(&screenshots_path).await?;
                 }
+            }
+            // Package registries don't use traditional app store metadata
+            Platform::Npm | Platform::Crates | Platform::PyPI => {
+                return Err(MetadataError::InvalidFormat(format!(
+                    "Unified storage is not yet implemented for platform: {:?}",
+                    platform
+                )));
             }
         }
 

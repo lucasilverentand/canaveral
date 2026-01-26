@@ -518,6 +518,8 @@ pub async fn validate_screenshot_directory(
                 let file_result = match platform {
                     Platform::Apple => validate_apple_screenshot_file(&path, device_type),
                     Platform::GooglePlay => validate_google_play_screenshot_file(&path, device_type),
+                    // Package registries don't use screenshot validation
+                    Platform::Npm | Platform::Crates | Platform::PyPI => ValidationResult::new(),
                 };
                 result.merge(file_result);
             }
@@ -559,6 +561,8 @@ pub async fn validate_screenshot_directory(
                 ));
             }
         }
+        // Package registries don't have screenshot count requirements
+        Platform::Npm | Platform::Crates | Platform::PyPI => {}
     }
 
     result

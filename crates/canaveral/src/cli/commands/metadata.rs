@@ -902,6 +902,11 @@ impl ListLocalesCommand {
         let locales = match platform {
             Platform::Apple => storage.list_locales_apple(&self.app_id).await,
             Platform::GooglePlay => storage.list_locales_google_play(&self.app_id).await,
+            Platform::Npm | Platform::Crates | Platform::PyPI => {
+                return Err(anyhow::anyhow!(
+                    "Locale-based metadata is not applicable to package registries (npm, crates.io, PyPI)"
+                ));
+            }
         }
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
@@ -910,6 +915,10 @@ impl ListLocalesCommand {
         let app_path = match platform {
             Platform::Apple => storage.apple_path(&self.app_id),
             Platform::GooglePlay => storage.google_play_path(&self.app_id),
+            Platform::Npm | Platform::Crates | Platform::PyPI => {
+                // This branch won't be reached due to the early return above
+                unreachable!("Package registries don't support locale-based metadata")
+            }
         };
 
         for locale in &locales {
