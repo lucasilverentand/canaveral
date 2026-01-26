@@ -261,18 +261,33 @@ impl ToolStatus {
 }
 
 /// Version information for a project
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VersionInfo {
     /// Semantic version (e.g., "1.2.3")
     pub version: String,
-    /// Build number (e.g., 42) - used by iOS/Android
+    /// Build number (e.g., 42) - used by iOS/Android and other platforms
     pub build_number: Option<u64>,
     /// Build name/code (e.g., "1.2.3+42")
     pub build_name: Option<String>,
-    /// Version code for Android
+
+    /// Version code for Android (deprecated - use build_number instead)
+    #[deprecated(
+        since = "1.6.0",
+        note = "Use `build_number` instead. This field will be removed in 2.0.0"
+    )]
     pub version_code: Option<u64>,
-    /// Marketing version for iOS
+
+    /// Marketing version for iOS (deprecated - use version instead)
+    #[deprecated(
+        since = "1.6.0",
+        note = "Use `version` instead. This field will be removed in 2.0.0"
+    )]
     pub marketing_version: Option<String>,
+
+    /// Platform-specific metadata (key-value pairs)
+    /// Examples: npm dist-tags, cargo features, docker image tags
+    #[serde(default)]
+    pub platform_metadata: std::collections::HashMap<String, String>,
 }
 
 impl VersionInfo {
