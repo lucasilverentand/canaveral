@@ -167,7 +167,7 @@ impl AppStoreConnect {
             .ok_or_else(|| StoreError::AppNotFound(bundle_id.to_string()))?;
 
         Ok(AppInfo {
-            bundle_id: app.attributes.bundle_id.clone(),
+            identifier: app.attributes.bundle_id.clone(),
             version: "".to_string(),
             build_number: "".to_string(),
             name: Some(app.attributes.name.clone()),
@@ -273,7 +273,7 @@ impl StoreAdapter for AppStoreConnect {
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
 
-        if app_info.bundle_id.is_empty() {
+        if app_info.identifier.is_empty() {
             errors.push(ValidationError {
                 code: "MISSING_BUNDLE_ID".to_string(),
                 message: "Bundle identifier is missing".to_string(),

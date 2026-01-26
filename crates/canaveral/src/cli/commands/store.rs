@@ -471,7 +471,7 @@ impl AppleUploadCommand {
 
             // Extract bundle ID from artifact for validation
             let app_info = canaveral_stores::apple::extract_app_info(&self.artifact).await?;
-            let bundle_id = &app_info.bundle_id;
+            let bundle_id = &app_info.identifier;
 
             let validation_summary = run_pre_upload_validation(
                 MetadataPlatform::Apple,
@@ -969,7 +969,7 @@ impl ValidateCommand {
             OutputFormat::Text => {
                 println!("{}", style("App Information").bold());
                 println!();
-                println!("  Bundle ID:    {}", style(&result.bundle_id).cyan());
+                println!("  Bundle ID:    {}", style(&result.identifier).cyan());
                 println!("  Version:      {}", &result.version);
                 println!("  Build:        {}", &result.build_number);
                 if let Some(name) = &result.name {

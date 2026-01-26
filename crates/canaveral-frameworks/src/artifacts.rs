@@ -236,8 +236,8 @@ pub struct ArtifactMetadata {
     /// Build number
     pub build_number: Option<u64>,
 
-    /// Bundle identifier (iOS/macOS/Android)
-    pub bundle_id: Option<String>,
+    /// Universal identifier (bundle ID for mobile, package name for libraries, etc.)
+    pub identifier: Option<String>,
 
     /// Minimum OS version
     pub min_os_version: Option<String>,
@@ -279,8 +279,14 @@ impl ArtifactMetadata {
         self
     }
 
+    pub fn with_identifier(mut self, identifier: impl Into<String>) -> Self {
+        self.identifier = Some(identifier.into());
+        self
+    }
+
+    #[deprecated(since = "1.6.0", note = "Use `with_identifier` instead. This method will be removed in 2.0.0")]
     pub fn with_bundle_id(mut self, bundle_id: impl Into<String>) -> Self {
-        self.bundle_id = Some(bundle_id.into());
+        self.identifier = Some(bundle_id.into());
         self
     }
 
@@ -327,7 +333,7 @@ mod tests {
 
         assert_eq!(meta.version, Some("1.2.3".to_string()));
         assert_eq!(meta.build_number, Some(42));
-        assert_eq!(meta.bundle_id, Some("com.example.app".to_string()));
+        assert_eq!(meta.identifier, Some("com.example.app".to_string()));
         assert!(meta.signed);
     }
 

@@ -1,0 +1,283 @@
+---
+// Frameworks Section - "Every Payload, One Rocket"
+import SectionHeader from './shared/SectionHeader.astro';
+
+const frameworks = [
+	{
+		name: 'Flutter',
+		icon: '🐦',
+		color: '#02569b',
+		platforms: ['iOS', 'Android', 'Web', 'Desktop'],
+		description: 'Full support for Flutter apps including Dart builds, asset bundling, and flavor configurations.'
+	},
+	{
+		name: 'Expo',
+		icon: '⚛️',
+		color: '#000020',
+		platforms: ['iOS', 'Android', 'Web'],
+		description: 'Managed and bare workflow support. EAS Build integration and over-the-air updates.'
+	},
+	{
+		name: 'React Native',
+		icon: '⚛️',
+		color: '#61dafb',
+		platforms: ['iOS', 'Android'],
+		description: 'Metro bundler integration, Hermes support, and native module compatibility.'
+	},
+	{
+		name: 'Native iOS',
+		icon: '🍎',
+		color: '#000000',
+		platforms: ['iOS', 'iPadOS', 'macOS'],
+		description: 'Swift and Objective-C projects. Xcode workspace and project support with CocoaPods and SPM.'
+	},
+	{
+		name: 'Native Android',
+		icon: '🤖',
+		color: '#3ddc84',
+		platforms: ['Android', 'Android TV', 'Wear OS'],
+		description: 'Gradle builds with Kotlin and Java support. Product flavors and build variants.'
+	},
+	{
+		name: 'Tauri',
+		icon: '🦀',
+		color: '#ffc131',
+		platforms: ['iOS', 'Android', 'Desktop'],
+		description: 'Mobile builds for Tauri 2.0 apps. Rust backend with web frontend packaging.'
+	}
+];
+---
+
+<section class="frameworks-section" id="frameworks">
+	<div class="container">
+		<SectionHeader
+			label="Frameworks"
+			title="Every Payload, One Rocket"
+			description="Auto-detects your framework and applies the optimal build pipeline. Zero configuration needed."
+		/>
+
+		<div class="auto-detect-badge">
+			<span class="detect-icon">✨</span>
+			<span class="detect-text">Auto-detection enabled</span>
+		</div>
+
+		<div class="frameworks-grid">
+			{frameworks.map((framework, index) => (
+				<div class="framework-card" style={`--delay: ${index * 0.1}s; --brand-color: ${framework.color}`}>
+					<div class="card-accent"></div>
+					<div class="framework-header">
+						<span class="framework-icon">{framework.icon}</span>
+						<h3 class="framework-name">{framework.name}</h3>
+					</div>
+					<p class="framework-description">{framework.description}</p>
+					<div class="platform-badges">
+						{framework.platforms.map(platform => (
+							<span class="platform-badge">{platform}</span>
+						))}
+					</div>
+				</div>
+			))}
+		</div>
+	</div>
+</section>
+
+<style>
+	.frameworks-section {
+		position: relative;
+		padding: 6rem 1.5rem;
+		background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+		overflow: hidden;
+	}
+
+	.frameworks-section::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: radial-gradient(ellipse at 50% 100%, rgba(255, 107, 53, 0.06) 0%, transparent 50%);
+		pointer-events: none;
+	}
+
+	.container {
+		max-width: 1200px;
+		margin: 0 auto;
+		position: relative;
+		z-index: 1;
+	}
+
+	/* Auto-detect Badge */
+	.auto-detect-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		margin: 0 auto 3rem;
+		background: rgba(255, 107, 53, 0.1);
+		border: 1px solid rgba(255, 107, 53, 0.2);
+		border-radius: 9999px;
+		color: #ff6b35;
+		font-size: 0.875rem;
+		font-weight: 500;
+		display: flex;
+		justify-content: center;
+	}
+
+	.detect-icon {
+		animation: sparkle 2s ease-in-out infinite;
+	}
+
+	@keyframes sparkle {
+		0%, 100% { opacity: 1; transform: scale(1); }
+		50% { opacity: 0.7; transform: scale(1.1); }
+	}
+
+	/* Frameworks Grid */
+	.frameworks-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1.5rem;
+	}
+
+	.framework-card {
+		position: relative;
+		padding: 1.75rem;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 16px;
+		transition: all 0.3s ease;
+		overflow: hidden;
+		opacity: 0;
+		animation: fadeSlideUp 0.5s ease forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes fadeSlideUp {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.card-accent {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 3px;
+		background: var(--brand-color);
+		opacity: 0.7;
+		transition: opacity 0.3s ease;
+	}
+
+	.framework-card:hover {
+		transform: translateY(-4px);
+		border-color: var(--brand-color);
+		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+	}
+
+	.framework-card:hover .card-accent {
+		opacity: 1;
+	}
+
+	.framework-header {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+	}
+
+	.framework-icon {
+		font-size: 1.75rem;
+	}
+
+	.framework-name {
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #e8e8f0;
+		margin: 0;
+	}
+
+	.framework-description {
+		font-size: 0.875rem;
+		color: #a8a8b8;
+		line-height: 1.6;
+		margin: 0 0 1.25rem 0;
+	}
+
+	.platform-badges {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.platform-badge {
+		padding: 0.25rem 0.625rem;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 6px;
+		font-size: 0.75rem;
+		color: #a8a8b8;
+		transition: all 0.2s ease;
+	}
+
+	.framework-card:hover .platform-badge {
+		background: rgba(var(--brand-color), 0.1);
+		border-color: var(--brand-color);
+		color: #e8e8f0;
+	}
+
+	/* Responsive */
+	@media (max-width: 900px) {
+		.frameworks-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 600px) {
+		.frameworks-section {
+			padding: 4rem 1rem;
+		}
+
+		.frameworks-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	/* Light theme */
+	:root[data-theme='light'] .frameworks-section {
+		background: linear-gradient(180deg, #fff5f0 0%, #f8f6f4 100%);
+	}
+
+	:root[data-theme='light'] .auto-detect-badge {
+		background: rgba(224, 90, 43, 0.1);
+		border-color: rgba(224, 90, 43, 0.2);
+		color: #e05a2b;
+	}
+
+	:root[data-theme='light'] .framework-card {
+		background: rgba(255, 255, 255, 0.8);
+		border-color: rgba(0, 0, 0, 0.08);
+	}
+
+	:root[data-theme='light'] .framework-card:hover {
+		background: rgba(255, 255, 255, 0.95);
+		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+	}
+
+	:root[data-theme='light'] .framework-name {
+		color: #1a1a2e;
+	}
+
+	:root[data-theme='light'] .framework-description {
+		color: #666;
+	}
+
+	:root[data-theme='light'] .platform-badge {
+		background: rgba(0, 0, 0, 0.03);
+		border-color: rgba(0, 0, 0, 0.08);
+		color: #666;
+	}
+</style>

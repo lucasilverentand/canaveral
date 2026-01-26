@@ -416,3 +416,62 @@ site-search button:hover {
 	background: rgba(156, 163, 175, 0.2);
 	color: #9ca3af;
 }
+
+/* ============================================
+   LANDING PAGE STYLES
+   ============================================ */
+
+/* Landing Page CSS Variables */
+:root {
+	--landing-section-padding: 6rem 1.5rem;
+	--landing-container-max-width: 1200px;
+	--landing-card-radius: 16px;
+	--landing-card-bg: rgba(255, 255, 255, 0.02);
+	--landing-card-border: rgba(255, 255, 255, 0.08);
+
+	/* Animation timings */
+	--landing-transition-fast: 0.2s ease;
+	--landing-transition-medium: 0.3s ease;
+	--landing-transition-slow: 0.5s ease;
+}
+
+/* Remove default Starlight content styling on splash page */
+[data-template="splash"] .sl-markdown-content {
+	max-width: none;
+	padding: 0;
+}
+
+[data-template="splash"] .main-frame {
+	padding-top: 0;
+}
+
+/* Landing page container */
+.landing-page {
+	width: 100%;
+	max-width: 100%;
+}
+
+/* Terminal styling */
+.terminal .terminal-body {
+	overflow-x: auto;
+}
+
+.terminal pre {
+	margin: 0;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+/* Responsive typography for landing sections */
+@media (max-width: 768px) {
+	:root {
+		--landing-section-padding: 4rem 1rem;
+	}
+}
+
+/* Focus styles for accessibility */
+.landing-page a:focus-visible,
+.landing-page button:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 2px;
+}

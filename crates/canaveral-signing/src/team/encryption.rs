@@ -150,6 +150,7 @@ pub fn decrypt_data(encrypted: &str, private_key: &str) -> Result<Vec<u8>, Encry
 /// Re-encrypt data for a new set of recipients
 ///
 /// Useful when adding/removing team members
+#[allow(dead_code)]
 pub fn reencrypt_data(
     encrypted: &str,
     private_key: &str,

@@ -354,9 +354,13 @@ impl Firebase {
         #[serde(rename_all = "camelCase")]
         struct ReleaseData {
             name: String,
+            #[allow(dead_code)]
             display_version: Option<String>,
+            #[allow(dead_code)]
             build_version: Option<String>,
+            #[allow(dead_code)]
             create_time: Option<String>,
+            #[allow(dead_code)]
             firebase_console_uri: Option<String>,
         }
 

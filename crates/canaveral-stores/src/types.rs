@@ -150,8 +150,9 @@ pub enum ValidationSeverity {
 /// Extracted app information from artifact
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppInfo {
-    /// Bundle identifier / package name
-    pub bundle_id: String,
+    /// Universal identifier (bundle ID for mobile, package name for libraries, etc.)
+    #[serde(alias = "bundle_id")]
+    pub identifier: String,
 
     /// App version (e.g., "1.2.3")
     pub version: String,
@@ -173,6 +174,17 @@ pub struct AppInfo {
 
     /// SHA256 hash of the artifact
     pub sha256: Option<String>,
+}
+
+impl AppInfo {
+    /// Get the bundle identifier (deprecated, use `identifier` field directly)
+    #[deprecated(
+        since = "1.6.0",
+        note = "Use `identifier` field directly instead. This method will be removed in 2.0.0"
+    )]
+    pub fn bundle_id(&self) -> &str {
+        &self.identifier
+    }
 }
 
 /// Result of an upload operation
@@ -420,7 +432,7 @@ mod tests {
     #[test]
     fn test_validation_result() {
         let app_info = AppInfo {
-            bundle_id: "com.example.app".to_string(),
+            identifier: "com.example.app".to_string(),
             version: "1.0.0".to_string(),
             build_number: "1".to_string(),
             name: Some("Example App".to_string()),

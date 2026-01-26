@@ -1,0 +1,182 @@
+---
+interface Props {
+	title?: string;
+	theme?: 'dark' | 'accent';
+	animated?: boolean;
+}
+
+const { title = 'Terminal', theme = 'dark', animated = false } = Astro.props;
+---
+
+<div class:list={['terminal', `terminal-${theme}`, { 'terminal-animated': animated }]}>
+	<div class="terminal-header">
+		<div class="terminal-buttons">
+			<span class="terminal-btn terminal-btn-close"></span>
+			<span class="terminal-btn terminal-btn-minimize"></span>
+			<span class="terminal-btn terminal-btn-maximize"></span>
+		</div>
+		<span class="terminal-title">{title}</span>
+		<div class="terminal-spacer"></div>
+	</div>
+	<div class="terminal-body">
+		<slot />
+	</div>
+</div>
+
+<style>
+	.terminal {
+		border-radius: 12px;
+		overflow: hidden;
+		box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+		font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+	}
+
+	.terminal-dark {
+		background: #0d0d14;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.terminal-accent {
+		background: linear-gradient(135deg, #1a1a2e 0%, #2d1b4e 100%);
+		border: 1px solid rgba(255, 107, 53, 0.2);
+	}
+
+	.terminal-header {
+		display: flex;
+		align-items: center;
+		padding: 0.75rem 1rem;
+		background: rgba(255, 255, 255, 0.03);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+	}
+
+	.terminal-buttons {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.terminal-btn {
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		transition: opacity 0.2s ease;
+	}
+
+	.terminal-btn-close {
+		background: #ff5f57;
+	}
+
+	.terminal-btn-minimize {
+		background: #febc2e;
+	}
+
+	.terminal-btn-maximize {
+		background: #28c840;
+	}
+
+	.terminal:hover .terminal-btn {
+		opacity: 1;
+	}
+
+	.terminal-title {
+		flex: 1;
+		text-align: center;
+		font-size: 0.75rem;
+		color: #666;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	}
+
+	.terminal-spacer {
+		width: 52px;
+	}
+
+	.terminal-body {
+		padding: 1.25rem;
+		font-size: 0.875rem;
+		line-height: 1.7;
+		color: #e8e8f0;
+		min-height: 100px;
+	}
+
+	.terminal-body :global(code) {
+		background: none;
+		padding: 0;
+		border: none;
+		font-size: inherit;
+	}
+
+	.terminal-body :global(.prompt) {
+		color: #ff6b35;
+		user-select: none;
+	}
+
+	.terminal-body :global(.command) {
+		color: #e8e8f0;
+	}
+
+	.terminal-body :global(.output) {
+		color: #888;
+	}
+
+	.terminal-body :global(.success) {
+		color: #10b981;
+	}
+
+	.terminal-body :global(.warning) {
+		color: #f59e0b;
+	}
+
+	.terminal-body :global(.error) {
+		color: #ef4444;
+	}
+
+	.terminal-body :global(.accent) {
+		color: #ff6b35;
+	}
+
+	.terminal-body :global(.muted) {
+		color: #666;
+	}
+
+	/* Typing animation for animated terminals */
+	.terminal-animated .terminal-body :global(.line) {
+		overflow: hidden;
+		white-space: nowrap;
+		animation: typing 0.5s steps(40) forwards;
+		width: 0;
+	}
+
+	.terminal-animated .terminal-body :global(.line:nth-child(1)) { animation-delay: 0s; }
+	.terminal-animated .terminal-body :global(.line:nth-child(2)) { animation-delay: 0.5s; }
+	.terminal-animated .terminal-body :global(.line:nth-child(3)) { animation-delay: 1s; }
+	.terminal-animated .terminal-body :global(.line:nth-child(4)) { animation-delay: 1.5s; }
+	.terminal-animated .terminal-body :global(.line:nth-child(5)) { animation-delay: 2s; }
+	.terminal-animated .terminal-body :global(.line:nth-child(6)) { animation-delay: 2.5s; }
+
+	@keyframes typing {
+		from { width: 0; }
+		to { width: 100%; }
+	}
+
+	/* Light theme */
+	:root[data-theme='light'] .terminal-dark {
+		background: #fafafa;
+		border-color: rgba(0, 0, 0, 0.1);
+	}
+
+	:root[data-theme='light'] .terminal-header {
+		background: rgba(0, 0, 0, 0.03);
+		border-bottom-color: rgba(0, 0, 0, 0.05);
+	}
+
+	:root[data-theme='light'] .terminal-body {
+		color: #1a1a2e;
+	}
+
+	:root[data-theme='light'] .terminal-body :global(.command) {
+		color: #1a1a2e;
+	}
+
+	:root[data-theme='light'] .terminal-body :global(.output) {
+		color: #666;
+	}
+</style>

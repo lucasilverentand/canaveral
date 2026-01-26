@@ -10,6 +10,9 @@ export default defineConfig({
 		starlight({
 			title: 'Canaveral',
 			description: 'Universal Release Management CLI - Build, test, and ship mobile apps with a single tool.',
+			components: {
+				Hero: './src/components/Hero.astro',
+			},
 			logo: {
 				light: './src/assets/logo-light.svg',
 				dark: './src/assets/logo-dark.svg',

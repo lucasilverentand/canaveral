@@ -376,7 +376,7 @@ impl MicrosoftStore {
             let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
             return Ok(AppInfo {
-                bundle_id: identity_name,
+                identifier: identity_name,
                 version: version.clone(),
                 build_number: version,
                 name: display_name,
@@ -392,7 +392,7 @@ impl MicrosoftStore {
         let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
         Ok(AppInfo {
-            bundle_id: filename.to_string(),
+            identifier: filename.to_string(),
             version: "0.0.0.0".to_string(),
             build_number: "0".to_string(),
             name: Some(filename.to_string()),
@@ -532,7 +532,7 @@ impl StoreAdapter for MicrosoftStore {
             });
         }
 
-        if app_info.bundle_id.is_empty() {
+        if app_info.identifier.is_empty() {
             errors.push(ValidationError {
                 code: "MISSING_IDENTITY".to_string(),
                 message: "Package identity name is missing".to_string(),

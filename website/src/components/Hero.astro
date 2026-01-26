@@ -1,19 +1,28 @@
 ---
-import type { Props } from '@astrojs/starlight/props';
-
-const { data } = Astro.props.entry;
-const { title = data.title, tagline, image, actions = [] } = data.hero || {};
+// Custom Hero for Canaveral landing page - "Ignition Sequence"
+const title = "Launch Your Apps<br/>With Confidence";
+const tagline = "One CLI to build, test, sign, and ship mobile apps across all frameworks. Replace fastlane, Bitrise steps, and custom scripts with a unified solution.";
+const actions = [
+	{ text: "Get Started", link: "/canaveral/getting-started/introduction/", variant: "primary" },
+	{ text: "View on GitHub", link: "https://github.com/anthropics/canaveral", variant: "secondary" }
+];
 ---
 
-<div class="hero">
+<div class="hero" id="hero">
 	<div class="hero-background">
 		<div class="stars"></div>
 		<div class="stars2"></div>
 		<div class="stars3"></div>
+		<div class="hero-glow"></div>
 	</div>
 
-	<div class="hero-content sl-flex">
+	<div class="hero-content">
 		<div class="hero-text">
+			<div class="hero-badge">
+				<span class="badge-dot"></span>
+				Mission Control for Mobile
+			</div>
+
 			<h1 id="_top" data-page-title set:html={title} />
 			{tagline && <p class="tagline" set:html={tagline} />}
 
@@ -33,7 +42,7 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 			</div>
 
 			{actions.length > 0 && (
-				<div class="sl-flex actions">
+				<div class="actions">
 					{actions.map(({ text, link, variant }) => (
 						<a href={link} class={`action-btn ${variant === 'primary' ? 'primary' : 'secondary'}`}>
 							{text}
@@ -44,59 +53,37 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 			)}
 
 			<div class="install-command">
+				<span class="install-prefix">$</span>
 				<code>curl -fsSL https://get.canaveral.dev | sh</code>
-				<button class="copy-btn" onclick="navigator.clipboard.writeText('curl -fsSL https://get.canaveral.dev | sh')">
-					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<button class="copy-btn" onclick="navigator.clipboard.writeText('curl -fsSL https://get.canaveral.dev | sh').then(() => this.classList.add('copied')).then(() => setTimeout(() => this.classList.remove('copied'), 2000))">
+					<svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
 						<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+					</svg>
+					<svg class="check-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="20 6 9 17 4 12"></polyline>
 					</svg>
 				</button>
 			</div>
 		</div>
 
 		<div class="hero-visual">
-			<div class="framework-orbit">
-				<div class="orbit-ring ring-1">
-					<div class="framework-icon flutter" title="Flutter">
-						<img src="https://cdn.simpleicons.org/flutter/02569B" alt="Flutter" width="28" height="28" />
-					</div>
-					<div class="framework-icon expo" title="Expo">
-						<img src="https://cdn.simpleicons.org/expo/000020" alt="Expo" width="28" height="28" />
-					</div>
-				</div>
-				<div class="orbit-ring ring-2">
-					<div class="framework-icon react" title="React Native">
-						<img src="https://cdn.simpleicons.org/react/61DAFB" alt="React Native" width="28" height="28" />
-					</div>
-					<div class="framework-icon apple" title="Native iOS">
-						<img src="https://cdn.simpleicons.org/apple/ffffff" alt="iOS" width="28" height="28" />
-					</div>
-					<div class="framework-icon android" title="Native Android">
-						<img src="https://cdn.simpleicons.org/android/3DDC84" alt="Android" width="28" height="28" />
-					</div>
-				</div>
-				<div class="orbit-ring ring-3">
-					<div class="framework-icon tauri" title="Tauri">
-						<img src="https://cdn.simpleicons.org/tauri/FFC131" alt="Tauri" width="28" height="28" />
-					</div>
-				</div>
-				<div class="center-logo">
-					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" width="48" height="48">
-						<defs>
-							<linearGradient id="heroRocketGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-								<stop offset="0%" style="stop-color:#ff6b35"/>
-								<stop offset="100%" style="stop-color:#ffb347"/>
-							</linearGradient>
-						</defs>
-						<path d="M16 2C16 2 10 8 10 16C10 20 12 24 16 28C20 24 22 20 22 16C22 8 16 2 16 2Z" fill="url(#heroRocketGradient)"/>
-						<circle cx="16" cy="12" r="3" fill="#0f0f1a"/>
-						<circle cx="16" cy="12" r="2" fill="#1a1a2e"/>
-						<path d="M10 20L6 26L10 24V20Z" fill="#ff8c42"/>
-						<path d="M22 20L26 26L22 24V20Z" fill="#ff8c42"/>
-						<path d="M14 28C14 28 15 30 16 32C17 30 18 28 18 28" fill="#ff6b35"/>
-					</svg>
-				</div>
+			<div class="hero-artwork-container">
+				<div class="artwork-glow"></div>
+				<img src="/canaveral/artwork.png" alt="Canaveral rocket launch illustration" class="hero-artwork" />
 			</div>
+		</div>
+	</div>
+
+	<!-- Scroll Indicator -->
+	<div class="scroll-indicator">
+		<span class="scroll-text">Scroll to explore</span>
+		<div class="scroll-mouse">
+			<div class="scroll-wheel"></div>
+		</div>
+		<div class="scroll-arrows">
+			<span class="scroll-arrow"></span>
+			<span class="scroll-arrow"></span>
 		</div>
 	</div>
 </div>
@@ -104,19 +91,29 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 <style>
 	.hero {
 		position: relative;
-		padding: 4rem 1rem;
-		min-height: 70vh;
+		padding: 4rem 1.5rem 3rem;
+		min-height: 75vh;
 		display: flex;
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		overflow: hidden;
 		background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #2d1b4e 100%);
 	}
 
 	.hero-background {
 		position: absolute;
 		inset: 0;
-		overflow: hidden;
+	}
+
+	.hero-glow {
+		position: absolute;
+		top: 20%;
+		right: 10%;
+		width: 600px;
+		height: 600px;
+		background: radial-gradient(circle, rgba(255, 107, 53, 0.15) 0%, transparent 70%);
+		filter: blur(60px);
+		pointer-events: none;
 	}
 
 	/* Stars animation */
@@ -161,21 +158,49 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 3rem;
+		gap: 4rem;
 		flex-wrap: wrap;
 	}
 
 	.hero-text {
 		flex: 1;
-		min-width: 300px;
+		min-width: 320px;
 		max-width: 600px;
+	}
+
+	/* Hero Badge */
+	.hero-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		margin-bottom: 1.5rem;
+		background: rgba(255, 107, 53, 0.1);
+		border: 1px solid rgba(255, 107, 53, 0.2);
+		border-radius: 9999px;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #ff6b35;
+	}
+
+	.badge-dot {
+		width: 8px;
+		height: 8px;
+		background: #ff6b35;
+		border-radius: 50%;
+		animation: pulse 2s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% { opacity: 1; transform: scale(1); }
+		50% { opacity: 0.5; transform: scale(1.2); }
 	}
 
 	h1 {
 		font-size: clamp(2.5rem, 5vw, 4rem);
 		font-weight: 800;
 		line-height: 1.1;
-		margin-bottom: 1rem;
+		margin-bottom: 1.25rem;
 		background: linear-gradient(135deg, #fff 0%, #e8e8f0 100%);
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
@@ -183,7 +208,7 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 	}
 
 	.tagline {
-		font-size: clamp(1.1rem, 2vw, 1.4rem);
+		font-size: clamp(1.1rem, 2vw, 1.35rem);
 		color: #a8a8b8;
 		margin-bottom: 2rem;
 		line-height: 1.6;
@@ -192,7 +217,7 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 	.hero-features {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 1rem;
+		gap: 0.75rem;
 		margin-bottom: 2rem;
 	}
 
@@ -201,15 +226,21 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 1rem;
-		background: rgba(255, 107, 53, 0.1);
-		border: 1px solid rgba(255, 107, 53, 0.2);
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 9999px;
-		font-size: 0.9rem;
+		font-size: 0.875rem;
 		color: #e8e8f0;
+		transition: all 0.3s ease;
+	}
+
+	.feature:hover {
+		background: rgba(255, 107, 53, 0.1);
+		border-color: rgba(255, 107, 53, 0.2);
 	}
 
 	.feature-icon {
-		font-size: 1.1rem;
+		font-size: 1rem;
 	}
 
 	.actions {
@@ -223,33 +254,34 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
-		padding: 0.75rem 1.5rem;
-		border-radius: 8px;
+		padding: 0.875rem 1.75rem;
+		border-radius: 10px;
 		font-weight: 600;
+		font-size: 1rem;
 		text-decoration: none;
 		transition: all 0.3s ease;
 	}
 
 	.action-btn.primary {
-		background: linear-gradient(135deg, #ff6b35 0%, #ffb347 100%);
+		background: linear-gradient(135deg, #ff6b35 0%, #ff8f5a 100%);
 		color: white;
-		box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+		box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
 	}
 
 	.action-btn.primary:hover {
 		transform: translateY(-2px);
-		box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+		box-shadow: 0 8px 30px rgba(255, 107, 53, 0.5);
 	}
 
 	.action-btn.secondary {
-		background: rgba(255, 255, 255, 0.1);
+		background: rgba(255, 255, 255, 0.05);
 		color: #e8e8f0;
-		border: 1px solid rgba(255, 255, 255, 0.2);
+		border: 1px solid rgba(255, 255, 255, 0.15);
 	}
 
 	.action-btn.secondary:hover {
-		background: rgba(255, 255, 255, 0.15);
-		border-color: rgba(255, 255, 255, 0.3);
+		background: rgba(255, 255, 255, 0.1);
+		border-color: rgba(255, 255, 255, 0.25);
 	}
 
 	.action-btn .arrow {
@@ -260,20 +292,26 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 		transform: translateX(4px);
 	}
 
+	/* Install Command */
 	.install-command {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.5rem;
-		background: rgba(0, 0, 0, 0.3);
-		border: 1px solid rgba(255, 107, 53, 0.3);
-		border-radius: 8px;
-		padding: 0.75rem 1rem;
+		gap: 0.75rem;
+		background: rgba(0, 0, 0, 0.4);
+		border: 1px solid rgba(255, 107, 53, 0.2);
+		border-radius: 10px;
+		padding: 0.875rem 1.25rem;
 		font-family: 'JetBrains Mono', 'Fira Code', monospace;
-		font-size: 0.9rem;
+		font-size: 0.875rem;
+	}
+
+	.install-prefix {
+		color: #ff6b35;
+		user-select: none;
 	}
 
 	.install-command code {
-		color: #ff6b35;
+		color: #e8e8f0;
 		background: none;
 		padding: 0;
 		border: none;
@@ -282,11 +320,14 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 	.copy-btn {
 		background: none;
 		border: none;
-		color: #a8a8b8;
+		color: #666;
 		cursor: pointer;
 		padding: 0.25rem;
 		border-radius: 4px;
 		transition: all 0.2s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.copy-btn:hover {
@@ -294,121 +335,140 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 		background: rgba(255, 107, 53, 0.1);
 	}
 
-	/* Framework orbit visualization */
+	.copy-btn .check-icon {
+		display: none;
+	}
+
+	.copy-btn.copied .copy-icon {
+		display: none;
+	}
+
+	.copy-btn.copied .check-icon {
+		display: block;
+		color: #10b981;
+	}
+
+	/* Hero Artwork */
 	.hero-visual {
 		flex: 0 0 auto;
-		width: 320px;
-		height: 320px;
+		width: 420px;
+		height: 420px;
 		position: relative;
 	}
 
-	.framework-orbit {
+	.hero-artwork-container {
 		position: relative;
 		width: 100%;
 		height: 100%;
 	}
 
-	.center-logo {
+	.artwork-glow {
 		position: absolute;
-		top: 50%;
+		inset: -20%;
+		background: radial-gradient(circle, rgba(255, 107, 53, 0.25) 0%, transparent 60%);
+		filter: blur(40px);
+		animation: glowPulse 4s ease-in-out infinite;
+	}
+
+	@keyframes glowPulse {
+		0%, 100% { opacity: 0.6; }
+		50% { opacity: 1; }
+	}
+
+	.hero-artwork {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		filter: drop-shadow(0 0 40px rgba(255, 107, 53, 0.3));
+		animation: float 6s ease-in-out infinite;
+	}
+
+	@keyframes float {
+		0%, 100% { transform: translateY(0); }
+		50% { transform: translateY(-15px); }
+	}
+
+	/* Scroll Indicator */
+	.scroll-indicator {
+		position: absolute;
+		bottom: 2rem;
 		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 80px;
-		height: 80px;
-		background: rgba(255, 107, 53, 0.1);
-		border-radius: 50%;
+		transform: translateX(-50%);
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		justify-content: center;
-		box-shadow: 0 0 40px rgba(255, 107, 53, 0.3);
-		animation: pulse 3s ease-in-out infinite;
+		gap: 0.75rem;
+		color: #666;
+		animation: fadeIn 1s ease 1.5s forwards;
+		opacity: 0;
 	}
 
-	@keyframes pulse {
-		0%, 100% { box-shadow: 0 0 40px rgba(255, 107, 53, 0.3); }
-		50% { box-shadow: 0 0 60px rgba(255, 107, 53, 0.5); }
+	@keyframes fadeIn {
+		to { opacity: 1; }
 	}
 
-	.orbit-ring {
+	.scroll-text {
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.15em;
+	}
+
+	.scroll-mouse {
+		width: 24px;
+		height: 38px;
+		border: 2px solid #666;
+		border-radius: 12px;
+		position: relative;
+	}
+
+	.scroll-wheel {
 		position: absolute;
-		top: 50%;
+		top: 6px;
 		left: 50%;
-		border: 1px dashed rgba(255, 107, 53, 0.2);
-		border-radius: 50%;
-		transform: translate(-50%, -50%);
+		transform: translateX(-50%);
+		width: 4px;
+		height: 8px;
+		background: #ff6b35;
+		border-radius: 2px;
+		animation: scrollWheel 2s ease-in-out infinite;
 	}
 
-	.ring-1 {
-		width: 150px;
-		height: 150px;
-		animation: orbit 20s linear infinite;
+	@keyframes scrollWheel {
+		0%, 100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+		50% { transform: translateX(-50%) translateY(10px); opacity: 0; }
 	}
 
-	.ring-2 {
-		width: 220px;
-		height: 220px;
-		animation: orbit 30s linear infinite reverse;
-	}
-
-	.ring-3 {
-		width: 290px;
-		height: 290px;
-		animation: orbit 40s linear infinite;
-	}
-
-	@keyframes orbit {
-		from { transform: translate(-50%, -50%) rotate(0deg); }
-		to { transform: translate(-50%, -50%) rotate(360deg); }
-	}
-
-	.framework-icon {
-		position: absolute;
-		width: 44px;
-		height: 44px;
-		background: rgba(26, 26, 46, 0.9);
-		border: 1px solid rgba(255, 107, 53, 0.3);
-		border-radius: 50%;
+	.scroll-arrows {
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		animation: counterOrbit 20s linear infinite;
-		transition: all 0.3s ease;
+		flex-direction: column;
+		gap: 0.25rem;
 	}
 
-	.framework-icon:hover {
-		transform: scale(1.2);
-		box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+	.scroll-arrow {
+		width: 10px;
+		height: 10px;
+		border-right: 2px solid #666;
+		border-bottom: 2px solid #666;
+		transform: rotate(45deg);
+		animation: scrollArrow 1.5s ease-in-out infinite;
 	}
 
-	.ring-1 .framework-icon {
-		animation: counterOrbit 20s linear infinite;
+	.scroll-arrow:nth-child(2) {
+		animation-delay: 0.15s;
 	}
 
-	.ring-2 .framework-icon {
-		animation: counterOrbit 30s linear infinite reverse;
+	@keyframes scrollArrow {
+		0%, 100% { opacity: 0.3; transform: rotate(45deg) translateY(0); }
+		50% { opacity: 1; transform: rotate(45deg) translateY(4px); }
 	}
 
-	.ring-3 .framework-icon {
-		animation: counterOrbit 40s linear infinite;
-	}
-
-	@keyframes counterOrbit {
-		from { transform: rotate(0deg); }
-		to { transform: rotate(-360deg); }
-	}
-
-	/* Position icons on orbits */
-	.ring-1 .flutter { top: -22px; left: 50%; transform: translateX(-50%); }
-	.ring-1 .expo { bottom: -22px; left: 50%; transform: translateX(-50%); }
-
-	.ring-2 .react { top: -22px; left: 50%; transform: translateX(-50%); }
-	.ring-2 .apple { bottom: 20px; left: -22px; }
-	.ring-2 .android { bottom: 20px; right: -22px; }
-
-	.ring-3 .tauri { top: 50%; right: -22px; transform: translateY(-50%); }
-
-	/* Responsive adjustments */
+	/* Responsive */
 	@media (max-width: 900px) {
+		.hero {
+			padding: 5rem 1rem 3rem;
+		}
+
 		.hero-content {
 			flex-direction: column;
 			text-align: center;
@@ -430,11 +490,19 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 			width: 280px;
 			height: 280px;
 		}
+
+		.scroll-indicator {
+			display: none;
+		}
 	}
 
-	/* Light theme adjustments */
+	/* Light theme */
 	:root[data-theme='light'] .hero {
 		background: linear-gradient(135deg, #f8f6f4 0%, #fff5f0 50%, #ffeee6 100%);
+	}
+
+	:root[data-theme='light'] .hero-glow {
+		background: radial-gradient(circle, rgba(255, 107, 53, 0.1) 0%, transparent 70%);
 	}
 
 	:root[data-theme='light'] h1 {
@@ -447,7 +515,48 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 		color: #666;
 	}
 
+	:root[data-theme='light'] .hero-badge {
+		background: rgba(224, 90, 43, 0.1);
+		border-color: rgba(224, 90, 43, 0.2);
+		color: #e05a2b;
+	}
+
+	:root[data-theme='light'] .badge-dot {
+		background: #e05a2b;
+	}
+
 	:root[data-theme='light'] .feature {
+		background: rgba(0, 0, 0, 0.02);
+		border-color: rgba(0, 0, 0, 0.08);
+		color: #1a1a2e;
+	}
+
+	:root[data-theme='light'] .feature:hover {
+		background: rgba(224, 90, 43, 0.1);
+		border-color: rgba(224, 90, 43, 0.2);
+	}
+
+	:root[data-theme='light'] .action-btn.secondary {
+		background: rgba(0, 0, 0, 0.03);
+		border-color: rgba(0, 0, 0, 0.1);
+		color: #1a1a2e;
+	}
+
+	:root[data-theme='light'] .action-btn.secondary:hover {
+		background: rgba(0, 0, 0, 0.05);
+		border-color: rgba(0, 0, 0, 0.15);
+	}
+
+	:root[data-theme='light'] .install-command {
+		background: rgba(0, 0, 0, 0.03);
+		border-color: rgba(224, 90, 43, 0.2);
+	}
+
+	:root[data-theme='light'] .install-prefix {
+		color: #e05a2b;
+	}
+
+	:root[data-theme='light'] .install-command code {
 		color: #1a1a2e;
 	}
 
@@ -457,17 +566,23 @@ const { title = data.title, tagline, image, actions = [] } = data.hero || {};
 		display: none;
 	}
 
-	:root[data-theme='light'] .center-logo {
-		background: rgba(255, 107, 53, 0.1);
+	:root[data-theme='light'] .artwork-glow {
+		background: radial-gradient(circle, rgba(255, 107, 53, 0.15) 0%, transparent 60%);
 	}
 
-	:root[data-theme='light'] .framework-icon {
-		background: white;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	:root[data-theme='light'] .hero-artwork {
+		filter: drop-shadow(0 0 30px rgba(255, 107, 53, 0.2));
 	}
 
-	:root[data-theme='light'] .install-command {
-		background: rgba(26, 26, 46, 0.05);
-		border-color: rgba(224, 90, 43, 0.2);
+	:root[data-theme='light'] .scroll-indicator {
+		color: #999;
+	}
+
+	:root[data-theme='light'] .scroll-mouse {
+		border-color: #999;
+	}
+
+	:root[data-theme='light'] .scroll-arrow {
+		border-color: #999;
 	}
 </style>

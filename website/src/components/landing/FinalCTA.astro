@@ -1,0 +1,403 @@
+---
+// Final CTA Section - "Ready for Launch?"
+---
+
+<section class="final-cta-section" id="cta">
+	<div class="cta-background">
+		<div class="exhaust-particles"></div>
+		<div class="cta-glow"></div>
+	</div>
+
+	<div class="container">
+		<div class="cta-content">
+			<h2 class="cta-headline">Ready for Launch?</h2>
+			<p class="cta-tagline">Join teams shipping mobile apps with confidence. One CLI. All frameworks. Zero chaos.</p>
+
+			<div class="cta-actions">
+				<a href="/canaveral/getting-started/introduction/" class="cta-btn primary">
+					Get Started
+					<span class="btn-arrow">→</span>
+				</a>
+				<a href="https://github.com/anthropics/canaveral" class="cta-btn secondary">
+					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+						<path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+					</svg>
+					Star on GitHub
+				</a>
+			</div>
+
+			<div class="install-block">
+				<div class="install-label">Quick install:</div>
+				<div class="install-command">
+					<span class="prefix">$</span>
+					<code>curl -fsSL https://get.canaveral.dev | sh</code>
+					<button class="copy-btn" onclick="navigator.clipboard.writeText('curl -fsSL https://get.canaveral.dev | sh').then(() => this.classList.add('copied')).then(() => setTimeout(() => this.classList.remove('copied'), 2000))">
+						<svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+							<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+						</svg>
+						<svg class="check-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="20 6 9 17 4 12"></polyline>
+						</svg>
+					</button>
+				</div>
+			</div>
+
+			<div class="social-proof">
+				<div class="proof-item">
+					<span class="proof-icon">⭐</span>
+					<span class="proof-text">Open Source</span>
+				</div>
+				<div class="proof-divider"></div>
+				<div class="proof-item">
+					<span class="proof-icon">📜</span>
+					<span class="proof-text">MIT Licensed</span>
+				</div>
+				<div class="proof-divider"></div>
+				<div class="proof-item">
+					<span class="proof-icon">🤝</span>
+					<span class="proof-text">Community Driven</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<style>
+	.final-cta-section {
+		position: relative;
+		padding: 8rem 1.5rem;
+		background: linear-gradient(180deg, #0f0f1a 0%, #1a0a20 50%, #2d1b4e 100%);
+		overflow: hidden;
+	}
+
+	.cta-background {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+	}
+
+	.cta-glow {
+		position: absolute;
+		bottom: -200px;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 800px;
+		height: 400px;
+		background: radial-gradient(ellipse at center, rgba(255, 107, 53, 0.3) 0%, transparent 70%);
+		filter: blur(60px);
+		animation: glowPulse 4s ease-in-out infinite;
+	}
+
+	@keyframes glowPulse {
+		0%, 100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+		50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+	}
+
+	/* Exhaust particles animation */
+	.exhaust-particles {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 300px;
+		background-image:
+			radial-gradient(2px 2px at 10% 100%, #ff6b35, transparent),
+			radial-gradient(2px 2px at 20% 95%, #ffb347, transparent),
+			radial-gradient(3px 3px at 30% 100%, #ff6b35, transparent),
+			radial-gradient(2px 2px at 40% 90%, #ffb347, transparent),
+			radial-gradient(2px 2px at 50% 100%, #ff6b35, transparent),
+			radial-gradient(3px 3px at 60% 95%, #ffb347, transparent),
+			radial-gradient(2px 2px at 70% 100%, #ff6b35, transparent),
+			radial-gradient(2px 2px at 80% 90%, #ffb347, transparent),
+			radial-gradient(2px 2px at 90% 100%, #ff6b35, transparent);
+		background-size: 100% 100%;
+		animation: rise 3s ease-out infinite;
+		opacity: 0.5;
+	}
+
+	@keyframes rise {
+		0% {
+			transform: translateY(0);
+			opacity: 0.5;
+		}
+		100% {
+			transform: translateY(-100px);
+			opacity: 0;
+		}
+	}
+
+	.container {
+		max-width: 800px;
+		margin: 0 auto;
+		position: relative;
+		z-index: 1;
+	}
+
+	.cta-content {
+		text-align: center;
+	}
+
+	.cta-headline {
+		font-size: clamp(2.5rem, 5vw, 4rem);
+		font-weight: 800;
+		background: linear-gradient(135deg, #fff 0%, #ff6b35 50%, #ffb347 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+		margin: 0 0 1rem 0;
+		animation: shimmer 3s ease-in-out infinite;
+	}
+
+	@keyframes shimmer {
+		0%, 100% { background-position: 0% 50%; }
+		50% { background-position: 100% 50%; }
+	}
+
+	.cta-tagline {
+		font-size: clamp(1.1rem, 2vw, 1.35rem);
+		color: #a8a8b8;
+		margin: 0 0 2.5rem 0;
+		line-height: 1.6;
+	}
+
+	/* CTA Actions */
+	.cta-actions {
+		display: flex;
+		justify-content: center;
+		gap: 1rem;
+		margin-bottom: 2.5rem;
+		flex-wrap: wrap;
+	}
+
+	.cta-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 1rem 2rem;
+		border-radius: 12px;
+		font-weight: 600;
+		font-size: 1.1rem;
+		text-decoration: none;
+		transition: all 0.3s ease;
+	}
+
+	.cta-btn.primary {
+		background: linear-gradient(135deg, #ff6b35 0%, #ff8f5a 100%);
+		color: white;
+		box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+		animation: btnPulse 2s ease-in-out infinite;
+	}
+
+	@keyframes btnPulse {
+		0%, 100% { box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4); }
+		50% { box-shadow: 0 8px 40px rgba(255, 107, 53, 0.6); }
+	}
+
+	.cta-btn.primary:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 8px 40px rgba(255, 107, 53, 0.6);
+	}
+
+	.cta-btn.secondary {
+		background: rgba(255, 255, 255, 0.05);
+		color: #e8e8f0;
+		border: 1px solid rgba(255, 255, 255, 0.15);
+	}
+
+	.cta-btn.secondary:hover {
+		background: rgba(255, 255, 255, 0.1);
+		border-color: rgba(255, 255, 255, 0.25);
+	}
+
+	.btn-arrow {
+		transition: transform 0.2s ease;
+	}
+
+	.cta-btn:hover .btn-arrow {
+		transform: translateX(4px);
+	}
+
+	/* Install Block */
+	.install-block {
+		margin-bottom: 3rem;
+	}
+
+	.install-label {
+		font-size: 0.875rem;
+		color: #666;
+		margin-bottom: 0.75rem;
+	}
+
+	.install-command {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.75rem;
+		background: rgba(0, 0, 0, 0.4);
+		border: 1px solid rgba(255, 107, 53, 0.2);
+		border-radius: 10px;
+		padding: 0.875rem 1.25rem;
+		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+		font-size: 0.875rem;
+	}
+
+	.prefix {
+		color: #ff6b35;
+		user-select: none;
+	}
+
+	.install-command code {
+		color: #e8e8f0;
+		background: none;
+		padding: 0;
+		border: none;
+	}
+
+	.copy-btn {
+		background: none;
+		border: none;
+		color: #666;
+		cursor: pointer;
+		padding: 0.25rem;
+		border-radius: 4px;
+		transition: all 0.2s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.copy-btn:hover {
+		color: #ff6b35;
+		background: rgba(255, 107, 53, 0.1);
+	}
+
+	.copy-btn .check-icon {
+		display: none;
+	}
+
+	.copy-btn.copied .copy-icon {
+		display: none;
+	}
+
+	.copy-btn.copied .check-icon {
+		display: block;
+		color: #10b981;
+	}
+
+	/* Social Proof */
+	.social-proof {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 1.5rem;
+		flex-wrap: wrap;
+	}
+
+	.proof-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: #a8a8b8;
+		font-size: 0.9rem;
+	}
+
+	.proof-icon {
+		font-size: 1rem;
+	}
+
+	.proof-divider {
+		width: 1px;
+		height: 20px;
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	/* Responsive */
+	@media (max-width: 600px) {
+		.final-cta-section {
+			padding: 5rem 1rem;
+		}
+
+		.cta-actions {
+			flex-direction: column;
+			align-items: center;
+		}
+
+		.cta-btn {
+			width: 100%;
+			max-width: 280px;
+			justify-content: center;
+		}
+
+		.install-command {
+			flex-wrap: wrap;
+			justify-content: center;
+		}
+
+		.proof-divider {
+			display: none;
+		}
+
+		.social-proof {
+			gap: 1rem;
+		}
+	}
+
+	/* Light theme */
+	:root[data-theme='light'] .final-cta-section {
+		background: linear-gradient(180deg, #f8f6f4 0%, #fff5f0 50%, #ffeee6 100%);
+	}
+
+	:root[data-theme='light'] .cta-glow {
+		background: radial-gradient(ellipse at center, rgba(255, 107, 53, 0.15) 0%, transparent 70%);
+	}
+
+	:root[data-theme='light'] .exhaust-particles {
+		opacity: 0.3;
+	}
+
+	:root[data-theme='light'] .cta-headline {
+		background: linear-gradient(135deg, #1a1a2e 0%, #e05a2b 50%, #c04920 100%);
+		-webkit-background-clip: text;
+		background-clip: text;
+	}
+
+	:root[data-theme='light'] .cta-tagline {
+		color: #666;
+	}
+
+	:root[data-theme='light'] .cta-btn.secondary {
+		background: rgba(0, 0, 0, 0.03);
+		border-color: rgba(0, 0, 0, 0.1);
+		color: #1a1a2e;
+	}
+
+	:root[data-theme='light'] .cta-btn.secondary:hover {
+		background: rgba(0, 0, 0, 0.05);
+		border-color: rgba(0, 0, 0, 0.15);
+	}
+
+	:root[data-theme='light'] .install-label {
+		color: #999;
+	}
+
+	:root[data-theme='light'] .install-command {
+		background: rgba(0, 0, 0, 0.03);
+		border-color: rgba(224, 90, 43, 0.2);
+	}
+
+	:root[data-theme='light'] .prefix {
+		color: #e05a2b;
+	}
+
+	:root[data-theme='light'] .install-command code {
+		color: #1a1a2e;
+	}
+
+	:root[data-theme='light'] .proof-item {
+		color: #666;
+	}
+
+	:root[data-theme='light'] .proof-divider {
+		background: rgba(0, 0, 0, 0.1);
+	}
+</style>

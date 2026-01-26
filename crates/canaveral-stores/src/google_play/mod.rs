@@ -369,7 +369,7 @@ impl GooglePlayStore {
         let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
         Ok(AppInfo {
-            bundle_id: package_name,
+            identifier: package_name,
             version: version_name,
             build_number: version_code,
             name: app_name,
@@ -404,12 +404,12 @@ impl StoreAdapter for GooglePlayStore {
         let mut warnings = Vec::new();
 
         // Verify package name matches config
-        if app_info.bundle_id != self.config.package_name {
+        if app_info.identifier != self.config.package_name {
             errors.push(ValidationError {
                 code: "PACKAGE_MISMATCH".to_string(),
                 message: format!(
                     "Package name '{}' does not match configured '{}'",
-                    app_info.bundle_id, self.config.package_name
+                    app_info.identifier, self.config.package_name
                 ),
                 severity: ValidationSeverity::Error,
             });

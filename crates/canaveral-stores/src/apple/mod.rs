@@ -131,7 +131,7 @@ async fn extract_app_bundle_info(path: &Path) -> Result<AppInfo> {
     let size = calculate_dir_size(path).await?;
 
     Ok(AppInfo {
-        bundle_id,
+        identifier: bundle_id,
         version,
         build_number,
         name,
@@ -177,7 +177,7 @@ async fn extract_pkg_info(path: &Path) -> Result<AppInfo> {
         .unwrap_or(0);
 
     Ok(AppInfo {
-        bundle_id: format!("pkg.{}", filename.replace(' ', ".")),
+        identifier: format!("pkg.{}", filename.replace(' ', ".")),
         version: "1.0.0".to_string(),
         build_number: "1".to_string(),
         name: Some(filename.to_string()),
@@ -212,7 +212,7 @@ async fn extract_dmg_info(path: &Path) -> Result<AppInfo> {
         let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
         return Ok(AppInfo {
-            bundle_id: format!("dmg.{}", filename.replace(' ', ".")),
+            identifier: format!("dmg.{}", filename.replace(' ', ".")),
             version: "1.0.0".to_string(),
             build_number: "1".to_string(),
             name: Some(filename.to_string()),
@@ -254,7 +254,7 @@ async fn extract_dmg_info(path: &Path) -> Result<AppInfo> {
             let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
             Ok(AppInfo {
-                bundle_id: format!("dmg.{}", filename.replace(' ', ".")),
+                identifier: format!("dmg.{}", filename.replace(' ', ".")),
                 version: "1.0.0".to_string(),
                 build_number: "1".to_string(),
                 name: Some(filename.to_string()),
@@ -327,7 +327,7 @@ async fn extract_zip_info(path: &Path) -> Result<AppInfo> {
             let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
             return Ok(AppInfo {
-                bundle_id,
+                identifier: bundle_id,
                 version,
                 build_number,
                 name,
@@ -344,7 +344,7 @@ async fn extract_zip_info(path: &Path) -> Result<AppInfo> {
     let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
     Ok(AppInfo {
-        bundle_id: format!("zip.{}", filename.replace(' ', ".")),
+        identifier: format!("zip.{}", filename.replace(' ', ".")),
         version: "1.0.0".to_string(),
         build_number: "1".to_string(),
         name: Some(filename.to_string()),

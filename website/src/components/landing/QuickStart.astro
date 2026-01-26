@@ -1,0 +1,355 @@
+---
+// Quick Start Section - "Ignition Sequence"
+import SectionHeader from './shared/SectionHeader.astro';
+import Terminal from './shared/Terminal.astro';
+
+const steps = [
+	{ step: 1, label: 'Install', command: 'curl -fsSL https://get.canaveral.dev | sh', status: 'complete' },
+	{ step: 2, label: 'Init', command: 'canaveral init', status: 'complete' },
+	{ step: 3, label: 'Build', command: 'canaveral build ios --release', status: 'complete' },
+	{ step: 4, label: 'Ship', command: 'canaveral upload testflight', status: 'active' }
+];
+---
+
+<section class="quickstart-section" id="quickstart">
+	<div class="container">
+		<SectionHeader
+			label="Quick Start"
+			title="Ignition Sequence"
+			description="Get from zero to deployed in four commands."
+		/>
+
+		<div class="quickstart-content">
+			<!-- Progress Steps -->
+			<div class="launch-stages">
+				{steps.map((step, index) => (
+					<div class:list={['stage', { 'stage-complete': step.status === 'complete', 'stage-active': step.status === 'active' }]} style={`--delay: ${index * 0.2}s`}>
+						<div class="stage-number">
+							{step.status === 'complete' ? (
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="20 6 9 17 4 12"></polyline>
+								</svg>
+							) : (
+								step.step
+							)}
+						</div>
+						<div class="stage-label">{step.label}</div>
+						{index < steps.length - 1 && <div class="stage-connector"></div>}
+					</div>
+				))}
+			</div>
+
+			<!-- Terminal Demo -->
+			<div class="terminal-container">
+				<Terminal title="Terminal" theme="dark">
+					<div class="terminal-lines">
+						<div class="line">
+							<span class="prompt">$</span>
+							<span class="command">curl -fsSL https://get.canaveral.dev | sh</span>
+						</div>
+						<div class="line output">Installing Canaveral v0.1.0...</div>
+						<div class="line success">Canaveral installed successfully!</div>
+						<div class="line"></div>
+						<div class="line">
+							<span class="prompt">$</span>
+							<span class="command">canaveral init</span>
+						</div>
+						<div class="line output">Detected: Flutter project</div>
+						<div class="line output">Created: canaveral.toml</div>
+						<div class="line success">Project initialized!</div>
+						<div class="line"></div>
+						<div class="line">
+							<span class="prompt">$</span>
+							<span class="command">canaveral build ios --release</span>
+						</div>
+						<div class="line output">Building Flutter iOS (release)...</div>
+						<div class="line output">Running: flutter build ipa</div>
+						<div class="line output">Signing with distribution certificate...</div>
+						<div class="line success">Build complete: MyApp.ipa (42.3 MB)</div>
+						<div class="line"></div>
+						<div class="line">
+							<span class="prompt">$</span>
+							<span class="command typing">canaveral upload testflight</span>
+							<span class="cursor">|</span>
+						</div>
+					</div>
+				</Terminal>
+			</div>
+
+			<!-- CI/CD Bonus -->
+			<div class="cicd-bonus">
+				<div class="bonus-header">
+					<span class="bonus-icon">⚡</span>
+					<h3 class="bonus-title">CI/CD Ready</h3>
+				</div>
+				<p class="bonus-description">Same commands work in your pipeline. Here's a GitHub Actions example:</p>
+				<div class="cicd-snippet">
+					<Terminal title=".github/workflows/release.yml" theme="dark">
+						<pre><code><span class="key">- name:</span> <span class="string">Build and Deploy</span>
+  <span class="key">run:</span> |
+    curl -fsSL https://get.canaveral.dev | sh
+    canaveral build ios --release
+    canaveral upload testflight
+  <span class="key">env:</span>
+    <span class="key">MATCH_PASSWORD:</span> <span class="var">${"${{ secrets.MATCH_PASSWORD }}"}</span>
+    <span class="key">APP_STORE_CONNECT_API_KEY:</span> <span class="var">${"${{ secrets.ASC_API_KEY }}"}</span></code></pre>
+					</Terminal>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<style>
+	.quickstart-section {
+		position: relative;
+		padding: 6rem 1.5rem;
+		background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+		overflow: hidden;
+	}
+
+	.quickstart-section::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: radial-gradient(ellipse at 50% 0%, rgba(255, 107, 53, 0.08) 0%, transparent 50%);
+		pointer-events: none;
+	}
+
+	.container {
+		max-width: 900px;
+		margin: 0 auto;
+		position: relative;
+		z-index: 1;
+	}
+
+	.quickstart-content {
+		display: flex;
+		flex-direction: column;
+		gap: 3rem;
+	}
+
+	/* Launch Stages */
+	.launch-stages {
+		display: flex;
+		justify-content: center;
+		gap: 0;
+		position: relative;
+	}
+
+	.stage {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
+		position: relative;
+		padding: 0 2rem;
+		opacity: 0;
+		animation: fadeIn 0.5s ease forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes fadeIn {
+		to { opacity: 1; }
+	}
+
+	.stage-number {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-weight: 600;
+		font-size: 1rem;
+		background: rgba(255, 255, 255, 0.05);
+		border: 2px solid rgba(255, 255, 255, 0.2);
+		color: #a8a8b8;
+		transition: all 0.3s ease;
+	}
+
+	.stage-complete .stage-number {
+		background: #10b981;
+		border-color: #10b981;
+		color: white;
+	}
+
+	.stage-active .stage-number {
+		background: linear-gradient(135deg, #ff6b35 0%, #ff8f5a 100%);
+		border-color: #ff6b35;
+		color: white;
+		animation: pulse 2s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4); }
+		50% { box-shadow: 0 0 0 10px rgba(255, 107, 53, 0); }
+	}
+
+	.stage-label {
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #a8a8b8;
+	}
+
+	.stage-complete .stage-label {
+		color: #10b981;
+	}
+
+	.stage-active .stage-label {
+		color: #ff6b35;
+	}
+
+	.stage-connector {
+		position: absolute;
+		top: 20px;
+		left: calc(50% + 20px);
+		width: calc(100% - 40px);
+		height: 2px;
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.stage-complete .stage-connector {
+		background: linear-gradient(90deg, #10b981 0%, rgba(255, 255, 255, 0.1) 100%);
+	}
+
+	/* Terminal Container */
+	.terminal-container {
+		max-width: 100%;
+	}
+
+	.terminal-lines {
+		font-size: 0.875rem;
+	}
+
+	.line {
+		margin-bottom: 0.25rem;
+		min-height: 1.5rem;
+	}
+
+	.typing {
+		position: relative;
+	}
+
+	.cursor {
+		animation: blink 1s step-end infinite;
+		color: #ff6b35;
+	}
+
+	@keyframes blink {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0; }
+	}
+
+	/* CI/CD Bonus */
+	.cicd-bonus {
+		padding: 2rem;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 16px;
+	}
+
+	.bonus-header {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.bonus-icon {
+		font-size: 1.5rem;
+	}
+
+	.bonus-title {
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #e8e8f0;
+		margin: 0;
+	}
+
+	.bonus-description {
+		font-size: 0.9rem;
+		color: #a8a8b8;
+		margin: 0 0 1.5rem 0;
+	}
+
+	.cicd-snippet pre {
+		margin: 0;
+		font-size: 0.8rem;
+		line-height: 1.6;
+	}
+
+	.cicd-snippet .key { color: #8be9fd; }
+	.cicd-snippet .string { color: #f1fa8c; }
+	.cicd-snippet .var { color: #ff79c6; }
+
+	/* Responsive */
+	@media (max-width: 700px) {
+		.launch-stages {
+			flex-wrap: wrap;
+			gap: 1rem;
+		}
+
+		.stage {
+			padding: 0.5rem 1rem;
+		}
+
+		.stage-connector {
+			display: none;
+		}
+	}
+
+	@media (max-width: 600px) {
+		.quickstart-section {
+			padding: 4rem 1rem;
+		}
+
+		.terminal-lines {
+			font-size: 0.75rem;
+		}
+
+		.cicd-bonus {
+			padding: 1.5rem;
+		}
+
+		.cicd-snippet pre {
+			font-size: 0.7rem;
+		}
+	}
+
+	/* Light theme */
+	:root[data-theme='light'] .quickstart-section {
+		background: linear-gradient(180deg, #fff5f0 0%, #f8f6f4 100%);
+	}
+
+	:root[data-theme='light'] .quickstart-section::before {
+		background: radial-gradient(ellipse at 50% 0%, rgba(255, 107, 53, 0.05) 0%, transparent 50%);
+	}
+
+	:root[data-theme='light'] .stage-number {
+		background: rgba(0, 0, 0, 0.03);
+		border-color: rgba(0, 0, 0, 0.15);
+		color: #666;
+	}
+
+	:root[data-theme='light'] .stage-label {
+		color: #666;
+	}
+
+	:root[data-theme='light'] .stage-connector {
+		background: rgba(0, 0, 0, 0.1);
+	}
+
+	:root[data-theme='light'] .cicd-bonus {
+		background: rgba(255, 255, 255, 0.8);
+		border-color: rgba(0, 0, 0, 0.08);
+	}
+
+	:root[data-theme='light'] .bonus-title {
+		color: #1a1a2e;
+	}
+
+	:root[data-theme='light'] .bonus-description {
+		color: #666;
+	}
+</style>

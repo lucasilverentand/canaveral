@@ -262,37 +262,6 @@ impl NativeAndroidAdapter {
         results
     }
 
-    /// Get available build variants
-    fn get_build_variants(&self, path: &Path) -> Result<Vec<String>> {
-        let output = self.run_gradle(&["tasks", "--all", "-q"], path, &HashMap::new())?;
-
-        if !output.status.success() {
-            return Ok(vec!["debug".to_string(), "release".to_string()]);
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let mut variants = Vec::new();
-
-        // Look for assemble* tasks to find variants
-        let variant_regex = Regex::new(r"assemble(\w+)\s").unwrap();
-        for cap in variant_regex.captures_iter(&stdout) {
-            if let Some(variant) = cap.get(1) {
-                let v = variant.as_str().to_string();
-                // Skip generic tasks
-                if v != "AndroidTest" && v != "Test" {
-                    variants.push(v);
-                }
-            }
-        }
-
-        if variants.is_empty() {
-            variants.push("debug".to_string());
-            variants.push("release".to_string());
-        }
-
-        Ok(variants)
-    }
-
     /// Setup signing from context
     fn setup_signing(&self, ctx: &BuildContext, path: &Path) -> Result<()> {
         if let Some(ref signing) = ctx.signing {

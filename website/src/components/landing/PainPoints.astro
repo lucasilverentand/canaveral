@@ -1,0 +1,207 @@
+---
+// Pain Points Section - "The Chaos Before Launch"
+import SectionHeader from './shared/SectionHeader.astro';
+
+const painPoints = [
+	{
+		icon: '🔧',
+		title: 'Tool Sprawl',
+		description: 'Juggling fastlane, Bitrise steps, shell scripts, and framework-specific CLIs. Every project is different.'
+	},
+	{
+		icon: '🎯',
+		title: 'Framework Chaos',
+		description: 'Flutter has one workflow, Expo another, React Native yet another. No unified approach across your apps.'
+	},
+	{
+		icon: '🔐',
+		title: 'Signing Nightmares',
+		description: 'Provisioning profiles, certificates, keystores scattered everywhere. Team members blocked by signing issues.'
+	},
+	{
+		icon: '🔄',
+		title: 'CI/CD Fragility',
+		description: 'Pipelines that work locally fail in CI. Environment differences cause mysterious build failures.'
+	},
+	{
+		icon: '📚',
+		title: 'Knowledge Silos',
+		description: 'Only one person knows how to release. Tribal knowledge locked in bash scripts and Fastfiles.'
+	},
+	{
+		icon: '🐌',
+		title: 'Slow Iteration',
+		description: 'Waiting for CI to catch problems. Long feedback loops between code and deployed builds.'
+	}
+];
+---
+
+<section class="pain-points-section" id="pain-points">
+	<div class="container">
+		<SectionHeader
+			label="The Problem"
+			title="The Chaos Before Launch"
+			description="Mobile release management is broken. Here's what teams struggle with every day."
+		/>
+
+		<div class="pain-points-grid">
+			{painPoints.map((point, index) => (
+				<div class="pain-card" style={`--delay: ${index * 0.1}s`}>
+					<div class="pain-icon">{point.icon}</div>
+					<h3 class="pain-title">{point.title}</h3>
+					<p class="pain-description">{point.description}</p>
+					<div class="pain-glow"></div>
+				</div>
+			))}
+		</div>
+	</div>
+</section>
+
+<style>
+	.pain-points-section {
+		position: relative;
+		padding: 6rem 1.5rem;
+		background: linear-gradient(180deg, #0f0f1a 0%, #1a0f0f 50%, #1a1a2e 100%);
+	}
+
+	.pain-points-section::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: radial-gradient(ellipse at 50% 0%, rgba(239, 68, 68, 0.08) 0%, transparent 60%);
+		pointer-events: none;
+	}
+
+	.container {
+		max-width: 1200px;
+		margin: 0 auto;
+		position: relative;
+		z-index: 1;
+	}
+
+	.pain-points-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1.5rem;
+	}
+
+	.pain-card {
+		position: relative;
+		padding: 1.75rem;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(239, 68, 68, 0.15);
+		border-radius: 16px;
+		transition: all 0.3s ease;
+		transform: rotate(var(--rotation, 0deg));
+		opacity: 0;
+		animation: fadeSlideIn 0.5s ease forwards;
+		animation-delay: var(--delay);
+	}
+
+	.pain-card:nth-child(odd) {
+		--rotation: -0.5deg;
+	}
+
+	.pain-card:nth-child(even) {
+		--rotation: 0.5deg;
+	}
+
+	@keyframes fadeSlideIn {
+		from {
+			opacity: 0;
+			transform: rotate(var(--rotation)) translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: rotate(var(--rotation)) translateY(0);
+		}
+	}
+
+	.pain-card:hover {
+		transform: rotate(0deg) translateY(-4px);
+		border-color: rgba(239, 68, 68, 0.3);
+		background: rgba(239, 68, 68, 0.05);
+	}
+
+	.pain-glow {
+		position: absolute;
+		inset: 0;
+		border-radius: 16px;
+		background: radial-gradient(circle at 50% 50%, rgba(239, 68, 68, 0.1) 0%, transparent 70%);
+		opacity: 0;
+		transition: opacity 0.3s ease;
+		pointer-events: none;
+	}
+
+	.pain-card:hover .pain-glow {
+		opacity: 1;
+	}
+
+	.pain-icon {
+		font-size: 2rem;
+		margin-bottom: 1rem;
+		filter: grayscale(0.3);
+	}
+
+	.pain-title {
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: #ef4444;
+		margin: 0 0 0.75rem 0;
+	}
+
+	.pain-description {
+		font-size: 0.9rem;
+		color: #a8a8b8;
+		line-height: 1.6;
+		margin: 0;
+	}
+
+	/* Responsive */
+	@media (max-width: 900px) {
+		.pain-points-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 600px) {
+		.pain-points-section {
+			padding: 4rem 1rem;
+		}
+
+		.pain-points-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.pain-card {
+			--rotation: 0deg !important;
+		}
+	}
+
+	/* Light theme */
+	:root[data-theme='light'] .pain-points-section {
+		background: linear-gradient(180deg, #f8f6f4 0%, #fff0f0 50%, #fff5f0 100%);
+	}
+
+	:root[data-theme='light'] .pain-points-section::before {
+		background: radial-gradient(ellipse at 50% 0%, rgba(239, 68, 68, 0.05) 0%, transparent 60%);
+	}
+
+	:root[data-theme='light'] .pain-card {
+		background: rgba(255, 255, 255, 0.8);
+		border-color: rgba(239, 68, 68, 0.15);
+	}
+
+	:root[data-theme='light'] .pain-card:hover {
+		background: rgba(255, 255, 255, 0.95);
+		border-color: rgba(239, 68, 68, 0.3);
+	}
+
+	:root[data-theme='light'] .pain-title {
+		color: #dc2626;
+	}
+
+	:root[data-theme='light'] .pain-description {
+		color: #666;
+	}
+</style>

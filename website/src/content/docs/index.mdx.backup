@@ -1,0 +1,24 @@
+---
+title: Canaveral
+description: Universal Release Management CLI - Build, test, and ship mobile apps with a single tool.
+template: splash
+hero:
+  title: |
+    Launch Your Apps
+    With Confidence
+  tagline: One CLI to build, test, sign, and ship mobile apps across all frameworks. Replace fastlane, Bitrise steps, and custom scripts with a unified solution.
+  image:
+    file: ../../assets/logo-dark.svg
+  actions:
+    - text: Get Started
+      link: /canaveral/getting-started/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/anthropics/canaveral
+      icon: external
+---
+
+import LandingPage from '../../components/landing/LandingPage.astro';
+
+<LandingPage />

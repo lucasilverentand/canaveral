@@ -1,0 +1,315 @@
+---
+/**
+ * Custom Landing Page - Outside of Starlight's template system
+ * This allows full control over layout without Starlight's splash template constraints
+ */
+import Hero from '../components/Hero.astro';
+import LandingPage from '../components/landing/LandingPage.astro';
+---
+
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Canaveral - Universal Release Management CLI</title>
+		<meta name="description" content="One CLI to build, test, sign, and ship mobile apps across all frameworks. Replace fastlane, Bitrise steps, and custom scripts with a unified solution." />
+
+		<!-- Favicon -->
+		<link rel="icon" type="image/png" href="/canaveral/favicon.png" />
+
+		<!-- Open Graph -->
+		<meta property="og:title" content="Canaveral - Universal Release Management CLI" />
+		<meta property="og:description" content="One CLI to build, test, sign, and ship mobile apps across all frameworks." />
+		<meta property="og:image" content="https://anthropics.github.io/canaveral/og-image.png" />
+		<meta property="og:type" content="website" />
+
+		<!-- Twitter Card -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="Canaveral - Universal Release Management CLI" />
+		<meta name="twitter:description" content="One CLI to build, test, sign, and ship mobile apps across all frameworks." />
+
+		<!-- Theme Color -->
+		<meta name="theme-color" content="#0f0f1a" />
+
+		<style>
+			/* Basic reset */
+			*, *::before, *::after {
+				box-sizing: border-box;
+			}
+
+			:root {
+				--font-system: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+			}
+
+			html, body {
+				margin: 0;
+				padding: 0;
+				font-family: var(--font-system);
+				background: #0f0f1a;
+				color: #e8e8f0;
+				overflow-x: hidden;
+			}
+
+			.landing-container {
+				width: 100%;
+				max-width: 100vw;
+				margin: 0;
+				padding: 0;
+				overflow-x: hidden;
+			}
+
+			/* Simple header for navigation */
+			.site-header {
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				z-index: 100;
+				background: rgba(15, 15, 26, 0.8);
+				backdrop-filter: blur(10px);
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+			}
+
+			.header-content {
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 1rem 1.5rem;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+			}
+
+			.logo-link {
+				display: flex;
+				align-items: center;
+				gap: 0.75rem;
+				text-decoration: none;
+				font-weight: 600;
+				font-size: 1.25rem;
+				color: #e8e8f0;
+				transition: color 0.2s ease;
+			}
+
+			.logo-link:hover {
+				color: #ff6b35;
+			}
+
+			.logo-image {
+				width: 32px;
+				height: 32px;
+			}
+
+			.nav-links {
+				display: flex;
+				align-items: center;
+				gap: 2rem;
+			}
+
+			.nav-link {
+				color: #a8a8b8;
+				text-decoration: none;
+				font-size: 0.95rem;
+				transition: color 0.2s ease;
+			}
+
+			.nav-link:hover {
+				color: #ff6b35;
+			}
+
+			.github-link {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+			}
+
+			/* Footer */
+			.site-footer {
+				background: #0a0a12;
+				border-top: 1px solid rgba(255, 255, 255, 0.05);
+				padding: 3rem 1.5rem 2rem;
+			}
+
+			.footer-content {
+				max-width: 1200px;
+				margin: 0 auto;
+				display: flex;
+				flex-direction: column;
+				gap: 2rem;
+			}
+
+			.footer-main {
+				display: flex;
+				justify-content: space-between;
+				flex-wrap: wrap;
+				gap: 3rem;
+			}
+
+			.footer-section {
+				flex: 1;
+				min-width: 200px;
+			}
+
+			.footer-title {
+				font-weight: 600;
+				color: #e8e8f0;
+				margin-bottom: 1rem;
+			}
+
+			.footer-links {
+				display: flex;
+				flex-direction: column;
+				gap: 0.5rem;
+			}
+
+			.footer-link {
+				color: #a8a8b8;
+				text-decoration: none;
+				font-size: 0.9rem;
+				transition: color 0.2s ease;
+			}
+
+			.footer-link:hover {
+				color: #ff6b35;
+			}
+
+			.footer-bottom {
+				padding-top: 2rem;
+				border-top: 1px solid rgba(255, 255, 255, 0.05);
+				text-align: center;
+				color: #666;
+				font-size: 0.875rem;
+			}
+
+			/* Light theme */
+			:root[data-theme='light'] {
+				--bg-color: #f8f6f4;
+			}
+
+			:root[data-theme='light'] html,
+			:root[data-theme='light'] body {
+				background: #f8f6f4;
+				color: #1a1a2e;
+			}
+
+			:root[data-theme='light'] .site-header {
+				background: rgba(248, 246, 244, 0.8);
+			}
+
+			:root[data-theme='light'] .logo-link {
+				color: #1a1a2e;
+			}
+
+			:root[data-theme='light'] .nav-link {
+				color: #666;
+			}
+
+			:root[data-theme='light'] .site-footer {
+				background: #f0eee8;
+			}
+
+			:root[data-theme='light'] .footer-title {
+				color: #1a1a2e;
+			}
+
+			:root[data-theme='light'] .footer-link {
+				color: #666;
+			}
+
+			:root[data-theme='light'] .footer-bottom {
+				color: #999;
+			}
+
+			@media (max-width: 768px) {
+				.nav-links {
+					gap: 1rem;
+				}
+
+				.nav-link {
+					font-size: 0.875rem;
+				}
+
+				.footer-main {
+					flex-direction: column;
+					gap: 2rem;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<!-- Header Navigation -->
+		<header class="site-header">
+			<div class="header-content">
+				<a href="/canaveral/" class="logo-link">
+					<img src="/canaveral/favicon.png" alt="Canaveral" class="logo-image" />
+					<span>Canaveral</span>
+				</a>
+				<nav class="nav-links">
+					<a href="/canaveral/getting-started/introduction/" class="nav-link">Docs</a>
+					<a href="https://github.com/anthropics/canaveral" class="nav-link github-link" target="_blank" rel="noopener">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+							<path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+						</svg>
+						GitHub
+					</a>
+				</nav>
+			</div>
+		</header>
+
+		<!-- Main Content -->
+		<main class="landing-container">
+			<Hero />
+			<LandingPage />
+		</main>
+
+		<!-- Footer -->
+		<footer class="site-footer">
+			<div class="footer-content">
+				<div class="footer-main">
+					<div class="footer-section">
+						<div class="footer-title">Canaveral</div>
+						<p style="color: #666; font-size: 0.9rem; margin: 0;">Universal Release Management CLI for mobile apps</p>
+					</div>
+
+					<div class="footer-section">
+						<div class="footer-title">Documentation</div>
+						<div class="footer-links">
+							<a href="/canaveral/getting-started/introduction/" class="footer-link">Getting Started</a>
+							<a href="/canaveral/frameworks/overview/" class="footer-link">Frameworks</a>
+							<a href="/canaveral/commands/build/" class="footer-link">Commands</a>
+							<a href="/canaveral/reference/configuration/" class="footer-link">Reference</a>
+						</div>
+					</div>
+
+					<div class="footer-section">
+						<div class="footer-title">Community</div>
+						<div class="footer-links">
+							<a href="https://github.com/anthropics/canaveral" class="footer-link" target="_blank" rel="noopener">GitHub</a>
+							<a href="https://github.com/anthropics/canaveral/issues" class="footer-link" target="_blank" rel="noopener">Issues</a>
+							<a href="https://github.com/anthropics/canaveral/discussions" class="footer-link" target="_blank" rel="noopener">Discussions</a>
+						</div>
+					</div>
+
+					<div class="footer-section">
+						<div class="footer-title">More</div>
+						<div class="footer-links">
+							<a href="/canaveral/reference/changelog/" class="footer-link">Changelog</a>
+							<a href="https://github.com/anthropics/canaveral/blob/main/LICENSE" class="footer-link" target="_blank" rel="noopener">License</a>
+						</div>
+					</div>
+				</div>
+
+				<div class="footer-bottom">
+					Built with ❤️ by the Canaveral team
+				</div>
+			</div>
+		</footer>
+
+		<!-- Theme Script -->
+		<script is:inline>
+			// Simple theme detection and toggle support
+			const theme = localStorage.getItem('starlight-theme') || 'dark';
+			document.documentElement.setAttribute('data-theme', theme);
+		</script>
+	</body>
+</html>
