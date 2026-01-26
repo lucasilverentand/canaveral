@@ -1,13 +1,18 @@
-//! App store upload adapters for Canaveral
+//! App store and package registry upload adapters for Canaveral
 //!
-//! This crate provides integration with various app stores for uploading
-//! and managing releases.
+//! This crate provides integration with various app stores and package registries
+//! for uploading and managing releases.
 //!
 //! ## Supported Stores
 //!
+//! ### App Stores
 //! - **Apple**: App Store Connect, macOS notarization
 //! - **Google Play**: Android app distribution
 //! - **Microsoft**: Microsoft Store / Partner Center
+//!
+//! ### Package Registries
+//! - **NPM**: JavaScript/TypeScript package registry
+//! - **Crates.io**: Rust package registry
 //!
 //! ## Features
 //!
@@ -49,10 +54,16 @@ pub mod apple;
 pub mod firebase;
 pub mod google_play;
 pub mod microsoft;
+pub mod registries;
 
 pub use error::StoreError;
 pub use traits::StoreAdapter;
 pub use types::*;
+
+// Re-export registry types
+pub use registries::{
+    CratesIoConfig, CratesIoRegistry, NpmConfig, NpmRegistry, TagSupport,
+};
 
 // Re-export metadata integration types when feature is enabled
 #[cfg(feature = "metadata")]
