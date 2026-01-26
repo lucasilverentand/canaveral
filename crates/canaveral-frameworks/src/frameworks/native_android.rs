@@ -127,7 +127,6 @@ impl NativeAndroidAdapter {
         Ok(VersionInfo {
             version,
             build_number,
-            version_code: build_number,
             ..Default::default()
         })
     }
@@ -668,7 +667,6 @@ android {
 
         assert_eq!(version.version, "1.2.3");
         assert_eq!(version.build_number, Some(42));
-        assert_eq!(version.version_code, Some(42));
     }
 
     #[test]
@@ -704,7 +702,6 @@ android {
 
         assert_eq!(version.version, "2.0.0");
         assert_eq!(version.build_number, Some(15));
-        assert_eq!(version.version_code, Some(15));
     }
 
     #[test]

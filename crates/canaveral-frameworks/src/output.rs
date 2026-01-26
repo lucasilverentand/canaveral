@@ -387,8 +387,6 @@ pub struct VersionOutput {
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub build_number: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version_code: Option<u64>,
 }
 
 impl From<VersionInfo> for VersionOutput {
@@ -396,7 +394,6 @@ impl From<VersionInfo> for VersionOutput {
         Self {
             version: v.version,
             build_number: v.build_number,
-            version_code: v.version_code,
         }
     }
 }

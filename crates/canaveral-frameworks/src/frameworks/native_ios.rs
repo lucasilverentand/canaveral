@@ -355,7 +355,6 @@ impl NativeIosAdapter {
             .and_then(|s| s.parse::<u64>().ok());
 
         Ok(VersionInfo {
-            marketing_version: Some(version.clone()),
             version,
             build_number,
             ..Default::default()
@@ -781,7 +780,6 @@ mod tests {
 
         assert_eq!(version.version, "1.2.3");
         assert_eq!(version.build_number, Some(42));
-        assert_eq!(version.marketing_version, Some("1.2.3".to_string()));
     }
 
     #[test]

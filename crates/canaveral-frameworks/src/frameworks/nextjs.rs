@@ -322,10 +322,6 @@ impl BuildAdapter for NextJsAdapter {
             version: pkg.version.clone(),
             build_number: None,
             build_name: None,
-            #[allow(deprecated)]
-            version_code: None,
-            #[allow(deprecated)]
-            marketing_version: None,
             platform_metadata: std::collections::HashMap::new(),
         })
     }

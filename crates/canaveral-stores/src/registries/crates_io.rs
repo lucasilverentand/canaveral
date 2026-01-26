@@ -21,6 +21,7 @@ use crate::types::*;
 use chrono::Utc;
 use flate2::read::GzDecoder;
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::path::Path;
 use tar::Archive;
@@ -29,7 +30,7 @@ use tracing::{debug, info};
 const DEFAULT_REGISTRY_URL: &str = "https://crates.io";
 
 /// Crates.io registry configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CratesIoConfig {
     /// Registry URL (default: "https://crates.io")
     pub registry_url: String,

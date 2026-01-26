@@ -22,6 +22,7 @@ glob = { workspace = true }
 globset = { workspace = true }
 walkdir = { workspace = true }
 git2 = { workspace = true }
+canaveral-stores = { path = "../canaveral-stores" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

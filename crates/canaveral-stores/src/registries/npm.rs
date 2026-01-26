@@ -33,7 +33,7 @@ use tar::Archive;
 use tracing::{debug, info};
 
 /// NPM Registry configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NpmConfig {
     /// Registry URL (default: https://registry.npmjs.org)
     pub registry_url: String,

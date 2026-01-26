@@ -151,7 +151,6 @@ pub enum ValidationSeverity {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppInfo {
     /// Universal identifier (bundle ID for mobile, package name for libraries, etc.)
-    #[serde(alias = "bundle_id")]
     pub identifier: String,
 
     /// App version (e.g., "1.2.3")
@@ -176,16 +175,7 @@ pub struct AppInfo {
     pub sha256: Option<String>,
 }
 
-impl AppInfo {
-    /// Get the bundle identifier (deprecated, use `identifier` field directly)
-    #[deprecated(
-        since = "1.6.0",
-        note = "Use `identifier` field directly instead. This method will be removed in 2.0.0"
-    )]
-    pub fn bundle_id(&self) -> &str {
-        &self.identifier
-    }
-}
+impl AppInfo {}
 
 /// Result of an upload operation
 #[derive(Debug, Clone, Serialize, Deserialize)]

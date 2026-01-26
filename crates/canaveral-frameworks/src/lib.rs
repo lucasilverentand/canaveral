@@ -1,8 +1,23 @@
 //! Canaveral Frameworks - Framework-agnostic build, test, and release adapters
 //!
 //! This crate provides a unified interface for building, testing, and releasing
-//! applications regardless of the underlying framework (Flutter, Expo, React Native,
-//! native iOS/Android, Tauri, Electron, etc.).
+//! projects regardless of the underlying framework or platform.
+//!
+//! ## Supported Frameworks
+//!
+//! ### Mobile
+//! - **Flutter**: Cross-platform mobile, web, and desktop
+//! - **React Native**: JavaScript-based mobile apps (via Expo or bare workflow)
+//! - **Native iOS/Android**: Platform-specific builds
+//!
+//! ### Web
+//! - **Vite**: Lightning-fast web build tool
+//! - **Next.js**: Full-stack React framework
+//! - **Astro**: Modern static site generator
+//!
+//! ### Desktop
+//! - **Tauri**: Rust-based desktop apps
+//! - **Electron**: Cross-platform desktop applications
 //!
 //! # Philosophy
 //!

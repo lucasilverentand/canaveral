@@ -306,8 +306,6 @@ impl BuildAdapter for AstroAdapter {
             version: pkg.version.clone(),
             build_number: None,
             build_name: None,
-            version_code: None,
-            marketing_version: None,
             platform_metadata: std::collections::HashMap::new(),
         })
     }

@@ -83,4 +83,34 @@ hooks:
   post_version: []
   pre_publish: []
   post_publish: []
+
+# App Store and Package Registry Configuration
+# stores:
+#   # Apple App Store (iOS, macOS, tvOS, watchOS)
+#   apple:
+#     api_key_id: "ABC123XYZ"
+#     api_issuer_id: "12345678-1234-1234-1234-123456789012"
+#     api_key: "/path/to/AuthKey_ABC123XYZ.p8"
+#
+#   # Google Play Store (Android)
+#   google_play:
+#     package_name: "com.example.app"
+#     service_account_key: "/path/to/service-account.json"
+#
+#   # Microsoft Store (Windows, Xbox)
+#   microsoft:
+#     tenant_id: "12345678-1234-1234-1234-123456789012"
+#     client_id: "87654321-4321-4321-4321-210987654321"
+#     client_secret: "your_client_secret"
+#     app_id: "9NBLGGH1234"
+#
+#   # NPM Registry (JavaScript/TypeScript packages)
+#   npm:
+#     registry_url: "https://registry.npmjs.org"
+#     # token: env var NPM_TOKEN or from ~/.npmrc
+#
+#   # Crates.io Registry (Rust packages)
+#   crates_io:
+#     registry_url: "https://crates.io"
+#     # token: env var CARGO_REGISTRY_TOKEN or from ~/.cargo/credentials.toml
 "#;

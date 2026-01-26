@@ -564,7 +564,7 @@ impl Default for GpgSigningConfig {
     }
 }
 
-/// App store configurations
+/// App store and package registry configurations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct StoresConfig {
@@ -579,6 +579,14 @@ pub struct StoresConfig {
     /// Microsoft Store configuration
     #[serde(default)]
     pub microsoft: Option<MicrosoftStoreConfig>,
+
+    /// NPM registry configuration
+    #[serde(default)]
+    pub npm: Option<canaveral_stores::NpmConfig>,
+
+    /// Crates.io registry configuration
+    #[serde(default)]
+    pub crates_io: Option<canaveral_stores::CratesIoConfig>,
 }
 
 impl Default for StoresConfig {
@@ -587,6 +595,8 @@ impl Default for StoresConfig {
             apple: None,
             google_play: None,
             microsoft: None,
+            npm: None,
+            crates_io: None,
         }
     }
 }

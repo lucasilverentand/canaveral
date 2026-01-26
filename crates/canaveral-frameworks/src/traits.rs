@@ -270,20 +270,6 @@ pub struct VersionInfo {
     /// Build name/code (e.g., "1.2.3+42")
     pub build_name: Option<String>,
 
-    /// Version code for Android (deprecated - use build_number instead)
-    #[deprecated(
-        since = "1.6.0",
-        note = "Use `build_number` instead. This field will be removed in 2.0.0"
-    )]
-    pub version_code: Option<u64>,
-
-    /// Marketing version for iOS (deprecated - use version instead)
-    #[deprecated(
-        since = "1.6.0",
-        note = "Use `version` instead. This field will be removed in 2.0.0"
-    )]
-    pub marketing_version: Option<String>,
-
     /// Platform-specific metadata (key-value pairs)
     /// Examples: npm dist-tags, cargo features, docker image tags
     #[serde(default)]
@@ -300,11 +286,6 @@ impl VersionInfo {
 
     pub fn with_build_number(mut self, build_number: u64) -> Self {
         self.build_number = Some(build_number);
-        self
-    }
-
-    pub fn with_version_code(mut self, version_code: u64) -> Self {
-        self.version_code = Some(version_code);
         self
     }
 }
@@ -449,12 +430,10 @@ mod tests {
     #[test]
     fn test_version_info_builder() {
         let info = VersionInfo::new("1.2.3")
-            .with_build_number(42)
-            .with_version_code(10203);
+            .with_build_number(42);
 
         assert_eq!(info.version, "1.2.3");
         assert_eq!(info.build_number, Some(42));
-        assert_eq!(info.version_code, Some(10203));
     }
 
     #[test]

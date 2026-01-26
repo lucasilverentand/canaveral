@@ -284,12 +284,6 @@ impl ArtifactMetadata {
         self
     }
 
-    #[deprecated(since = "1.6.0", note = "Use `with_identifier` instead. This method will be removed in 2.0.0")]
-    pub fn with_bundle_id(mut self, bundle_id: impl Into<String>) -> Self {
-        self.identifier = Some(bundle_id.into());
-        self
-    }
-
     pub fn with_framework(mut self, framework: impl Into<String>) -> Self {
         self.framework = Some(framework.into());
         self
@@ -327,7 +321,7 @@ mod tests {
         let meta = ArtifactMetadata::new()
             .with_version("1.2.3")
             .with_build_number(42)
-            .with_bundle_id("com.example.app")
+            .with_identifier("com.example.app")
             .with_framework("flutter")
             .with_signed(true);
 

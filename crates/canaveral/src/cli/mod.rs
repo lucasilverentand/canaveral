@@ -7,8 +7,9 @@ use clap::{Parser, Subcommand};
 
 use commands::{
     BuildCommand, ChangelogCommand, CompletionsCommand, DoctorCommand, FirebaseCommand,
-    InitCommand, MatchCommand, MetadataCommand, ReleaseCommand, ScreenshotsCommand, SigningCommand,
-    StatusCommand, StoreCommand, TestCommand, TestFlightCommand, ValidateCommand, VersionCommand,
+    InitCommand, MatchCommand, MetadataCommand, PublishCommand, ReleaseCommand, ScreenshotsCommand,
+    SigningCommand, StatusCommand, TestCommand, TestFlightCommand, ValidateCommand,
+    VersionCommand,
 };
 
 /// Canaveral - Universal release management CLI
@@ -71,8 +72,8 @@ pub enum Commands {
     /// Code signing operations
     Signing(SigningCommand),
 
-    /// App store upload operations
-    Store(StoreCommand),
+    /// Publish to app stores or package registries
+    Publish(PublishCommand),
 
     /// App store metadata management
     Metadata(MetadataCommand),
@@ -118,7 +119,7 @@ impl Cli {
             Commands::Status(ref cmd) => cmd.execute(&self),
             Commands::Validate(ref cmd) => cmd.execute(&self),
             Commands::Signing(ref cmd) => cmd.execute(&self),
-            Commands::Store(ref cmd) => cmd.execute(&self),
+            Commands::Publish(ref cmd) => cmd.execute(&self),
             Commands::Metadata(ref cmd) => cmd.execute(&self),
             Commands::Build(ref cmd) => cmd.execute(&self),
             Commands::Completions(ref cmd) => cmd.execute(&self),
