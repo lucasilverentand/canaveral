@@ -1,0 +1,23 @@
+{
+  "name": "@example/my-library",
+  "version": "1.0.0",
+  "description": "Example NPM library with Canaveral publishing",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "example",
+    "canaveral"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

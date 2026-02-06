@@ -1,0 +1,12 @@
+[project]
+name = "vite-example"
+version = "1.0.0"
+
+[build]
+framework = "vite"
+output_dir = "dist"
+
+[metadata]
+identifier = "com.example.vite-app"
+version = "1.0.0"
+build_number = 1

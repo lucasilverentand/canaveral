@@ -1,0 +1,7 @@
+[project]
+name = "my-npm-library"
+version = "1.0.0"
+
+[stores.npm]
+registry_url = "https://registry.npmjs.org"
+# Token will be read from NPM_TOKEN env var or ~/.npmrc
