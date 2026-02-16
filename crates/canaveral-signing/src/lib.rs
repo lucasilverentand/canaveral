@@ -14,6 +14,7 @@ pub mod error;
 pub mod identity;
 pub mod provider;
 pub mod providers;
+pub mod registry;
 pub mod sync;
 pub mod team;
 
@@ -33,3 +34,4 @@ pub use providers::macos::MacOSProvider;
 pub use providers::windows::WindowsProvider;
 
 pub use providers::android::AndroidProvider;
+pub use registry::SigningProviderRegistry;

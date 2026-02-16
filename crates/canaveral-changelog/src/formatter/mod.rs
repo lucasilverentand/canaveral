@@ -1,8 +1,10 @@
 //! Changelog formatters
 
 mod markdown;
+mod registry;
 
 pub use markdown::MarkdownFormatter;
+pub use registry::FormatterRegistry;
 
 use canaveral_core::config::ChangelogConfig;
 

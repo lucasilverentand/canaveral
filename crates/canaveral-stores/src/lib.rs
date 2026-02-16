@@ -47,6 +47,7 @@
 
 pub mod error;
 pub mod metadata_integration;
+pub mod registry;
 pub mod traits;
 pub mod types;
 
@@ -57,6 +58,7 @@ pub mod microsoft;
 pub mod registries;
 
 pub use error::StoreError;
+pub use registry::StoreRegistry;
 pub use traits::StoreAdapter;
 pub use types::*;
 

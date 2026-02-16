@@ -9,7 +9,8 @@ pub mod release_notes;
 pub mod types;
 
 pub use generator::ChangelogGenerator;
-pub use parser::{CommitParser, ConventionalParser};
+pub use formatter::{ChangelogFormatter, MarkdownFormatter, FormatterRegistry};
+pub use parser::{CommitParser, ConventionalParser, ParserRegistry};
 pub use release_notes::{ReleaseNotesGenerator, ReleaseNotes};
 pub use types::ParsedCommit;
 pub use types::{ChangelogEntry, Section};

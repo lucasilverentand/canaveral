@@ -28,6 +28,14 @@ pub enum PluginType {
     Strategy,
     /// Changelog formatter plugin
     Formatter,
+    /// Commit parser plugin
+    Parser,
+    /// Store adapter plugin
+    Store,
+    /// Signing provider plugin
+    Signing,
+    /// Framework adapter plugin
+    Framework,
 }
 
 impl PluginType {
@@ -37,6 +45,10 @@ impl PluginType {
             Self::Adapter => "adapter",
             Self::Strategy => "strategy",
             Self::Formatter => "formatter",
+            Self::Parser => "parser",
+            Self::Store => "store",
+            Self::Signing => "signing",
+            Self::Framework => "framework",
         }
     }
 }
@@ -425,6 +437,122 @@ pub trait StrategyPlugin {
 
     /// Calculate next version
     fn bump(&self, current: &str, bump_type: &str) -> Result<String>;
+}
+
+/// Parser plugin interface
+pub trait ParserPlugin {
+    /// Get parser name
+    fn name(&self) -> &str;
+
+    /// Parse a commit into structured data
+    fn parse(&self, commit: &serde_json::Value) -> Result<Option<serde_json::Value>>;
+
+    /// Check if a parsed commit should be included
+    fn should_include(&self, parsed: &serde_json::Value) -> Result<bool>;
+}
+
+/// Store plugin interface
+pub trait StorePlugin {
+    /// Get store name
+    fn name(&self) -> &str;
+
+    /// Get the store type identifier
+    fn store_type(&self) -> &str;
+
+    /// Check if the store is available
+    fn is_available(&self) -> bool;
+
+    /// Upload an artifact to the store
+    fn upload(&self, path: &Path, options: &serde_json::Value) -> Result<serde_json::Value>;
+
+    /// Get the status of a build
+    fn get_build_status(&self, build_id: &str) -> Result<serde_json::Value>;
+}
+
+/// Signing plugin interface
+pub trait SigningPlugin {
+    /// Get signing provider name
+    fn name(&self) -> &str;
+
+    /// Check if the signing provider is available
+    fn is_available(&self) -> bool;
+
+    /// Sign an artifact
+    fn sign(
+        &self,
+        artifact: &Path,
+        identity: &serde_json::Value,
+        options: &serde_json::Value,
+    ) -> Result<()>;
+
+    /// Verify a signed artifact
+    fn verify(&self, artifact: &Path) -> Result<serde_json::Value>;
+
+    /// Get supported file extensions
+    fn supported_extensions(&self) -> Vec<String>;
+}
+
+/// Framework plugin interface
+pub trait FrameworkPlugin {
+    /// Get framework name
+    fn name(&self) -> &str;
+
+    /// Detect framework at path
+    fn detect(&self, path: &Path) -> Result<serde_json::Value>;
+
+    /// Build the project
+    fn build(&self, path: &Path, options: &serde_json::Value) -> Result<serde_json::Value>;
+
+    /// Run tests
+    fn test(&self, path: &Path, options: &serde_json::Value) -> Result<serde_json::Value>;
+
+    /// Get supported platforms
+    fn supported_platforms(&self) -> Vec<String>;
+}
+
+/// External strategy that wraps an ExternalPlugin
+pub struct ExternalStrategy {
+    plugin: ExternalPlugin,
+}
+
+impl ExternalStrategy {
+    /// Create a new external strategy
+    pub fn new(plugin: ExternalPlugin) -> Self {
+        Self { plugin }
+    }
+
+    /// Get the plugin info
+    pub fn info(&self) -> &PluginInfo {
+        self.plugin.info()
+    }
+}
+
+impl StrategyPlugin for ExternalStrategy {
+    fn name(&self) -> &str {
+        &self.plugin.info.name
+    }
+
+    fn parse(&self, version: &str) -> Result<serde_json::Value> {
+        let input = serde_json::json!({ "version": version });
+        self.plugin.execute("parse", &input)
+    }
+
+    fn format(&self, components: &serde_json::Value) -> Result<String> {
+        let output = self.plugin.execute("format", components)?;
+        output
+            .as_str()
+            .map(String::from)
+            .ok_or_else(|| CanaveralError::other("Invalid format response"))
+    }
+
+    fn bump(&self, current: &str, bump_type: &str) -> Result<String> {
+        let input = serde_json::json!({ "current": current, "bump_type": bump_type });
+        let output = self.plugin.execute("bump", &input)?;
+        output
+            .as_str()
+            .map(String::from)
+            .ok_or_else(|| CanaveralError::other("Invalid bump response"))
+    }
 }
 
 /// External adapter that wraps an ExternalPlugin

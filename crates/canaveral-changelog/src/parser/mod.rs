@@ -1,9 +1,11 @@
 //! Commit parsing
 
 mod conventional;
+mod registry;
 mod types;
 
 pub use conventional::ConventionalParser;
+pub use registry::ParserRegistry;
 pub use types::*;
 
 use crate::types::ParsedCommit;
