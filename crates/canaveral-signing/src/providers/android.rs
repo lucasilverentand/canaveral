@@ -8,7 +8,7 @@ use crate::provider::{
 use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 /// Android signing provider using apksigner and keytool
 pub struct AndroidProvider {
@@ -208,6 +208,7 @@ impl SigningProvider for AndroidProvider {
         Ok(identity)
     }
 
+    #[instrument(skip(self, identity, options), fields(provider = "android", path = %artifact.display()))]
     async fn sign(
         &self,
         artifact: &Path,
@@ -285,6 +286,7 @@ impl SigningProvider for AndroidProvider {
         Ok(())
     }
 
+    #[instrument(skip(self, options), fields(provider = "android", path = %artifact.display()))]
     async fn verify(&self, artifact: &Path, options: &VerifyOptions) -> Result<SignatureInfo> {
         let apksigner = self.get_apksigner()?;
 

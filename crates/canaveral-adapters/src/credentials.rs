@@ -5,6 +5,7 @@ use std::env;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use tracing::{debug, instrument};
 
 use canaveral_core::error::{AdapterError, Result};
 
@@ -32,24 +33,29 @@ impl CredentialProvider {
     }
 
     /// Get credentials for a registry
+    #[instrument(skip(self), fields(registry))]
     pub fn get(&mut self, registry: &str) -> Result<Option<Credential>> {
         // Check cache first
         if let Some(cred) = self.cache.get(registry) {
+            debug!(registry, source = "cache", "credentials found");
             return Ok(Some(cred.clone()));
         }
 
         // Try environment variables
         if let Some(cred) = self.from_env(registry)? {
+            debug!(registry, source = "environment", "credentials found");
             self.cache.insert(registry.to_string(), cred.clone());
             return Ok(Some(cred));
         }
 
         // Try registry-specific config files
         if let Some(cred) = self.from_registry_config(registry)? {
+            debug!(registry, source = "config_file", "credentials found");
             self.cache.insert(registry.to_string(), cred.clone());
             return Ok(Some(cred));
         }
 
+        debug!(registry, "no credentials found");
         Ok(None)
     }
 
@@ -270,7 +276,9 @@ impl CredentialProvider {
 
     /// Check if credentials are available for a registry
     pub fn has_credentials(&mut self, registry: &str) -> bool {
-        self.get(registry).ok().flatten().is_some()
+        let has = self.get(registry).ok().flatten().is_some();
+        debug!(registry, has_credentials = has, "credential check");
+        has
     }
 
     /// Clear cached credentials

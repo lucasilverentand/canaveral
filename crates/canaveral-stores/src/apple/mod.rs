@@ -24,6 +24,8 @@ pub use testflight::{
     BetaGroup, BetaTester, TesterInviteType, BetaAppReviewSubmission, BetaReviewState,
 };
 
+use tracing::{debug, instrument};
+
 use crate::error::{Result, StoreError};
 use crate::types::AppInfo;
 use std::path::Path;
@@ -44,6 +46,7 @@ pub(crate) async fn check_tool(tool: &str) -> bool {
 }
 
 /// Extract app info from a macOS app bundle or package
+#[instrument(fields(path = %path.display()))]
 pub async fn extract_app_info(path: &Path) -> Result<AppInfo> {
     let ext = path
         .extension()
@@ -51,6 +54,7 @@ pub async fn extract_app_info(path: &Path) -> Result<AppInfo> {
         .unwrap_or("")
         .to_lowercase();
 
+    debug!(extension = %ext, "extracting app info");
     match ext.as_str() {
         "app" => extract_app_bundle_info(path).await,
         "pkg" => extract_pkg_info(path).await,

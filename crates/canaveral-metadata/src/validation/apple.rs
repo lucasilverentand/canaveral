@@ -5,6 +5,8 @@
 
 use std::collections::HashMap;
 
+use tracing::{debug, info};
+
 use crate::types::apple::{
     limits, AgeRatingLevel, AppleAgeRating, AppleLocalizedMetadata, AppleMetadata,
     AppleScreenshotSet,
@@ -142,6 +144,12 @@ impl AppleValidator {
     ///
     /// A `ValidationResult` containing any issues found.
     pub fn validate(&self, metadata: &AppleMetadata) -> ValidationResult {
+        debug!(
+            bundle_id = %metadata.bundle_id,
+            locale_count = metadata.localizations.len(),
+            strict = self.strict,
+            "validating Apple metadata"
+        );
         let mut result = ValidationResult::new();
 
         // Validate bundle ID
@@ -202,6 +210,12 @@ impl AppleValidator {
                 }
             }
         }
+
+        info!(
+            errors = result.error_count(),
+            warnings = result.warning_count(),
+            "Apple metadata validation complete"
+        );
 
         result
     }

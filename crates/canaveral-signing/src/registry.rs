@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::sync::Arc;
+use tracing::{debug, info};
 
 use crate::provider::SigningProvider;
 use crate::providers;
@@ -62,20 +63,28 @@ impl SigningProviderRegistry {
 
     /// Get only providers that are available on the current system
     pub fn available(&self) -> Vec<Arc<dyn SigningProvider>> {
-        self.providers
+        let available: Vec<_> = self
+            .providers
             .iter()
             .filter(|p| p.is_available())
             .cloned()
-            .collect()
+            .collect();
+        let names: Vec<_> = available.iter().map(|p| p.name()).collect();
+        debug!(count = available.len(), providers = ?names, "Queried available signing providers");
+        available
     }
 
     /// Detect which providers support the given file
     pub fn detect(&self, path: &Path) -> Vec<Arc<dyn SigningProvider>> {
-        self.providers
+        let detected: Vec<_> = self
+            .providers
             .iter()
             .filter(|p| p.supports_file(path))
             .cloned()
-            .collect()
+            .collect();
+        let names: Vec<_> = detected.iter().map(|p| p.name()).collect();
+        info!(path = %path.display(), providers = ?names, "Detected signing providers for file");
+        detected
     }
 }
 

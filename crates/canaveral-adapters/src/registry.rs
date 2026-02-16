@@ -3,6 +3,8 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use tracing::debug;
+
 use crate::cargo::CargoAdapter;
 use crate::docker::DockerAdapter;
 use crate::go::GoAdapter;
@@ -45,12 +47,20 @@ impl AdapterRegistry {
 
     /// Get adapter by name
     pub fn get(&self, name: &str) -> Option<Arc<dyn PackageAdapter>> {
-        self.adapters.iter().find(|a| a.name() == name).cloned()
+        let result = self.adapters.iter().find(|a| a.name() == name).cloned();
+        debug!(adapter = name, found = result.is_some(), "adapter lookup by name");
+        result
     }
 
     /// Detect which adapter applies to a path
     pub fn detect(&self, path: &Path) -> Option<Arc<dyn PackageAdapter>> {
-        self.adapters.iter().find(|a| a.detect(path)).cloned()
+        let result = self.adapters.iter().find(|a| a.detect(path)).cloned();
+        debug!(
+            path = %path.display(),
+            adapter = result.as_ref().map(|a| a.name()),
+            "adapter detection"
+        );
+        result
     }
 
     /// Get all registered adapters

@@ -8,7 +8,7 @@ use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 use crate::error::{Result, StoreError};
 use crate::types::AppleStoreConfig;
@@ -216,6 +216,7 @@ impl TestFlight {
     // -------------------------------------------------------------------------
 
     /// List TestFlight builds for an app
+    #[instrument(skip(self), fields(app_id, limit))]
     pub async fn list_builds(
         &mut self,
         app_id: &str,
@@ -275,6 +276,7 @@ impl TestFlight {
     }
 
     /// Get build status by build ID
+    #[instrument(skip(self), fields(build_id))]
     pub async fn get_build(&mut self, build_id: &str) -> Result<TestFlightBuild> {
         #[derive(Deserialize)]
         struct BuildResponse {
@@ -562,6 +564,7 @@ impl TestFlight {
     }
 
     /// Invite a beta tester
+    #[instrument(skip(self, first_name, last_name, group_ids), fields(email))]
     pub async fn invite_tester(
         &mut self,
         email: &str,
@@ -687,6 +690,7 @@ impl TestFlight {
     // -------------------------------------------------------------------------
 
     /// Submit a build for beta review (external testing)
+    #[instrument(skip(self), fields(build_id))]
     pub async fn submit_for_beta_review(
         &mut self,
         build_id: &str,
@@ -800,6 +804,7 @@ impl TestFlight {
     // -------------------------------------------------------------------------
 
     /// Set "What's New" text for a build
+    #[instrument(skip(self, whats_new), fields(build_id, locale))]
     pub async fn set_whats_new(
         &mut self,
         build_id: &str,

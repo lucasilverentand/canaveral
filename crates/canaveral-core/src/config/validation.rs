@@ -1,15 +1,19 @@
 //! Configuration validation
 
+use tracing::debug;
+
 use crate::error::{ConfigError, Result};
 
 use super::types::Config;
 
 /// Validate configuration
 pub fn validate_config(config: &Config) -> Result<()> {
+    debug!("validating configuration");
     validate_versioning(config)?;
     validate_git(config)?;
     validate_changelog(config)?;
     validate_packages(config)?;
+    debug!("configuration validation passed");
     Ok(())
 }
 
@@ -81,6 +85,9 @@ fn validate_changelog(config: &Config) -> Result<()> {
 }
 
 fn validate_packages(config: &Config) -> Result<()> {
+    if !config.packages.is_empty() {
+        debug!(count = config.packages.len(), "validating packages");
+    }
     for (i, package) in config.packages.iter().enumerate() {
         if package.name.is_empty() {
             return Err(ConfigError::InvalidValue {

@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, warn};
 
 use crate::error::{CanaveralError, Result};
 
@@ -136,6 +137,8 @@ impl ExternalPlugin {
 
     /// Execute a plugin action
     pub fn execute(&self, action: &str, input: &serde_json::Value) -> Result<serde_json::Value> {
+        debug!(plugin = %self.info.name, action, "executing plugin action");
+        let start = std::time::Instant::now();
         let request = PluginRequest {
             action: action.to_string(),
             input: input.clone(),
@@ -172,6 +175,7 @@ impl ExternalPlugin {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
+            warn!(plugin = %self.info.name, action, stderr = %stderr.trim(), "plugin execution failed");
             return Err(CanaveralError::other(format!(
                 "Plugin '{}' failed: {}",
                 self.info.name, stderr
@@ -182,12 +186,15 @@ impl ExternalPlugin {
             .map_err(|e| CanaveralError::other(format!("Invalid plugin response: {}", e)))?;
 
         if let Some(error) = response.error {
+            warn!(plugin = %self.info.name, action, %error, "plugin returned error");
             return Err(CanaveralError::other(format!(
                 "Plugin '{}' error: {}",
                 self.info.name, error
             )));
         }
 
+        let duration_ms = start.elapsed().as_millis();
+        debug!(plugin = %self.info.name, action, duration_ms, "plugin action completed");
         Ok(response.output.unwrap_or(serde_json::Value::Null))
     }
 }
@@ -260,8 +267,10 @@ impl PluginRegistry {
 
     /// Load plugins from configuration
     pub fn load_from_configs(&mut self, configs: &[PluginConfig]) -> Result<()> {
+        info!(count = configs.len(), "loading plugins from config");
         for config in configs {
             if !config.enabled {
+                debug!(plugin = %config.name, "plugin disabled, skipping");
                 continue;
             }
 
@@ -276,6 +285,12 @@ impl PluginRegistry {
             // Query plugin for its info
             let info = self.query_plugin_info(&command, &config.name, config.plugin_type)?;
 
+            info!(
+                plugin = %info.name,
+                plugin_type = info.plugin_type.as_str(),
+                version = %info.version,
+                "registered plugin"
+            );
             let plugin = ExternalPlugin::new(info, command).with_config(config.config.clone());
 
             self.register(plugin);
@@ -349,6 +364,7 @@ impl PluginRegistry {
 
     /// Discover plugins in search paths
     pub fn discover(&mut self) -> Result<Vec<PluginInfo>> {
+        info!(search_paths = self.search_paths.len(), "discovering plugins");
         let mut discovered = Vec::new();
 
         for search_path in &self.search_paths.clone() {
@@ -364,6 +380,7 @@ impl PluginRegistry {
                     let path = entry.path();
 
                     if self.is_plugin_file(&path) {
+                        debug!(path = %path.display(), "found potential plugin file");
                         if let Ok(info) = self.query_plugin_info(
                             &path.to_string_lossy(),
                             path.file_stem()
@@ -379,6 +396,7 @@ impl PluginRegistry {
             }
         }
 
+        info!(count = discovered.len(), "plugin discovery complete");
         Ok(discovered)
     }
 

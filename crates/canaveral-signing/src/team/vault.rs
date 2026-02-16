@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 use super::audit::{AuditAction, AuditLog};
@@ -100,6 +100,7 @@ pub struct TeamVault {
 
 impl TeamVault {
     /// Initialize a new vault
+    #[instrument(skip_all, fields(team = team_name, vault_path = %path.display()))]
     pub fn init(team_name: &str, path: &Path, creator_email: &str) -> Result<(Self, KeyPair)> {
         if path.exists() && path.join("vault.yaml").exists() {
             return Err(VaultError::AlreadyExists(path.to_path_buf()));
@@ -146,6 +147,7 @@ impl TeamVault {
     }
 
     /// Open an existing vault
+    #[instrument(skip_all, fields(vault_path = %path.display()))]
     pub fn open(path: &Path) -> Result<Self> {
         if !path.exists() || !path.join("vault.yaml").exists() {
             return Err(VaultError::NotFound(path.to_path_buf()));
@@ -287,6 +289,7 @@ impl TeamVault {
     // ========== Member Management ==========
 
     /// Add a new member to the vault
+    #[instrument(skip(self, public_key), fields(email = email, role = %role))]
     pub fn add_member(&mut self, email: &str, public_key: &str, role: Role) -> Result<&Member> {
         self.check_permission(Permission::AddMembers)?;
 
@@ -320,6 +323,7 @@ impl TeamVault {
     }
 
     /// Remove a member from the vault
+    #[instrument(skip(self), fields(email = email))]
     pub fn remove_member(&mut self, email: &str) -> Result<()> {
         self.check_permission(Permission::RemoveMembers)?;
 
@@ -417,6 +421,7 @@ impl TeamVault {
     // ========== Identity Management ==========
 
     /// Import a signing identity
+    #[instrument(skip(self, credential_data), fields(id = id, identity_type = ?identity_type))]
     pub fn import_identity(
         &mut self,
         id: &str,
@@ -458,6 +463,7 @@ impl TeamVault {
     }
 
     /// Export (decrypt) an identity
+    #[instrument(skip(self), fields(id = id))]
     pub fn export_identity(&mut self, id: &str) -> Result<CredentialData> {
         self.check_permission(Permission::ExportIdentities)?;
 
@@ -495,6 +501,7 @@ impl TeamVault {
     }
 
     /// Delete an identity
+    #[instrument(skip(self), fields(id = id))]
     pub fn delete_identity(&mut self, id: &str) -> Result<()> {
         self.check_permission(Permission::DeleteIdentities)?;
 

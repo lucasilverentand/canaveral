@@ -1,5 +1,7 @@
 //! Pre-release validation
 
+use tracing::{debug, info, warn};
+
 use crate::config::Config;
 use crate::error::{Result, WorkflowError};
 
@@ -51,6 +53,7 @@ pub fn validate_release(
     is_clean: bool,
     on_correct_branch: bool,
 ) -> Result<ValidationResult> {
+    info!(is_clean, on_correct_branch, "validating release preconditions");
     let mut result = ValidationResult::pass();
 
     // Check working directory
@@ -75,14 +78,17 @@ pub fn validate_release(
 
 /// Validate configuration
 pub fn validate_config_for_release(config: &Config) -> Result<ValidationResult> {
+    debug!("validating config for release");
     let mut result = ValidationResult::pass();
 
     // Warn about disabled features
     if !config.changelog.enabled {
+        warn!("changelog generation is disabled");
         result.add_warning("Changelog generation is disabled");
     }
 
     if !config.publish.enabled {
+        warn!("publishing is disabled");
         result.add_warning("Publishing is disabled");
     }
 

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use clap::Args;
 use console::style;
 use anyhow::Context;
+use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_core::monorepo::{
@@ -56,6 +57,13 @@ pub struct RunCommand {
 
 impl RunCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        info!(
+            tasks = ?self.tasks,
+            affected = self.affected,
+            dry_run = self.dry_run,
+            concurrency = ?self.concurrency,
+            "executing run command"
+        );
         let runtime = tokio::runtime::Runtime::new()?;
         runtime.block_on(self.execute_async(cli))
     }

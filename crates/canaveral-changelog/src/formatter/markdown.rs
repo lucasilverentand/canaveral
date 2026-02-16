@@ -1,6 +1,7 @@
 //! Markdown changelog formatter
 
 use canaveral_core::config::ChangelogConfig;
+use tracing::{debug, instrument};
 
 use super::ChangelogFormatter;
 use crate::types::ChangelogEntry;
@@ -36,6 +37,7 @@ impl Default for MarkdownFormatter {
 }
 
 impl ChangelogFormatter for MarkdownFormatter {
+    #[instrument(skip(self, entry, config), fields(version = %entry.version, section_count = entry.sections.len()))]
     fn format(&self, entry: &ChangelogEntry, config: &ChangelogConfig) -> String {
         let mut output = String::new();
 
@@ -101,6 +103,7 @@ impl ChangelogFormatter for MarkdownFormatter {
             output.push_str(&format!("### Notes\n\n{}\n\n", notes));
         }
 
+        debug!(output_len = output.len(), "markdown changelog formatted");
         output
     }
 

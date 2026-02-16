@@ -4,6 +4,7 @@ pub mod commands;
 pub mod output;
 
 use clap::{Parser, Subcommand};
+use tracing::info;
 
 use commands::{
     BuildCommand, CacheCommand, ChangelogCommand, CICommand, CompletionsCommand, DoctorCommand,
@@ -121,8 +122,34 @@ impl Cli {
     pub fn execute(self) -> anyhow::Result<()> {
         // Change to specified directory if provided
         if let Some(dir) = &self.directory {
+            info!(directory = %dir.display(), "changing working directory");
             std::env::set_current_dir(dir)?;
         }
+
+        let command_name = match &self.command {
+            Commands::Init(_) => "init",
+            Commands::Version(_) => "version",
+            Commands::Changelog(_) => "changelog",
+            Commands::Release(_) => "release",
+            Commands::Status(_) => "status",
+            Commands::Validate(_) => "validate",
+            Commands::Signing(_) => "signing",
+            Commands::Publish(_) => "publish",
+            Commands::Metadata(_) => "metadata",
+            Commands::Build(_) => "build",
+            Commands::Completions(_) => "completions",
+            Commands::Doctor(_) => "doctor",
+            Commands::TestFlight(_) => "testflight",
+            Commands::Firebase(_) => "firebase",
+            Commands::Test(_) => "test",
+            Commands::Screenshots(_) => "screenshots",
+            Commands::Match(_) => "match",
+            Commands::Run(_) => "run",
+            Commands::Cache(_) => "cache",
+            Commands::CI(_) => "ci",
+            Commands::Pr(_) => "pr",
+        };
+        info!(command = command_name, verbose = self.verbose, quiet = self.quiet, "executing command");
 
         match self.command {
             Commands::Init(ref cmd) => cmd.execute(&self),

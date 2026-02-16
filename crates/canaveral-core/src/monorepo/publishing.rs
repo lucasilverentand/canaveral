@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, warn};
 
 use crate::error::Result;
 
@@ -287,6 +288,7 @@ impl PublishCoordinator {
         bumps: &[VersionBump],
         graph: &DependencyGraph,
     ) -> Result<PublishPlan> {
+        debug!(packages = packages.len(), bumps = bumps.len(), "creating publish plan");
         let bump_map: HashMap<&str, &VersionBump> =
             bumps.iter().map(|b| (b.package.as_str(), b)).collect();
 
@@ -355,6 +357,11 @@ impl PublishCoordinator {
             order += 1;
         }
 
+        info!(
+            to_publish = planned.len(),
+            skipped = skipped.len(),
+            "publish plan created"
+        );
         Ok(PublishPlan {
             total_count: planned.len(),
             packages: planned,
@@ -368,6 +375,7 @@ impl PublishCoordinator {
         plan: &PublishPlan,
         callback: &dyn PublishCallback,
     ) -> Result<PublishResult> {
+        info!(packages = plan.packages.len(), dry_run = self.options.dry_run, "executing publish plan");
         let start = Instant::now();
         let mut results = Vec::new();
         let mut failed_packages: HashSet<String> = HashSet::new();
@@ -414,13 +422,21 @@ impl PublishCoordinator {
             }
 
             // Publish the package
+            info!(package = %planned.name, version = %planned.version, "publishing package");
             callback.on_publish_start(&planned.name, &planned.version);
 
             let result = self.publish_package(planned);
 
             callback.on_publish_complete(&planned.name, &result);
 
-            if !result.success {
+            if result.success {
+                debug!(package = %planned.name, duration_ms = result.duration.as_millis(), "package published");
+            } else {
+                warn!(
+                    package = %planned.name,
+                    error = result.error.as_deref().unwrap_or("unknown"),
+                    "package publish failed"
+                );
                 failed_packages.insert(planned.name.clone());
             }
 
@@ -434,6 +450,15 @@ impl PublishCoordinator {
 
         let total_duration = start.elapsed();
         let success = failed_packages.is_empty();
+
+        info!(
+            success,
+            published = results.iter().filter(|r| r.success).count(),
+            failed = failed_packages.len(),
+            skipped = skipped_packages.len(),
+            duration_ms = total_duration.as_millis(),
+            "publish complete"
+        );
 
         Ok(PublishResult {
             packages: results,

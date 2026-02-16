@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tracing::{debug, info};
 
 use crate::task::{TaskDefinition, TaskId};
 
@@ -136,6 +137,7 @@ impl TaskCache {
         let metadata_path = entry_dir.join("metadata.json");
 
         if !metadata_path.exists() {
+            debug!(task = %id, "cache miss");
             return Ok(None);
         }
 
@@ -152,6 +154,7 @@ impl TaskCache {
             return Ok(None);
         }
 
+        debug!(task = %id, "cache hit");
         Ok(Some(entry))
     }
 
@@ -164,6 +167,7 @@ impl TaskCache {
         stdout: &str,
         stderr: &str,
     ) -> Result<CacheKey, CacheError> {
+        debug!(task = %id, "storing result in cache");
         let key = CacheKey::compute(id, definition, root_dir);
         let entry_dir = self.cache_dir.join(&key.0);
         fs::create_dir_all(&entry_dir).map_err(CacheError::Io)?;
@@ -208,6 +212,7 @@ impl TaskCache {
 
     /// Remove old cache entries
     pub fn prune(&self, max_age: Duration) -> Result<PruneStats, CacheError> {
+        info!(max_age_secs = max_age.as_secs(), "pruning cache");
         let mut stats = PruneStats::default();
 
         if !self.cache_dir.exists() {
@@ -243,6 +248,7 @@ impl TaskCache {
             stats.kept += 1;
         }
 
+        info!(total = stats.total, removed = stats.removed, kept = stats.kept, "cache prune complete");
         Ok(stats)
     }
 

@@ -3,6 +3,8 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use tracing::debug;
+
 use super::{FastlaneStorage, MetadataStorage, StorageFormat, UnifiedStorage};
 
 /// A named entry in the metadata storage registry.
@@ -56,8 +58,10 @@ impl MetadataStorageRegistry {
         format: StorageFormat,
         storage: Arc<dyn MetadataStorage>,
     ) {
+        let name = name.into();
+        debug!(name = %name, format = ?format, "registering metadata storage backend");
         self.entries.push(MetadataStorageEntry {
-            name: name.into(),
+            name,
             format,
             storage,
         });

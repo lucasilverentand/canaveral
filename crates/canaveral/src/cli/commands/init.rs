@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use clap::Args;
 use console::style;
 use dialoguer::{Confirm, Select};
+use tracing::info;
 
 use canaveral_core::config::defaults::{DEFAULT_CONFIG_YAML, DEFAULT_CONFIG_TEMPLATE};
 
@@ -29,6 +30,7 @@ pub struct InitCommand {
 impl InitCommand {
     /// Execute the init command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        info!(force = self.force, yes = self.yes, "executing init command");
         let cwd = std::env::current_dir()?;
         let config_path = self
             .output

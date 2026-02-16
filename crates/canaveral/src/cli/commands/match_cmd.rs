@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand, ValueEnum};
 use console::style;
+use tracing::info;
 
 use canaveral_signing::sync::{MatchConfig, MatchSync, ProfileType, SyncStorage};
 use canaveral_signing::team::generate_keypair;
@@ -164,6 +165,13 @@ impl From<ProfileTypeArg> for ProfileType {
 
 impl MatchCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let subcommand_name = match &self.command {
+            MatchSubcommand::Init(_) => "init",
+            MatchSubcommand::Sync(_) => "sync",
+            MatchSubcommand::Nuke(_) => "nuke",
+            MatchSubcommand::Status(_) => "status",
+        };
+        info!(subcommand = subcommand_name, "executing match command");
         let runtime = tokio::runtime::Runtime::new()?;
         runtime.block_on(self.execute_async(cli))
     }

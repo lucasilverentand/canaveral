@@ -3,6 +3,7 @@
 use chrono::{TimeZone, Utc};
 use regex::Regex;
 use semver::Version;
+use tracing::{debug, info, instrument};
 
 use crate::repository::{GitRepo, Result};
 use crate::types::TagInfo;
@@ -10,6 +11,7 @@ use canaveral_core::error::GitError;
 
 impl GitRepo {
     /// Get all tags
+    #[instrument(skip(self))]
     pub fn tags(&self) -> Result<Vec<TagInfo>> {
         let mut tags = Vec::new();
 
@@ -47,6 +49,7 @@ impl GitRepo {
             true
         })?;
 
+        debug!(count = tags.len(), "listed all tags");
         Ok(tags)
     }
 
@@ -64,6 +67,7 @@ impl GitRepo {
     }
 
     /// Find the latest tag by semantic version
+    #[instrument(skip(self), fields(pattern))]
     pub fn find_latest_tag(&self, pattern: Option<&str>) -> Result<Option<TagInfo>> {
         let tags = match pattern {
             Some(p) => self.tags_matching(p)?,
@@ -83,7 +87,9 @@ impl GitRepo {
 
         versioned_tags.sort_by(|a, b| b.1.cmp(&a.1));
 
-        Ok(versioned_tags.into_iter().next().map(|(t, _)| t))
+        let result = versioned_tags.into_iter().next().map(|(t, _)| t);
+        debug!(latest = ?result.as_ref().map(|t| &t.name), "found latest tag");
+        Ok(result)
     }
 
     /// Find a specific tag by name
@@ -101,6 +107,7 @@ impl GitRepo {
     }
 
     /// Create a lightweight tag
+    #[instrument(skip(self), fields(name, annotated = message.is_some()))]
     pub fn create_tag(&self, name: &str, message: Option<&str>) -> Result<TagInfo> {
         // Check if tag already exists
         if self.find_tag(name)?.is_some() {
@@ -119,12 +126,15 @@ impl GitRepo {
             self.repo.tag_lightweight(name, head.as_object(), false)?;
         }
 
+        info!(name, annotated = message.is_some(), "created tag");
         Ok(TagInfo::new(name, head.id().to_string()))
     }
 
     /// Delete a tag
+    #[instrument(skip(self), fields(name))]
     pub fn delete_tag(&self, name: &str) -> Result<()> {
         self.repo.tag_delete(name)?;
+        info!(name, "deleted tag");
         Ok(())
     }
 }

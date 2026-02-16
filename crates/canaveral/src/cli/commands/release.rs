@@ -3,6 +3,7 @@
 use clap::Args;
 use console::style;
 use dialoguer::Confirm;
+use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_core::types::ReleaseType;
@@ -57,6 +58,16 @@ pub struct ReleaseCommand {
 impl ReleaseCommand {
     /// Execute the release command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        info!(
+            release_type = ?self.release_type,
+            version = ?self.version,
+            dry_run = self.dry_run,
+            no_changelog = self.no_changelog,
+            no_publish = self.no_publish,
+            no_git = self.no_git,
+            package = ?self.package,
+            "executing release command"
+        );
         let cwd = std::env::current_dir()?;
         let (config, config_path) = load_config_or_default(&cwd);
 

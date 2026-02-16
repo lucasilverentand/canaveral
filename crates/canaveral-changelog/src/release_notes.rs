@@ -2,6 +2,7 @@
 
 use canaveral_core::config::ReleaseNotesConfig;
 use canaveral_git::CommitInfo;
+use tracing::{debug, info, instrument};
 
 use crate::parser::{CommitParser, ConventionalParser};
 use crate::types::ParsedCommit;
@@ -28,7 +29,9 @@ impl ReleaseNotesGenerator {
     }
 
     /// Generate release notes from commits
+    #[instrument(skip(self, commits), fields(commit_count = commits.len()))]
     pub fn generate(&self, version: &str, commits: &[CommitInfo]) -> ReleaseNotes {
+        info!(version, commit_count = commits.len(), "generating release notes");
         let parsed: Vec<ParsedCommit> = commits
             .iter()
             .filter_map(|c| self.parser.parse(c))
@@ -105,10 +108,19 @@ impl ReleaseNotesGenerator {
             notes.migration_guide = Some(self.generate_migration_guide(&breaking_details));
         }
 
+        debug!(
+            features = notes.features.len(),
+            fixes = notes.fixes.len(),
+            breaking = notes.breaking_changes.len(),
+            contributors = notes.contributors.len(),
+            "release notes generated"
+        );
+
         notes
     }
 
     /// Format release notes as markdown
+    #[instrument(skip(self, notes), fields(version = %notes.version))]
     pub fn format_markdown(&self, notes: &ReleaseNotes) -> String {
         let mut output = String::new();
 
@@ -174,9 +186,12 @@ impl ReleaseNotesGenerator {
     }
 
     /// Generate and format in one step
+    #[instrument(skip(self, commits), fields(commit_count = commits.len()))]
     pub fn generate_formatted(&self, version: &str, commits: &[CommitInfo]) -> String {
         let notes = self.generate(version, commits);
-        self.format_markdown(&notes)
+        let output = self.format_markdown(&notes);
+        debug!(output_len = output.len(), "release notes formatted");
+        output
     }
 
     fn generate_headline(&self, notes: &ReleaseNotes) -> String {

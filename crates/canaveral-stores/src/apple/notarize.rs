@@ -7,7 +7,7 @@ use crate::types::*;
 use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 
 /// Apple notarization client using notarytool
 pub struct Notarizer {
@@ -83,6 +83,7 @@ impl Notarizer {
     }
 
     /// Submit a file for notarization
+    #[instrument(skip(self), fields(path = %path.display()))]
     pub async fn submit(&self, path: &Path) -> Result<String> {
         info!("Submitting {} for notarization", path.display());
 
@@ -124,6 +125,7 @@ impl Notarizer {
     }
 
     /// Check the status of a notarization submission
+    #[instrument(skip(self), fields(submission_id))]
     pub async fn status(&self, submission_id: &str) -> Result<NotarizationResult> {
         debug!("Checking notarization status for {}", submission_id);
 
@@ -193,6 +195,7 @@ impl Notarizer {
     }
 
     /// Wait for notarization to complete, polling periodically
+    #[instrument(skip(self), fields(submission_id, timeout_secs))]
     pub async fn wait(
         &self,
         submission_id: &str,
@@ -238,6 +241,7 @@ impl Notarizer {
     }
 
     /// Staple the notarization ticket to an artifact
+    #[instrument(skip(self), fields(path = %path.display()))]
     pub async fn staple(&self, path: &Path) -> Result<()> {
         info!("Stapling notarization ticket to {}", path.display());
 
@@ -271,6 +275,7 @@ impl Notarizer {
     }
 
     /// Full notarization workflow: submit, wait, staple
+    #[instrument(skip(self), fields(path = %path.display()))]
     pub async fn notarize(
         &self,
         path: &Path,

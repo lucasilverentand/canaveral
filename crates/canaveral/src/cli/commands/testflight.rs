@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use console::style;
+use tracing::info;
 
 use canaveral_stores::apple::{
     TestFlight, TestFlightBuild, BetaGroup, BetaTester,
@@ -228,6 +229,16 @@ pub struct ExpireArgs {
 
 impl TestFlightCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let subcommand_name = match &self.subcommand {
+            TestFlightSubcommand::Upload(_) => "upload",
+            TestFlightSubcommand::Status(_) => "status",
+            TestFlightSubcommand::Builds(_) => "builds",
+            TestFlightSubcommand::Testers(_) => "testers",
+            TestFlightSubcommand::Groups(_) => "groups",
+            TestFlightSubcommand::Submit(_) => "submit",
+            TestFlightSubcommand::Expire(_) => "expire",
+        };
+        info!(subcommand = subcommand_name, "executing testflight command");
         let runtime = tokio::runtime::Runtime::new()?;
         runtime.block_on(self.execute_async(cli))
     }

@@ -7,6 +7,7 @@ use std::process::Command;
 use std::time::Instant;
 
 use async_trait::async_trait;
+use tracing::{info, instrument};
 
 use crate::capabilities::Capabilities;
 use crate::context::TestContext;
@@ -260,7 +261,9 @@ impl TestAdapter for FlutterTestAdapter {
         Ok(status)
     }
 
+    #[instrument(skip(self, ctx), fields(framework = "flutter", path = %ctx.path.display()))]
     async fn test(&self, ctx: &TestContext) -> Result<TestReport> {
+        info!(coverage = ctx.coverage, "running Flutter tests");
         let start = Instant::now();
 
         let mut args = vec!["test"];

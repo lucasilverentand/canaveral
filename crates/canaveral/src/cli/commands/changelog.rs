@@ -2,6 +2,7 @@
 
 use clap::Args;
 use console::style;
+use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_changelog::ChangelogGenerator;
@@ -32,6 +33,7 @@ pub struct ChangelogCommand {
 impl ChangelogCommand {
     /// Execute the changelog command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        info!(version = ?self.version, write = self.write, all = self.all, "executing changelog command");
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 

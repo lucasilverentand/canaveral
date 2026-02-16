@@ -1,5 +1,7 @@
 //! Release workflow orchestration
 
+use tracing::{debug, info};
+
 use crate::config::Config;
 use crate::error::Result;
 use crate::types::{ReleaseResult, ReleaseType};
@@ -87,6 +89,13 @@ impl<'a> ReleaseWorkflow<'a> {
 
         let release_type = self.options.release_type.unwrap_or(ReleaseType::Patch);
 
+        info!(
+            version = %version,
+            release_type = ?release_type,
+            dry_run = self.is_dry_run(),
+            "executing release workflow"
+        );
+
         let result = ReleaseResult::new(
             self.config.name.clone().unwrap_or_else(|| "package".to_string()),
             &version,
@@ -94,6 +103,7 @@ impl<'a> ReleaseWorkflow<'a> {
         .with_release_type(release_type)
         .with_published(!self.options.skip_publish && !self.options.dry_run);
 
+        debug!(version = %result.new_version, "release workflow complete");
         Ok(result)
     }
 

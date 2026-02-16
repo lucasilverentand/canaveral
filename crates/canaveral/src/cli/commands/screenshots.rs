@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand, ValueEnum};
 use console::style;
+use tracing::info;
 
 use canaveral_frameworks::{
     screenshots::{
@@ -193,6 +194,13 @@ impl From<DeviceTypeArg> for canaveral_frameworks::screenshots::devices::DeviceT
 
 impl ScreenshotsCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let subcommand_name = match &self.command {
+            ScreenshotsSubcommand::Capture(_) => "capture",
+            ScreenshotsSubcommand::Frame(_) => "frame",
+            ScreenshotsSubcommand::Devices(_) => "devices",
+            ScreenshotsSubcommand::Init(_) => "init",
+        };
+        info!(subcommand = subcommand_name, "executing screenshots command");
         let runtime = tokio::runtime::Runtime::new()?;
         runtime.block_on(self.execute_async(cli))
     }

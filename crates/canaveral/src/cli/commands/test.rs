@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 use console::style;
+use tracing::info;
 
 use canaveral_frameworks::{
     context::{TestContext, TestReporter},
@@ -128,6 +129,14 @@ impl From<ReporterArg> for TestReporter {
 
 impl TestCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        info!(
+            platform = ?self.platform,
+            coverage = self.coverage,
+            dry_run = self.dry_run,
+            smart = self.smart,
+            affected = self.affected,
+            "executing test command"
+        );
         let runtime = tokio::runtime::Runtime::new()?;
         runtime.block_on(self.execute_async(cli))
     }

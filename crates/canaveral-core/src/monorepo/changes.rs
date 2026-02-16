@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info};
 
 use crate::error::Result;
 
@@ -79,6 +80,12 @@ impl ChangeDetector {
         changed_files: &[PathBuf],
         graph: Option<&DependencyGraph>,
     ) -> Result<Vec<ChangedPackage>> {
+        debug!(
+            packages = packages.len(),
+            changed_files = changed_files.len(),
+            transitive = self.include_transitive,
+            "detecting changed packages"
+        );
         // Map files to packages
         let file_to_package = self.map_files_to_packages(packages, changed_files);
 
@@ -134,7 +141,9 @@ impl ChangeDetector {
             }
         }
 
-        Ok(changed.into_values().collect())
+        let result: Vec<ChangedPackage> = changed.into_values().collect();
+        info!(changed_packages = result.len(), "change detection complete");
+        Ok(result)
     }
 
     /// Map changed files to their containing packages

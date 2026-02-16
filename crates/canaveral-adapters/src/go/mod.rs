@@ -8,6 +8,8 @@ mod gomod;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use tracing::{debug, info};
+
 use canaveral_core::error::{AdapterError, Result};
 use canaveral_core::types::PackageInfo;
 
@@ -127,7 +129,9 @@ impl PackageAdapter for GoAdapter {
     }
 
     fn detect(&self, path: &Path) -> bool {
-        self.manifest_path(path).exists()
+        let found = self.manifest_path(path).exists();
+        debug!(adapter = "go", path = %path.display(), found, "detecting package");
+        found
     }
 
     fn manifest_names(&self) -> &[&str] {
@@ -162,10 +166,12 @@ impl PackageAdapter for GoAdapter {
 
     fn get_version(&self, path: &Path) -> Result<String> {
         let info = self.get_info(path)?;
+        debug!(adapter = "go", version = %info.version, "read version");
         Ok(info.version)
     }
 
     fn set_version(&self, path: &Path, version: &str) -> Result<()> {
+        info!(adapter = "go", version, path = %path.display(), "setting version");
         let manifest_path = self.manifest_path(path);
         let gomod = GoMod::load(&manifest_path)?;
 
@@ -176,6 +182,7 @@ impl PackageAdapter for GoAdapter {
     }
 
     fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
+        info!(adapter = "go", path = %path.display(), dry_run = options.dry_run, "publishing package");
         // Go modules are published via git tags and the Go proxy
         // The main steps are:
         // 1. Ensure go.mod is tidy
@@ -234,6 +241,7 @@ impl PackageAdapter for GoAdapter {
     }
 
     fn validate_publishable(&self, path: &Path) -> Result<ValidationResult> {
+        debug!(adapter = "go", path = %path.display(), "validating publishable");
         let mut result = ValidationResult::pass();
 
         // Check go.mod exists
@@ -305,6 +313,7 @@ impl PackageAdapter for GoAdapter {
     }
 
     fn check_auth(&self, _credentials: &mut CredentialProvider) -> Result<bool> {
+        debug!(adapter = "go", "checking authentication");
         // Go modules use git authentication
         // Check if git can push to origin
         let output = Command::new("git")

@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 const API_BASE_URL: &str = "https://androidpublisher.googleapis.com/androidpublisher/v3";
 const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
@@ -397,6 +397,7 @@ impl StoreAdapter for GooglePlayStore {
             && !self.service_account.private_key.is_empty()
     }
 
+    #[instrument(skip(self), fields(store = "Google Play", path = %path.display()))]
     async fn validate_artifact(&self, path: &Path) -> Result<ValidationResult> {
         let app_info = Self::extract_android_info(path).await?;
 
@@ -436,6 +437,7 @@ impl StoreAdapter for GooglePlayStore {
         }
     }
 
+    #[instrument(skip(self, options), fields(store = "Google Play", path = %path.display()))]
     async fn upload(&self, path: &Path, options: &UploadOptions) -> Result<UploadResult> {
         // Validate first
         let validation = self.validate_artifact(path).await?;
@@ -506,6 +508,7 @@ impl StoreAdapter for GooglePlayStore {
         })
     }
 
+    #[instrument(skip(self), fields(store = "Google Play"))]
     async fn get_build_status(&self, build_id: &str) -> Result<BuildStatus> {
         // Would need to query the API for build status
         Ok(BuildStatus {

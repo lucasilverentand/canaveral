@@ -1,5 +1,7 @@
 //! Version workflow operations
 
+use tracing::{debug, info};
+
 use crate::config::Config;
 use crate::error::Result;
 use crate::types::ReleaseType;
@@ -42,6 +44,7 @@ pub fn calculate_next_version(
     current_version: &str,
     release_type: ReleaseType,
 ) -> Result<String> {
+    debug!(current = current_version, release_type = ?release_type, "calculating next version");
     use crate::error::VersionError;
     let version = semver::Version::parse(current_version)
         .map_err(|e| VersionError::ParseFailed(current_version.to_string(), e.to_string()))?;
@@ -58,7 +61,9 @@ pub fn calculate_next_version(
         ReleaseType::Custom => version,
     };
 
-    Ok(next.to_string())
+    let next_str = next.to_string();
+    info!(current = current_version, next = %next_str, release_type = ?release_type, "version calculated");
+    Ok(next_str)
 }
 
 /// Format a version tag based on the configuration

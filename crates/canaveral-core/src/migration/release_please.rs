@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use serde::Deserialize;
+use tracing::info;
 
 use std::path::PathBuf;
 
@@ -153,6 +154,7 @@ impl Migrator for ReleasePleaseMigrator {
     }
 
     fn migrate(&self, path: &Path) -> Result<MigrationResult> {
+        info!(path = %path.display(), "migrating from release-please");
         let rp_config = self.parse_config(path)?;
         let manifest = self.parse_manifest(path)?;
         let mut config = Config::default();
@@ -263,6 +265,12 @@ impl Migrator for ReleasePleaseMigrator {
         result.manual_step("Remove release-please GitHub App if installed");
 
         result.config = config;
+        info!(
+            warnings = result.warnings.len(),
+            unsupported = result.unsupported.len(),
+            manual_steps = result.manual_steps.len(),
+            "release-please migration complete"
+        );
         Ok(result)
     }
 }

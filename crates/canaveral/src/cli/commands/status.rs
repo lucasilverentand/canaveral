@@ -2,6 +2,7 @@
 
 use clap::Args;
 use console::style;
+use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_git::GitRepo;
@@ -20,6 +21,7 @@ pub struct StatusCommand {
 impl StatusCommand {
     /// Execute the status command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        info!("executing status command");
         let cwd = std::env::current_dir()?;
         let (config, config_path) = load_config_or_default(&cwd);
 

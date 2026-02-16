@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use glob::glob;
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info};
 
 use crate::error::Result;
 use crate::types::PackageInfo;
@@ -58,6 +59,11 @@ impl PackageDiscovery {
 
     /// Discover all packages in the workspace
     pub fn discover(&self) -> Result<Vec<DiscoveredPackage>> {
+        debug!(
+            workspace_type = %self.workspace.workspace_type,
+            patterns = self.workspace.package_patterns.len(),
+            "discovering packages"
+        );
         let mut packages = Vec::new();
         let mut package_names: HashMap<PathBuf, String> = HashMap::new();
 
@@ -108,6 +114,7 @@ impl PackageDiscovery {
             pkg.workspace_dependencies = self.find_workspace_deps(pkg, &all_names)?;
         }
 
+        info!(count = packages.len(), "discovered packages");
         Ok(packages)
     }
 

@@ -7,6 +7,8 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 
+use tracing::{info, instrument};
+
 use crate::artifacts::Artifact;
 use crate::context::BuildContext;
 use crate::error::{FrameworkError, Result};
@@ -46,6 +48,7 @@ impl BuildOrchestrator {
     }
 
     /// Build for a single platform
+    #[instrument(skip(self, ctx), fields(path = %ctx.path.display(), platform = %ctx.platform.as_str()))]
     pub async fn build(&self, ctx: &BuildContext) -> Result<BuildOutput> {
         let start = Instant::now();
 
@@ -72,6 +75,14 @@ impl BuildOrchestrator {
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
+        info!(
+            adapter = adapter.id(),
+            artifact_count = artifacts.len(),
+            duration_ms,
+            dry_run = ctx.dry_run,
+            "build completed"
+        );
+
         Ok(BuildOutput {
             success: true,
             platform: ctx.platform,
@@ -83,6 +94,7 @@ impl BuildOrchestrator {
     }
 
     /// Build for multiple platforms
+    #[instrument(skip(self), fields(path = %path.display(), platform_count = platforms.len()))]
     pub async fn build_all(&self, path: &Path, platforms: &[Platform]) -> Result<MultiBuildOutput> {
         let start = Instant::now();
         let mut outputs = Vec::new();

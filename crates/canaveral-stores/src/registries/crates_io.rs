@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::path::Path;
 use tar::Archive;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 const DEFAULT_REGISTRY_URL: &str = "https://crates.io";
 
@@ -216,6 +216,7 @@ impl StoreAdapter for CratesIoRegistry {
         self.config.token.is_some()
     }
 
+    #[instrument(skip(self), fields(store = "Crates.io", path = %path.display()))]
     async fn validate_artifact(&self, path: &Path) -> Result<ValidationResult> {
         // Check file extension
         let ext = path.extension()
@@ -247,6 +248,7 @@ impl StoreAdapter for CratesIoRegistry {
         })
     }
 
+    #[instrument(skip(self, options), fields(store = "Crates.io", path = %path.display()))]
     async fn upload(&self, path: &Path, options: &UploadOptions) -> Result<UploadResult> {
         // Validate first
         let validation = self.validate_artifact(path).await?;
@@ -351,6 +353,7 @@ impl StoreAdapter for CratesIoRegistry {
         })
     }
 
+    #[instrument(skip(self), fields(store = "Crates.io"))]
     async fn get_build_status(&self, build_id: &str) -> Result<BuildStatus> {
         // Crates.io doesn't have a build status concept
         // Crates are published immediately

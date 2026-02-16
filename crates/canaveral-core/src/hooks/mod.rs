@@ -18,6 +18,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+use tracing::{debug, info, warn};
+
 use crate::error::{HookError, Result};
 
 /// Hook lifecycle stages
@@ -332,6 +334,7 @@ impl HookRunner {
             return Ok(Vec::new());
         }
 
+        info!(stage = stage.as_str(), count = hooks.len(), "running hooks");
         let mut results = Vec::new();
         let context_env = context.to_env();
 
@@ -341,6 +344,7 @@ impl HookRunner {
             results.push(result);
 
             if failed {
+                warn!(stage = stage.as_str(), command = %hook.command, "hook failed, aborting stage");
                 return Err(HookError::ExecutionFailed {
                     stage: stage.as_str().to_string(),
                     command: hook.command.clone(),
@@ -360,6 +364,7 @@ impl HookRunner {
         hook: &Hook,
         context_env: &HashMap<String, String>,
     ) -> Result<HookResult> {
+        debug!(stage = stage.as_str(), command = %hook.command, "executing hook");
         let start = std::time::Instant::now();
 
         // Determine working directory
@@ -400,6 +405,14 @@ impl HookRunner {
         })?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
+
+        let exit_code = output.status.code();
+        if output.status.success() {
+            debug!(stage = stage.as_str(), command = %hook.command, duration_ms, "hook succeeded");
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            warn!(stage = stage.as_str(), command = %hook.command, ?exit_code, duration_ms, stderr = %stderr.trim(), "hook failed");
+        }
 
         Ok(HookResult {
             stage,
@@ -477,14 +490,19 @@ pub fn build_hook_runner(config: &HooksConfig, base_dir: Option<&Path>) -> HookR
         runner = runner.with_base_dir(dir.to_string_lossy().to_string());
     }
 
+    let mut total_hooks = 0;
     for (stage_name, hook_configs) in &config.hooks {
         if let Some(stage) = HookStage::from_str(stage_name) {
             for hook_config in hook_configs {
                 runner.register(stage, hook_config.clone().into());
+                total_hooks += 1;
             }
+        } else {
+            warn!(stage = %stage_name, "unknown hook stage, skipping");
         }
     }
 
+    debug!(count = total_hooks, "built hook runner");
     runner
 }
 

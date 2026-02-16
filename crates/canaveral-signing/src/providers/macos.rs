@@ -8,7 +8,7 @@ use crate::provider::{
 use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 /// macOS signing provider using codesign, productsign, and notarytool
 pub struct MacOSProvider {
@@ -196,6 +196,7 @@ impl SigningProvider for MacOSProvider {
         Path::new(&self.codesign_path).exists()
     }
 
+    #[instrument(skip(self), fields(provider = "macos"))]
     async fn list_identities(&self) -> Result<Vec<SigningIdentity>> {
         let output = Command::new(&self.security_path)
             .args(["find-identity", "-v", "-p", "codesigning"])
@@ -213,6 +214,7 @@ impl SigningProvider for MacOSProvider {
             .filter_map(Self::parse_identity_line)
             .collect();
 
+        info!(count = identities.len(), "Found macOS signing identities");
         Ok(identities)
     }
 
@@ -237,6 +239,7 @@ impl SigningProvider for MacOSProvider {
         }
     }
 
+    #[instrument(skip(self, identity, options), fields(provider = "macos", path = %artifact.display()))]
     async fn sign(
         &self,
         artifact: &Path,
@@ -314,6 +317,7 @@ impl SigningProvider for MacOSProvider {
         Ok(())
     }
 
+    #[instrument(skip(self, options), fields(provider = "macos", path = %artifact.display()))]
     async fn verify(&self, artifact: &Path, options: &VerifyOptions) -> Result<SignatureInfo> {
         if !artifact.exists() {
             return Err(SigningError::Io(std::io::Error::new(

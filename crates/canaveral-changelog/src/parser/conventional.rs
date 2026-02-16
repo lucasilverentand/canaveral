@@ -9,6 +9,7 @@ use std::sync::LazyLock;
 use super::{CommitParser, ParserConfig};
 use crate::types::{Footer, ParsedCommit};
 use canaveral_git::CommitInfo;
+use tracing::debug;
 
 /// Regex for parsing conventional commit messages
 static CONVENTIONAL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
@@ -126,10 +127,18 @@ impl CommitParser for ConventionalParser {
     fn parse(&self, commit: &CommitInfo) -> Option<ParsedCommit> {
         // Skip merge commits if configured
         if !self.config.include_merges && commit.message.starts_with("Merge ") {
+            debug!(hash = %&commit.hash[..7.min(commit.hash.len())], "skipping merge commit");
             return None;
         }
 
         let parsed = self.parse_message(&commit.message, commit.body.as_deref())?;
+
+        debug!(
+            hash = %&commit.hash[..7.min(commit.hash.len())],
+            commit_type = %parsed.commit_type,
+            breaking = parsed.breaking,
+            "parsed conventional commit"
+        );
 
         Some(ParsedCommit {
             hash: commit.hash.clone(),

@@ -8,6 +8,8 @@
 
 use std::path::Path;
 
+use tracing::{debug, info};
+
 use crate::config::Config;
 use crate::error::Result;
 
@@ -134,6 +136,7 @@ pub fn auto_migrate(path: &Path) -> Result<MigrationResult> {
 
 /// Detect which release tool is configured
 pub fn detect_tool(path: &Path) -> Option<MigrationSource> {
+    debug!(path = %path.display(), "detecting release tool");
     for source in [
         MigrationSource::SemanticRelease,
         MigrationSource::ReleasePlease,
@@ -142,6 +145,7 @@ pub fn detect_tool(path: &Path) -> Option<MigrationSource> {
     ] {
         for config_file in source.config_files() {
             if path.join(config_file).exists() {
+                info!(tool = source.as_str(), config_file, "detected release tool");
                 return Some(source);
             }
         }

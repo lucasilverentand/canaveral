@@ -5,7 +5,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 use crate::context::TestContext;
 use crate::error::{FrameworkError, Result};
@@ -73,6 +73,7 @@ impl TestRunner {
     }
 
     /// Run tests for a project
+    #[instrument(skip(self, ctx), fields(path = %path.display(), adapter_id = ?self.config.adapter_id))]
     pub async fn run(&self, path: &Path, ctx: &TestContext) -> Result<TestReport> {
         let start = Instant::now();
 
@@ -151,6 +152,7 @@ impl TestRunner {
         Ok(report)
     }
 
+    #[instrument(skip(self), fields(path = %path.display()))]
     fn find_adapter(&self, path: &Path) -> Result<&dyn TestAdapter> {
         // If specific adapter requested, use that
         if let Some(ref adapter_id) = self.config.adapter_id {
@@ -175,6 +177,10 @@ impl TestRunner {
             }
         }
 
+        if let Some((adapter, confidence)) = best_match {
+            debug!(adapter = adapter.name(), confidence, "test adapter detected");
+        }
+
         best_match
             .map(|(adapter, _)| adapter)
             .ok_or_else(|| FrameworkError::NoFrameworkDetected {
@@ -184,6 +190,7 @@ impl TestRunner {
     }
 
     /// Run tests for multiple directories/packages (monorepo support)
+    #[instrument(skip(self, paths, ctx), fields(package_count = paths.len()))]
     pub async fn run_all(&self, paths: &[&Path], ctx: &TestContext) -> Result<TestReport> {
         let start = Instant::now();
         let mut all_suites = Vec::new();

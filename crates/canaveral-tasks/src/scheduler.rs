@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Semaphore;
+use tracing::{debug, info, instrument};
 
 use crate::cache::TaskCache;
 use crate::dag::TaskDag;
@@ -104,7 +105,19 @@ impl TaskScheduler {
     }
 
     /// Execute all tasks in the DAG
+    #[instrument(skip_all, fields(
+        task_count = dag.len(),
+        concurrency = self.options.concurrency,
+        use_cache = self.options.use_cache,
+        dry_run = self.options.dry_run,
+    ))]
     pub async fn execute(&self, dag: &TaskDag) -> Vec<TaskResult> {
+        info!(
+            task_count = dag.len(),
+            concurrency = self.options.concurrency,
+            use_cache = self.options.use_cache,
+            "starting task execution"
+        );
         let start = Instant::now();
         let semaphore = Arc::new(Semaphore::new(self.options.concurrency));
         let mut all_results: HashMap<TaskId, TaskResult> = HashMap::new();
@@ -234,6 +247,7 @@ async fn execute_task(
     cache: Option<&TaskCache>,
     reporter: &dyn TaskReporter,
 ) -> TaskResult {
+    debug!(task = %id, dry_run, use_cache, "executing task");
     let start = Instant::now();
     let command = definition.effective_command();
     let cmd_str = match &command {

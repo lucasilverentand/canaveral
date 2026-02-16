@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 use console::style;
+use tracing::info;
 
 use canaveral_frameworks::{
     BuildContext, Orchestrator, OrchestratorConfig,
@@ -167,6 +168,7 @@ impl FrameworkArg {
 impl BuildCommand {
     /// Execute the build command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        info!(platform = ?self.platform, profile = ?self.profile, dry_run = self.dry_run, flavor = ?self.flavor, "executing build command");
         // Run async operation in tokio runtime
         let runtime = tokio::runtime::Runtime::new()?;
         runtime.block_on(self.execute_async(cli))

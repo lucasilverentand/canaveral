@@ -6,6 +6,7 @@ use clap::{Args, Subcommand};
 use console::style;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use tracing::info;
 
 use canaveral_stores::{
     apple::AppStoreConnect,
@@ -219,6 +220,14 @@ pub struct MicrosoftPublishCommand {
 
 impl PublishCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let target_name = match &self.target {
+            PublishTarget::Npm(_) => "npm",
+            PublishTarget::Crates(_) => "crates",
+            PublishTarget::Apple(_) => "apple",
+            PublishTarget::GooglePlay(_) => "google-play",
+            PublishTarget::Microsoft(_) => "microsoft",
+        };
+        info!(target = target_name, "executing publish command");
         let rt = tokio::runtime::Runtime::new()?;
         match &self.target {
             PublishTarget::Npm(cmd) => rt.block_on(cmd.execute(cli)),

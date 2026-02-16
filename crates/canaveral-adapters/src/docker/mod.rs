@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use tracing::{debug, info};
+
 use canaveral_core::error::{AdapterError, Result};
 use canaveral_core::types::PackageInfo;
 
@@ -250,7 +252,9 @@ impl PackageAdapter for DockerAdapter {
     }
 
     fn detect(&self, path: &Path) -> bool {
-        self.dockerfile_path(path).exists()
+        let found = self.dockerfile_path(path).exists();
+        debug!(adapter = "docker", path = %path.display(), found, "detecting package");
+        found
     }
 
     fn manifest_names(&self) -> &[&str] {
@@ -271,10 +275,12 @@ impl PackageAdapter for DockerAdapter {
 
     fn get_version(&self, path: &Path) -> Result<String> {
         let (_, version) = self.parse_image_info(path)?;
+        debug!(adapter = "docker", version = %version, "read version");
         Ok(version)
     }
 
     fn set_version(&self, path: &Path, version: &str) -> Result<()> {
+        info!(adapter = "docker", version, path = %path.display(), "setting version");
         let dockerfile = self.dockerfile_path(path);
         if !dockerfile.exists() {
             return Err(
@@ -321,6 +327,7 @@ impl PackageAdapter for DockerAdapter {
     }
 
     fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
+        info!(adapter = "docker", path = %path.display(), dry_run = options.dry_run, "publishing image");
         let (name, version) = self.parse_image_info(path)?;
 
         // Determine registries to push to
@@ -392,6 +399,7 @@ impl PackageAdapter for DockerAdapter {
     }
 
     fn validate_publishable(&self, path: &Path) -> Result<ValidationResult> {
+        debug!(adapter = "docker", path = %path.display(), "validating publishable");
         let mut result = ValidationResult::pass();
 
         // Check Dockerfile exists
@@ -458,6 +466,7 @@ impl PackageAdapter for DockerAdapter {
     }
 
     fn check_auth(&self, credentials: &mut CredentialProvider) -> Result<bool> {
+        debug!(adapter = "docker", "checking authentication");
         // Check if docker login has been done
         let config_path = dirs::home_dir()
             .map(|h| h.join(".docker").join("config.json"));

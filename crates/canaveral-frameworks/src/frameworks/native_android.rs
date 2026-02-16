@@ -8,6 +8,7 @@ use std::process::Command;
 
 use async_trait::async_trait;
 use regex::Regex;
+use tracing::{debug, info, instrument, warn};
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
 use crate::capabilities::{Capabilities, Capability};
@@ -311,6 +312,7 @@ impl BuildAdapter for NativeAndroidAdapter {
     }
 
     fn detect(&self, path: &Path) -> Detection {
+        debug!(path = %path.display(), "detecting native Android project");
         // Look for build.gradle or build.gradle.kts
         let has_gradle = file_exists(path, "build.gradle")
             || file_exists(path, "build.gradle.kts");
@@ -446,8 +448,10 @@ impl BuildAdapter for NativeAndroidAdapter {
         Ok(status)
     }
 
+    #[instrument(skip(self, ctx), fields(framework = "native-android", platform = "android"))]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
         let path = &ctx.path;
+        info!(profile = ?ctx.profile, flavor = ?ctx.flavor, "building native Android project");
 
         // Setup signing if configured
         self.setup_signing(ctx, path)?;
@@ -530,9 +534,9 @@ impl BuildAdapter for NativeAndroidAdapter {
 
             if !output.status.success() {
                 // Log warning but don't fail - APK was already built
-                eprintln!(
-                    "Warning: AAB build failed: {}",
-                    String::from_utf8_lossy(&output.stderr)
+                warn!(
+                    stderr = %String::from_utf8_lossy(&output.stderr),
+                    "AAB build failed, APK was already built"
                 );
             }
         }

@@ -7,6 +7,7 @@ use std::process::Command;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, instrument};
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
 use crate::capabilities::Capabilities;
@@ -158,6 +159,7 @@ impl BuildAdapter for AstroAdapter {
     }
 
     fn detect(&self, path: &Path) -> Detection {
+        debug!(path = %path.display(), "detecting Astro project");
         // Check for astro.config.* files (prioritize .mjs as it's most common for Astro)
         let has_astro_config = file_exists(path, "astro.config.mjs")
             || file_exists(path, "astro.config.js")
@@ -225,7 +227,9 @@ impl BuildAdapter for AstroAdapter {
         Ok(status)
     }
 
+    #[instrument(skip(self, ctx), fields(framework = "astro", platform = %ctx.platform.as_str()))]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
+        info!(platform = %ctx.platform.as_str(), profile = ?ctx.profile, "building Astro project");
         // Astro only supports web platform
         if ctx.platform != Platform::Web {
             return Err(FrameworkError::UnsupportedPlatform {

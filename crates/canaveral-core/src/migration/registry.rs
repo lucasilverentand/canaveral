@@ -2,6 +2,8 @@
 
 use std::path::Path;
 
+use tracing::{debug, info, warn};
+
 use crate::error::{CanaveralError, Result};
 
 use super::{MigrationResult, MigrationSource, Migrator, ReleasePleaseMigrator, SemanticReleaseMigrator};
@@ -42,10 +44,15 @@ impl MigratorRegistry {
     ///
     /// Returns the first migrator whose [`Migrator::can_migrate`] returns `true`.
     pub fn detect(&self, path: &Path) -> Option<&dyn Migrator> {
-        self.migrators
+        debug!(path = %path.display(), migrators = self.migrators.len(), "detecting migration source");
+        let result = self.migrators
             .iter()
             .find(|m| m.can_migrate(path))
-            .map(|m| m.as_ref())
+            .map(|m| m.as_ref());
+        if let Some(m) = &result {
+            info!(source = m.source().as_str(), "migration source detected");
+        }
+        result
     }
 
     /// Auto-detect and run the appropriate migration for `path`.
@@ -53,6 +60,7 @@ impl MigratorRegistry {
         if let Some(migrator) = self.detect(path) {
             migrator.migrate(path)
         } else {
+            warn!(path = %path.display(), "no supported release tool found");
             Err(CanaveralError::other(
                 "No supported release tool configuration found",
             ))

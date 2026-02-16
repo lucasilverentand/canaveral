@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use console::style;
+use tracing::info;
 
 use canaveral_stores::firebase::{
     Firebase, FirebaseConfig, FirebaseRelease, FirebaseUploadOptions, TesterGroup,
@@ -214,6 +215,13 @@ pub enum TestersSubcommand {
 
 impl FirebaseCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let subcommand_name = match &self.subcommand {
+            FirebaseSubcommand::Upload(_) => "upload",
+            FirebaseSubcommand::Releases(_) => "releases",
+            FirebaseSubcommand::Groups(_) => "groups",
+            FirebaseSubcommand::Testers(_) => "testers",
+        };
+        info!(subcommand = subcommand_name, "executing firebase command");
         let runtime = tokio::runtime::Runtime::new()?;
         runtime.block_on(self.execute_async(cli))
     }

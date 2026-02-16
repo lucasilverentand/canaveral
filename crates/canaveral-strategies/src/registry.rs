@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use tracing::debug;
+
 use crate::buildnum::BuildNumberStrategy;
 use crate::calver::CalVerStrategy;
 use crate::semver::SemVerStrategy;
@@ -38,7 +40,13 @@ impl StrategyRegistry {
 
     /// Get strategy by name
     pub fn get(&self, name: &str) -> Option<Arc<dyn VersionStrategy>> {
-        self.strategies.iter().find(|s| s.name() == name).cloned()
+        let result = self.strategies.iter().find(|s| s.name() == name).cloned();
+        debug!(
+            strategy = name,
+            found = result.is_some(),
+            "strategy registry lookup"
+        );
+        result
     }
 
     /// Get all registered strategies

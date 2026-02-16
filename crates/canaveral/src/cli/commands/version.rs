@@ -2,6 +2,7 @@
 
 use clap::Args;
 use console::style;
+use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_core::types::ReleaseType;
@@ -30,6 +31,7 @@ pub struct VersionCommand {
 impl VersionCommand {
     /// Execute the version command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        info!(release_type = ?self.release_type, current = self.current, package = ?self.package, "executing version command");
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 

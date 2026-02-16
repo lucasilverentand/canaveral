@@ -1,6 +1,7 @@
 //! Storage backend registry
 
 use std::sync::Arc;
+use tracing::debug;
 
 use super::storage::StorageBackend;
 
@@ -27,18 +28,22 @@ impl StorageBackendRegistry {
 
     /// Register a storage backend with a name
     pub fn register(&mut self, name: impl Into<String>, backend: Arc<dyn StorageBackend>) {
+        let name = name.into();
+        debug!(backend = %name, "Registered storage backend");
         self.backends.push(StorageBackendEntry {
-            name: name.into(),
+            name,
             backend,
         });
     }
 
     /// Get a storage backend by name
     pub fn get(&self, name: &str) -> Option<Arc<dyn StorageBackend>> {
-        self.backends
+        let result = self.backends
             .iter()
             .find(|e| e.name == name)
-            .map(|e| Arc::clone(&e.backend))
+            .map(|e| Arc::clone(&e.backend));
+        debug!(backend = name, found = result.is_some(), "Looking up storage backend");
+        result
     }
 
     /// Get all registered backend entries

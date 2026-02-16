@@ -2,6 +2,7 @@
 
 use clap::{Args, Subcommand};
 use console::style;
+use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_git::GitRepo;
@@ -61,6 +62,12 @@ pub struct PrCheckConflictsCommand {
 
 impl PrCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let action_name = match &self.action {
+            PrAction::Validate(_) => "validate",
+            PrAction::Preview(_) => "preview",
+            PrAction::CheckConflicts(_) => "check-conflicts",
+        };
+        info!(action = action_name, "executing pr command");
         match &self.action {
             PrAction::Validate(cmd) => cmd.execute(cli),
             PrAction::Preview(cmd) => cmd.execute(cli),

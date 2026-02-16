@@ -7,6 +7,7 @@ use std::process::Command;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, instrument};
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
 use crate::capabilities::Capabilities;
@@ -165,6 +166,7 @@ impl BuildAdapter for NextJsAdapter {
     }
 
     fn detect(&self, path: &Path) -> Detection {
+        debug!(path = %path.display(), "detecting Next.js project");
         // Check for next.config.* files
         let has_next_config = file_exists(path, "next.config.js")
             || file_exists(path, "next.config.mjs")
@@ -232,7 +234,9 @@ impl BuildAdapter for NextJsAdapter {
         Ok(status)
     }
 
+    #[instrument(skip(self, ctx), fields(framework = "nextjs", platform = %ctx.platform.as_str()))]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
+        info!(platform = %ctx.platform.as_str(), profile = ?ctx.profile, "building Next.js project");
         // Next.js only supports web platform
         if ctx.platform != Platform::Web {
             return Err(FrameworkError::UnsupportedPlatform {

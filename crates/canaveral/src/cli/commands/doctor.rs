@@ -6,6 +6,7 @@ use std::process::Command;
 use clap::Args;
 use console::style;
 use serde::Serialize;
+use tracing::info;
 
 use crate::cli::{Cli, OutputFormat};
 
@@ -92,6 +93,7 @@ pub struct DoctorSummary {
 impl DoctorCommand {
     /// Execute the doctor command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        info!(fix = self.fix, "executing doctor command");
         let mut checks = Vec::new();
 
         // Determine which categories to check

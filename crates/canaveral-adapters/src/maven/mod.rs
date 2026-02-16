@@ -7,6 +7,8 @@ mod pom;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use tracing::{debug, info};
+
 use canaveral_core::error::{AdapterError, Result};
 use canaveral_core::types::PackageInfo;
 
@@ -59,7 +61,9 @@ impl PackageAdapter for MavenAdapter {
     }
 
     fn detect(&self, path: &Path) -> bool {
-        self.manifest_path(path).exists()
+        let found = self.manifest_path(path).exists();
+        debug!(adapter = "maven", path = %path.display(), found, "detecting package");
+        found
     }
 
     fn manifest_names(&self) -> &[&str] {
@@ -96,17 +100,21 @@ impl PackageAdapter for MavenAdapter {
 
     fn get_version(&self, path: &Path) -> Result<String> {
         let pom = PomXml::load(&self.manifest_path(path))?;
-        pom.version.ok_or_else(|| {
-            AdapterError::ManifestParseError("No version found in pom.xml".to_string()).into()
-        })
+        let version = pom.version.ok_or_else(|| {
+            AdapterError::ManifestParseError("No version found in pom.xml".to_string())
+        })?;
+        debug!(adapter = "maven", version = %version, "read version");
+        Ok(version)
     }
 
     fn set_version(&self, path: &Path, version: &str) -> Result<()> {
+        info!(adapter = "maven", version, path = %path.display(), "setting version");
         let manifest_path = self.manifest_path(path);
         PomXml::update_version(&manifest_path, version)
     }
 
     fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
+        info!(adapter = "maven", path = %path.display(), dry_run = options.dry_run, "publishing package");
         let mvn = self.maven_cmd(path);
         let mut cmd = Command::new(mvn);
         cmd.current_dir(path);
@@ -153,6 +161,7 @@ impl PackageAdapter for MavenAdapter {
     }
 
     fn validate_publishable(&self, path: &Path) -> Result<ValidationResult> {
+        debug!(adapter = "maven", path = %path.display(), "validating publishable");
         let mut result = ValidationResult::pass();
 
         // Check pom.xml exists
@@ -230,6 +239,7 @@ impl PackageAdapter for MavenAdapter {
     }
 
     fn check_auth(&self, credentials: &mut CredentialProvider) -> Result<bool> {
+        debug!(adapter = "maven", "checking authentication");
         // Check our credential provider
         if credentials.has_credentials("maven") {
             return Ok(true);

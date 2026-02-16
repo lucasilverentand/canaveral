@@ -1,9 +1,12 @@
 //! Repository status operations
 
+use tracing::{debug, instrument};
+
 use crate::repository::{GitRepo, Result};
 
 impl GitRepo {
     /// Check if the working directory is clean (no uncommitted changes)
+    #[instrument(skip(self))]
     pub fn is_clean(&self) -> Result<bool> {
         let statuses = self.repo.statuses(None)?;
 
@@ -22,14 +25,17 @@ impl GitRepo {
                 || status.is_wt_renamed()
                 || status.is_wt_typechange()
             {
+                debug!("working directory is dirty");
                 return Ok(false);
             }
         }
 
+        debug!("working directory is clean");
         Ok(true)
     }
 
     /// Get the current branch name
+    #[instrument(skip(self))]
     pub fn current_branch(&self) -> Result<Option<String>> {
         let head = match self.repo.head() {
             Ok(head) => head,
@@ -38,9 +44,11 @@ impl GitRepo {
         };
 
         if head.is_branch() {
-            Ok(head.shorthand().map(|s| s.to_string()))
+            let branch = head.shorthand().map(|s| s.to_string());
+            debug!(branch = ?branch, "current branch");
+            Ok(branch)
         } else {
-            // Detached HEAD
+            debug!("HEAD is detached");
             Ok(None)
         }
     }
@@ -59,6 +67,7 @@ impl GitRepo {
     }
 
     /// Get list of modified files
+    #[instrument(skip(self))]
     pub fn modified_files(&self) -> Result<Vec<String>> {
         let statuses = self.repo.statuses(None)?;
         let mut files = Vec::new();
@@ -78,10 +87,12 @@ impl GitRepo {
             }
         }
 
+        debug!(count = files.len(), "found modified files");
         Ok(files)
     }
 
     /// Get list of untracked files
+    #[instrument(skip(self))]
     pub fn untracked_files(&self) -> Result<Vec<String>> {
         let mut opts = git2::StatusOptions::new();
         opts.include_untracked(true);
@@ -97,6 +108,7 @@ impl GitRepo {
             }
         }
 
+        debug!(count = files.len(), "found untracked files");
         Ok(files)
     }
 }

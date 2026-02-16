@@ -5,6 +5,8 @@
 
 use std::path::Path;
 
+use tracing::debug;
+
 use crate::types::common::{Dimensions, Platform};
 use crate::validation::{Severity, ValidationIssue, ValidationResult};
 use crate::{MetadataError, Result};
@@ -196,6 +198,7 @@ pub fn get_google_play_valid_dimensions(device_type: &str) -> Option<&'static [(
 /// }
 /// ```
 pub fn validate_apple_screenshot_file(path: &Path, device_type: &str) -> ValidationResult {
+    debug!(path = %path.display(), device_type, "validating Apple screenshot file");
     let mut result = ValidationResult::new();
     let field = path.display().to_string();
 
@@ -277,6 +280,7 @@ pub fn validate_apple_screenshot_file(path: &Path, device_type: &str) -> Validat
 ///
 /// Returns a validation result with any issues found.
 pub fn validate_google_play_screenshot_file(path: &Path, device_type: &str) -> ValidationResult {
+    debug!(path = %path.display(), device_type, "validating Google Play screenshot file");
     let mut result = ValidationResult::new();
     let field = path.display().to_string();
 
@@ -378,6 +382,7 @@ pub fn validate_google_play_screenshot_file(path: &Path, device_type: &str) -> V
 ///
 /// Returns a validation result with any issues found.
 pub fn validate_feature_graphic_file(path: &Path) -> ValidationResult {
+    debug!(path = %path.display(), "validating feature graphic file");
     let mut result = ValidationResult::new();
     let field = path.display().to_string();
 

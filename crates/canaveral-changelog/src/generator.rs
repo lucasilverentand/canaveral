@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use canaveral_core::config::ChangelogConfig;
 use canaveral_git::CommitInfo;
+use tracing::{debug, info, instrument};
 
 use crate::formatter::{ChangelogFormatter, MarkdownFormatter};
 use crate::parser::{CommitParser, ConventionalParser};
@@ -39,7 +40,9 @@ impl ChangelogGenerator {
     }
 
     /// Generate a changelog entry from commits
+    #[instrument(skip(self, commits), fields(commit_count = commits.len()))]
     pub fn generate(&self, version: &str, commits: &[CommitInfo]) -> ChangelogEntry {
+        info!(version, commit_count = commits.len(), "generating changelog entry");
         let mut entry = ChangelogEntry::new(version);
 
         // Parse commits
@@ -97,6 +100,12 @@ impl ChangelogGenerator {
             entry.add_breaking_change(commit);
         }
 
+        debug!(
+            section_count = entry.sections.len(),
+            breaking_count = entry.breaking_changes.len(),
+            "changelog sections built"
+        );
+
         // Sort sections by a defined order
         entry.sections.sort_by(|a, b| {
             let order = |s: &str| match s {
@@ -118,9 +127,12 @@ impl ChangelogGenerator {
     }
 
     /// Generate and format in one step
+    #[instrument(skip(self, commits), fields(commit_count = commits.len()))]
     pub fn generate_formatted(&self, version: &str, commits: &[CommitInfo]) -> String {
         let entry = self.generate(version, commits);
-        self.format(&entry)
+        let output = self.format(&entry);
+        debug!(output_len = output.len(), "changelog formatted");
+        output
     }
 }
 

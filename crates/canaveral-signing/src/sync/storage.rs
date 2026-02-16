@@ -7,6 +7,7 @@ use std::process::Command;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 use crate::error::{Result, SigningError};
 
@@ -102,6 +103,7 @@ impl GitStorage {
 
     /// Clone or pull the repository
     fn clone_or_pull(&self) -> Result<()> {
+        debug!(backend = "git", url = %self.url, branch = %self.branch, "Syncing git storage");
         if self.local_path.exists() {
             // Pull latest changes
             let output = Command::new("git")
@@ -148,6 +150,7 @@ impl GitStorage {
 
     /// Commit and push changes
     fn commit_and_push(&self, message: &str) -> Result<()> {
+        debug!(backend = "git", message = message, "Committing and pushing changes");
         // Add all changes
         Command::new("git")
             .args(["add", "-A"])
@@ -268,6 +271,7 @@ pub struct S3Storage {
 impl S3Storage {
     /// Create a new S3 storage backend
     pub fn new(bucket: String, prefix: String, region: String) -> Self {
+        debug!(backend = "s3", bucket = %bucket, prefix = %prefix, region = %region, "Creating S3 storage backend");
         Self {
             bucket,
             prefix,

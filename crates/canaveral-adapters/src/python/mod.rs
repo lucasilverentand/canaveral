@@ -3,6 +3,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use tracing::{debug, info};
+
 use canaveral_core::error::{AdapterError, Result};
 use canaveral_core::types::PackageInfo;
 use toml_edit::{DocumentMut, value};
@@ -97,15 +99,18 @@ impl PackageAdapter for PythonAdapter {
     fn detect(&self, path: &Path) -> bool {
         let manifest = self.manifest_path(path);
         if !manifest.exists() {
+            debug!(adapter = "python", path = %path.display(), found = false, "detecting package");
             return false;
         }
 
         // Check if it has [project] section
-        if let Ok(doc) = self.load_manifest(&manifest) {
+        let found = if let Ok(doc) = self.load_manifest(&manifest) {
             doc.get("project").is_some()
         } else {
             false
-        }
+        };
+        debug!(adapter = "python", path = %path.display(), found, "detecting package");
+        found
     }
 
     fn manifest_names(&self) -> &[&str] {
@@ -136,12 +141,15 @@ impl PackageAdapter for PythonAdapter {
     fn get_version(&self, path: &Path) -> Result<String> {
         let doc = self.load_manifest(&self.manifest_path(path))?;
 
-        self.get_version_from_doc(&doc).ok_or_else(|| {
-            AdapterError::ManifestParseError("No project.version found".to_string()).into()
-        })
+        let version = self.get_version_from_doc(&doc).ok_or_else(|| {
+            AdapterError::ManifestParseError("No project.version found".to_string())
+        })?;
+        debug!(adapter = "python", version = %version, "read version");
+        Ok(version)
     }
 
     fn set_version(&self, path: &Path, version: &str) -> Result<()> {
+        info!(adapter = "python", version, path = %path.display(), "setting version");
         let manifest_path = self.manifest_path(path);
         let content = std::fs::read_to_string(&manifest_path)
             .map_err(|_| AdapterError::ManifestNotFound(manifest_path.clone()))?;
@@ -165,6 +173,7 @@ impl PackageAdapter for PythonAdapter {
     }
 
     fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
+        info!(adapter = "python", path = %path.display(), dry_run = options.dry_run, "publishing package");
         // Build first (unless already built)
         let dist = self.dist_path(path);
         if !dist.exists() || std::fs::read_dir(&dist).map(|d| d.count()).unwrap_or(0) == 0 {
@@ -230,6 +239,7 @@ impl PackageAdapter for PythonAdapter {
     }
 
     fn validate_publishable(&self, path: &Path) -> Result<ValidationResult> {
+        debug!(adapter = "python", path = %path.display(), "validating publishable");
         let mut result = ValidationResult::pass();
 
         // Check manifest
@@ -317,6 +327,7 @@ impl PackageAdapter for PythonAdapter {
     }
 
     fn check_auth(&self, credentials: &mut CredentialProvider) -> Result<bool> {
+        debug!(adapter = "python", "checking authentication");
         // Check our credential provider
         if credentials.has_credentials("pypi") {
             return Ok(true);

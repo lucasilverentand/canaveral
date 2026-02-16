@@ -2,6 +2,8 @@
 
 use std::path::Path;
 
+use tracing::{debug, info};
+
 use crate::error::Result;
 
 use super::workspace::Workspace;
@@ -49,11 +51,19 @@ impl WorkspaceDetectorRegistry {
 
     /// Try each detector in order, returning the first match
     pub fn detect(&self, path: &Path) -> Result<Option<Workspace>> {
+        debug!(path = %path.display(), detectors = self.detectors.len(), "running workspace detection");
         for detector in &self.detectors {
             if let Some(ws) = detector.detect(path)? {
+                info!(
+                    detector = detector.name(),
+                    workspace_type = %ws.workspace_type,
+                    path = %path.display(),
+                    "workspace detected"
+                );
                 return Ok(Some(ws));
             }
         }
+        debug!(path = %path.display(), "no workspace detected");
         Ok(None)
     }
 

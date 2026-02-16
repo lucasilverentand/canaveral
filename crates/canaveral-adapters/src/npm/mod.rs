@@ -5,6 +5,8 @@ mod manifest;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use tracing::{debug, info};
+
 use canaveral_core::error::{AdapterError, Result};
 use canaveral_core::types::PackageInfo;
 
@@ -49,7 +51,9 @@ impl PackageAdapter for NpmAdapter {
     }
 
     fn detect(&self, path: &Path) -> bool {
-        self.manifest_path(path).exists()
+        let found = self.manifest_path(path).exists();
+        debug!(adapter = "npm", path = %path.display(), found, "detecting package");
+        found
     }
 
     fn manifest_names(&self) -> &[&str] {
@@ -71,10 +75,12 @@ impl PackageAdapter for NpmAdapter {
 
     fn get_version(&self, path: &Path) -> Result<String> {
         let manifest = PackageJson::load(&self.manifest_path(path))?;
+        debug!(adapter = "npm", version = %manifest.version, "read version");
         Ok(manifest.version)
     }
 
     fn set_version(&self, path: &Path, version: &str) -> Result<()> {
+        info!(adapter = "npm", version, path = %path.display(), "setting version");
         let manifest_path = self.manifest_path(path);
         let mut manifest = PackageJson::load(&manifest_path)?;
         manifest.version = version.to_string();
@@ -83,6 +89,7 @@ impl PackageAdapter for NpmAdapter {
     }
 
     fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
+        info!(adapter = "npm", path = %path.display(), dry_run = options.dry_run, "publishing package");
         let mut cmd = Command::new("npm");
         cmd.arg("publish");
         cmd.current_dir(path);
@@ -133,6 +140,7 @@ impl PackageAdapter for NpmAdapter {
     }
 
     fn validate_publishable(&self, path: &Path) -> Result<ValidationResult> {
+        debug!(adapter = "npm", path = %path.display(), "validating publishable");
         let mut result = ValidationResult::pass();
 
         // Check manifest
@@ -186,6 +194,7 @@ impl PackageAdapter for NpmAdapter {
     }
 
     fn check_auth(&self, credentials: &mut CredentialProvider) -> Result<bool> {
+        debug!(adapter = "npm", "checking authentication");
         // First check our credential provider
         if credentials.has_credentials("npm") {
             return Ok(true);

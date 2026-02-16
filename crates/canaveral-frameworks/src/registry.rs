@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
+use tracing::{debug, info, instrument, warn};
+
 use crate::detection::DetectionResult;
 use crate::error::{FrameworkError, Result};
 use crate::traits::{
@@ -68,6 +70,7 @@ impl FrameworkRegistry {
     /// Register a build adapter
     pub fn register_build<A: BuildAdapter + 'static>(&mut self, adapter: A) {
         let id = adapter.id().to_string();
+        debug!(adapter_id = %id, "registering build adapter");
         self.build_detection_order.push(id.clone());
         self.build_adapters.insert(id, Arc::new(adapter));
     }
@@ -84,6 +87,7 @@ impl FrameworkRegistry {
 
     /// Detect build adapters for a project
     pub fn detect_build(&self, path: &Path) -> Vec<DetectionResult> {
+        debug!(path = %path.display(), "detecting build frameworks");
         let mut results: Vec<_> = self
             .build_detection_order
             .iter()
@@ -103,6 +107,14 @@ impl FrameworkRegistry {
             .collect();
 
         results.sort_by(|a, b| b.detection.cmp(&a.detection));
+        if !results.is_empty() {
+            info!(
+                detected_count = results.len(),
+                best = %results[0].adapter_name,
+                confidence = results[0].detection.confidence(),
+                "build framework detection complete"
+            );
+        }
         results
     }
 
@@ -114,6 +126,7 @@ impl FrameworkRegistry {
     }
 
     /// Resolve a build adapter - by ID or auto-detect
+    #[instrument(skip(self), fields(path = %path.display(), adapter_id))]
     pub fn resolve_build(
         &self,
         path: &Path,
@@ -141,6 +154,11 @@ impl FrameworkRegistry {
 
                 // If confidence is too close, it's ambiguous
                 if first.detection.confidence() < second.detection.confidence() + 20 {
+                    warn!(
+                        first = %first.adapter_name,
+                        second = %second.adapter_name,
+                        "ambiguous framework detection"
+                    );
                     return Err(FrameworkError::AmbiguousFramework {
                         frameworks: detections.iter().map(|d| d.adapter_name.clone()).collect(),
                     });

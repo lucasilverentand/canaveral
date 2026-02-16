@@ -10,7 +10,7 @@ use crate::provider::{
 use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 /// Windows signing provider using signtool.exe
 pub struct WindowsProvider {
@@ -138,6 +138,7 @@ impl SigningProvider for WindowsProvider {
         self.signtool_path.is_some()
     }
 
+    #[instrument(skip(self), fields(provider = "windows"))]
     async fn list_identities(&self) -> Result<Vec<SigningIdentity>> {
         // Use certutil to list certificates in the Windows certificate store
         let output = Command::new("certutil")
@@ -205,6 +206,7 @@ impl SigningProvider for WindowsProvider {
             }
         }
 
+        info!(count = identities.len(), "Found Windows signing identities");
         Ok(identities)
     }
 
@@ -228,6 +230,7 @@ impl SigningProvider for WindowsProvider {
         }
     }
 
+    #[instrument(skip(self, identity, options), fields(provider = "windows", path = %artifact.display()))]
     async fn sign(
         &self,
         artifact: &Path,
@@ -322,6 +325,7 @@ impl SigningProvider for WindowsProvider {
         Ok(())
     }
 
+    #[instrument(skip(self, options), fields(provider = "windows", path = %artifact.display()))]
     async fn verify(&self, artifact: &Path, options: &VerifyOptions) -> Result<SignatureInfo> {
         let signtool = self.get_signtool()?;
 

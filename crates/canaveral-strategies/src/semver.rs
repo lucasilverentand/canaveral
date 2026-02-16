@@ -3,6 +3,7 @@
 use std::cmp::Ordering;
 
 use canaveral_core::error::{Result, VersionError};
+use tracing::{debug, instrument};
 
 use crate::traits::VersionStrategy;
 use crate::types::{BumpType, VersionComponents};
@@ -65,6 +66,7 @@ impl VersionStrategy for SemVerStrategy {
         "semver"
     }
 
+    #[instrument(skip(self), fields(strategy = "semver"))]
     fn parse(&self, version: &str) -> Result<VersionComponents> {
         // Strip leading 'v' if present
         let version = version.strip_prefix('v').unwrap_or(version);
@@ -93,6 +95,7 @@ impl VersionStrategy for SemVerStrategy {
         components.to_version_string()
     }
 
+    #[instrument(skip(self), fields(strategy = "semver", current = %current.to_version_string(), bump = ?bump_type))]
     fn bump(&self, current: &VersionComponents, bump_type: BumpType) -> Result<VersionComponents> {
         let mut result = current.clone();
 
@@ -129,6 +132,7 @@ impl VersionStrategy for SemVerStrategy {
         // Clear build metadata on bump
         result.build = None;
 
+        debug!(result = %result.to_version_string(), "version bumped");
         Ok(result)
     }
 

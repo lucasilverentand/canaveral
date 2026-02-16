@@ -4,6 +4,7 @@ use std::io;
 
 use clap::{Args, CommandFactory, ValueEnum};
 use clap_complete::{generate, Shell};
+use tracing::info;
 
 use crate::cli::Cli;
 
@@ -50,6 +51,7 @@ impl From<ShellType> for Shell {
 impl CompletionsCommand {
     /// Execute the completions command
     pub fn execute(&self, cli: &crate::cli::Cli) -> anyhow::Result<()> {
+        info!(shell = ?self.shell, "executing completions command");
         let mut cmd = Cli::command();
         let shell: Shell = self.shell.into();
 

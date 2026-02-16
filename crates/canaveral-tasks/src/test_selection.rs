@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use regex::Regex;
+use tracing::{debug, info};
 
 /// Reason a test was selected
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,6 +55,11 @@ pub struct TestMap {
 impl TestMap {
     /// Build a test map by scanning source and test files
     pub fn build(package_dir: &Path, package_type: &str) -> Self {
+        debug!(
+            path = %package_dir.display(),
+            package_type,
+            "building test map"
+        );
         let mut map = Self::default();
 
         match package_type {
@@ -63,6 +69,10 @@ impl TestMap {
             _ => {} // Unknown type, fall back to full suite
         }
 
+        debug!(
+            mappings = map.source_to_tests.len(),
+            "test map built"
+        );
         map
     }
 
@@ -268,6 +278,12 @@ impl TestSelector {
         changed_files: &HashMap<String, Vec<PathBuf>>, // package -> changed files
         dependency_changes: &HashSet<String>, // packages changed via dependencies
     ) -> Vec<SelectedTest> {
+        info!(
+            packages = packages.len(),
+            changed_packages = changed_files.len(),
+            dependency_changes = dependency_changes.len(),
+            "selecting tests"
+        );
         let mut selected = Vec::new();
 
         for (pkg_name, pkg_path, pkg_type) in packages {
@@ -325,6 +341,7 @@ impl TestSelector {
             seen.insert(key)
         });
 
+        info!(selected_count = selected.len(), "tests selected");
         selected
     }
 }

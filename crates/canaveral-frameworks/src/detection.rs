@@ -5,6 +5,8 @@
 
 use std::path::Path;
 
+use tracing::{debug, instrument};
+
 use crate::error::Result;
 use crate::traits::BuildAdapter;
 
@@ -81,7 +83,9 @@ impl FrameworkDetector {
     }
 
     /// Detect frameworks at the given path
+    #[instrument(skip(self), fields(path = %path.display(), adapter_count = self.adapters.len()))]
     pub fn detect(&self, path: &Path) -> Vec<DetectionResult> {
+        debug!(path = %path.display(), adapter_count = self.adapters.len(), "detecting frameworks");
         let mut results: Vec<_> = self
             .adapters
             .iter()

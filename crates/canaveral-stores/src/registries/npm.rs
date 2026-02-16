@@ -30,7 +30,7 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 use tar::Archive;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 /// NPM Registry configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -267,6 +267,7 @@ impl StoreAdapter for NpmRegistry {
         self.config.token.is_some()
     }
 
+    #[instrument(skip(self), fields(store = "NPM", path = %path.display()))]
     async fn validate_artifact(&self, path: &Path) -> Result<ValidationResult> {
         let mut errors = Vec::new();
         let warnings = Vec::new();
@@ -356,6 +357,7 @@ impl StoreAdapter for NpmRegistry {
         }
     }
 
+    #[instrument(skip(self, options), fields(store = "NPM", path = %path.display()))]
     async fn upload(&self, path: &Path, options: &UploadOptions) -> Result<UploadResult> {
         // Validate first
         let validation = self.validate_artifact(path).await?;
@@ -406,6 +408,7 @@ impl StoreAdapter for NpmRegistry {
         })
     }
 
+    #[instrument(skip(self), fields(store = "NPM"))]
     async fn get_build_status(&self, build_id: &str) -> Result<BuildStatus> {
         // npm doesn't have build status concept - packages are immediately available
         Ok(BuildStatus {

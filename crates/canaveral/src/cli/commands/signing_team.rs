@@ -3,6 +3,7 @@
 use clap::{Args, Subcommand};
 use console::style;
 use std::path::PathBuf;
+use tracing::info;
 
 use canaveral_signing::team::{
     generate_keypair, Role, TeamVault, CredentialData,
@@ -258,6 +259,15 @@ pub struct AuditCommand {
 
 impl TeamCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let subcommand_name = match &self.command {
+            TeamSubcommand::Init(_) => "init",
+            TeamSubcommand::Keygen(_) => "keygen",
+            TeamSubcommand::Status(_) => "status",
+            TeamSubcommand::Member(_) => "member",
+            TeamSubcommand::Identity(_) => "identity",
+            TeamSubcommand::Audit(_) => "audit",
+        };
+        info!(subcommand = subcommand_name, "executing team command");
         match &self.command {
             TeamSubcommand::Init(cmd) => cmd.execute(cli),
             TeamSubcommand::Keygen(cmd) => cmd.execute(cli),

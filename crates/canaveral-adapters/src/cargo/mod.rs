@@ -5,6 +5,8 @@ mod manifest;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use tracing::{debug, info};
+
 use canaveral_core::error::{AdapterError, Result};
 use canaveral_core::types::PackageInfo;
 
@@ -46,15 +48,18 @@ impl PackageAdapter for CargoAdapter {
     fn detect(&self, path: &Path) -> bool {
         let manifest = self.manifest_path(path);
         if !manifest.exists() {
+            debug!(adapter = "cargo", path = %path.display(), found = false, "detecting package");
             return false;
         }
 
         // Check if it's a package (not just a workspace)
-        if let Ok(toml) = CargoToml::load(&manifest) {
+        let found = if let Ok(toml) = CargoToml::load(&manifest) {
             toml.package.is_some()
         } else {
             false
-        }
+        };
+        debug!(adapter = "cargo", path = %path.display(), found, "detecting package");
+        found
     }
 
     fn manifest_names(&self) -> &[&str] {
@@ -81,20 +86,24 @@ impl PackageAdapter for CargoAdapter {
     fn get_version(&self, path: &Path) -> Result<String> {
         let manifest = CargoToml::load(&self.manifest_path(path))?;
 
-        manifest
+        let version = manifest
             .package
             .map(|p| p.version)
             .ok_or_else(|| {
-                AdapterError::ManifestParseError("No [package] section found".to_string()).into()
-            })
+                AdapterError::ManifestParseError("No [package] section found".to_string())
+            })?;
+        debug!(adapter = "cargo", version = %version, "read version");
+        Ok(version)
     }
 
     fn set_version(&self, path: &Path, version: &str) -> Result<()> {
+        info!(adapter = "cargo", version, path = %path.display(), "setting version");
         let manifest_path = self.manifest_path(path);
         CargoToml::update_version(&manifest_path, version)
     }
 
     fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
+        info!(adapter = "cargo", path = %path.display(), dry_run = options.dry_run, "publishing package");
         let mut cmd = Command::new("cargo");
         cmd.arg("publish");
         cmd.current_dir(path);
@@ -139,6 +148,7 @@ impl PackageAdapter for CargoAdapter {
     }
 
     fn validate_publishable(&self, path: &Path) -> Result<ValidationResult> {
+        debug!(adapter = "cargo", path = %path.display(), "validating publishable");
         let mut result = ValidationResult::pass();
 
         // Check manifest
@@ -220,6 +230,7 @@ impl PackageAdapter for CargoAdapter {
     }
 
     fn check_auth(&self, credentials: &mut CredentialProvider) -> Result<bool> {
+        debug!(adapter = "cargo", "checking authentication");
         // Check our credential provider first
         if credentials.has_credentials("cargo") {
             return Ok(true);

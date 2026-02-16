@@ -1,6 +1,7 @@
 //! Store adapter registry
 
 use std::sync::Arc;
+use tracing::debug;
 
 use crate::traits::StoreAdapter;
 use crate::types::StoreType;
@@ -33,16 +34,20 @@ impl StoreRegistry {
 
     /// Get store adapter by name
     pub fn get(&self, name: &str) -> Option<Arc<dyn StoreAdapter>> {
-        self.stores.iter().find(|s| s.name() == name).cloned()
+        let result = self.stores.iter().find(|s| s.name() == name).cloned();
+        debug!(store = name, found = result.is_some(), "Looking up store adapter");
+        result
     }
 
     /// Get all store adapters matching a given store type
     pub fn get_by_type(&self, store_type: StoreType) -> Vec<Arc<dyn StoreAdapter>> {
-        self.stores
+        let results: Vec<_> = self.stores
             .iter()
             .filter(|s| s.store_type() == store_type)
             .cloned()
-            .collect()
+            .collect();
+        debug!(store_type = ?store_type, count = results.len(), "Looking up stores by type");
+        results
     }
 
     /// Get all registered store adapters
@@ -57,11 +62,14 @@ impl StoreRegistry {
 
     /// Get only store adapters that are currently available
     pub fn available(&self) -> Vec<Arc<dyn StoreAdapter>> {
-        self.stores
+        let available: Vec<_> = self.stores
             .iter()
             .filter(|s| s.is_available())
             .cloned()
-            .collect()
+            .collect();
+        let names: Vec<_> = available.iter().map(|s| s.name()).collect();
+        debug!(count = available.len(), stores = ?names, "Queried available store adapters");
+        available
     }
 }
 

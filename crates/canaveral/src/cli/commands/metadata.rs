@@ -2,6 +2,7 @@
 
 use clap::{Args, Subcommand, ValueEnum};
 use console::style;
+use tracing::info;
 use std::io::Write;
 use std::path::PathBuf;
 
@@ -254,6 +255,7 @@ pub struct ListLocalesCommand {
 impl MetadataCommand {
     /// Execute the metadata command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        info!("executing metadata command");
         let rt = tokio::runtime::Runtime::new()?;
 
         match &self.command {

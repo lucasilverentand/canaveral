@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info};
 
 use crate::error::Result;
 use crate::types::ReleaseType;
@@ -103,7 +104,13 @@ impl VersioningStrategy {
         release_type: ReleaseType,
         graph: Option<&DependencyGraph>,
     ) -> Result<Vec<VersionBump>> {
-        match self.mode {
+        info!(
+            mode = %self.mode,
+            changes = changes.len(),
+            release_type = ?release_type,
+            "calculating version bumps"
+        );
+        let result = match self.mode {
             VersioningMode::Independent => {
                 self.calculate_independent_bumps(packages, changes, release_type, graph)
             }
@@ -113,7 +120,21 @@ impl VersioningStrategy {
             VersioningMode::Grouped => {
                 self.calculate_grouped_bumps(packages, changes, release_type, graph)
             }
+        };
+        if let Ok(ref bumps) = result {
+            for bump in bumps {
+                debug!(
+                    package = %bump.package,
+                    from = %bump.current_version,
+                    to = %bump.new_version,
+                    release_type = ?bump.release_type,
+                    reason = %bump.reason,
+                    "version bump"
+                );
+            }
+            info!(count = bumps.len(), "version bumps calculated");
         }
+        result
     }
 
     /// Calculate bumps for independent versioning

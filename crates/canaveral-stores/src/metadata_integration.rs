@@ -51,7 +51,7 @@ mod integration {
         AppleValidator, FastlaneStorage, GooglePlayValidator, MetadataStorage,
         ValidationResult as MetadataValidationResult,
     };
-    use tracing::{debug, info, warn};
+    use tracing::{debug, info, instrument, warn};
 
     /// Platform identifier for metadata validation.
     ///
@@ -93,6 +93,7 @@ mod integration {
     /// # Errors
     ///
     /// Returns an error if metadata cannot be loaded.
+    #[instrument(skip_all, fields(platform = %platform, app_id = app_id, metadata_path = %metadata_path.display()))]
     pub async fn validate_metadata_for_upload(
         platform: MetadataPlatform,
         app_id: &str,
@@ -268,6 +269,7 @@ mod integration {
     /// # Returns
     ///
     /// Returns a validation summary, or an error if validation fails and is required.
+    #[instrument(skip(options), fields(platform = %platform, app_id = app_id))]
     pub async fn run_pre_upload_validation(
         platform: MetadataPlatform,
         app_id: &str,

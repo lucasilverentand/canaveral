@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use reqwest::multipart::{Form, Part};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 use crate::error::{Result, StoreError};
 
@@ -254,6 +254,7 @@ impl Firebase {
     // -------------------------------------------------------------------------
 
     /// Upload an artifact to Firebase App Distribution
+    #[instrument(skip(self, options), fields(store = "Firebase", path = %path.display()))]
     pub async fn upload(
         &mut self,
         path: &Path,
@@ -474,6 +475,7 @@ impl Firebase {
     }
 
     /// Get release information
+    #[instrument(skip(self), fields(store = "Firebase"))]
     pub async fn get_release(&mut self, release_name: &str) -> Result<FirebaseRelease> {
         #[derive(Deserialize)]
         #[serde(rename_all = "camelCase")]
@@ -512,6 +514,7 @@ impl Firebase {
     // -------------------------------------------------------------------------
 
     /// List recent releases
+    #[instrument(skip(self), fields(store = "Firebase"))]
     pub async fn list_releases(&mut self, limit: Option<usize>) -> Result<Vec<FirebaseRelease>> {
         #[derive(Deserialize)]
         struct ReleasesResponse {

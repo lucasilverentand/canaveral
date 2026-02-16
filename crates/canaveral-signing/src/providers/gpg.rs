@@ -9,7 +9,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 /// GPG signing provider
 pub struct GpgProvider {
@@ -163,9 +163,12 @@ impl SigningProvider for GpgProvider {
             .unwrap_or(false)
     }
 
+    #[instrument(skip(self), fields(provider = "gpg"))]
     async fn list_identities(&self) -> Result<Vec<SigningIdentity>> {
         let output = self.run_gpg(&["--list-secret-keys", "--keyid-format=long"]).await?;
-        Ok(Self::parse_key_listing(&output))
+        let identities = Self::parse_key_listing(&output);
+        info!(count = identities.len(), "Found GPG signing identities");
+        Ok(identities)
     }
 
     async fn find_identity(&self, query: &str) -> Result<SigningIdentity> {
@@ -190,6 +193,7 @@ impl SigningProvider for GpgProvider {
         }
     }
 
+    #[instrument(skip(self, identity, options), fields(provider = "gpg", path = %artifact.display()))]
     async fn sign(
         &self,
         artifact: &Path,
@@ -254,6 +258,7 @@ impl SigningProvider for GpgProvider {
         Ok(())
     }
 
+    #[instrument(skip(self, _options), fields(provider = "gpg", path = %artifact.display()))]
     async fn verify(&self, artifact: &Path, _options: &VerifyOptions) -> Result<SignatureInfo> {
         if !artifact.exists() {
             return Err(SigningError::Io(std::io::Error::new(

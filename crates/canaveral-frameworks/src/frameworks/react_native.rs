@@ -7,6 +7,7 @@ use std::process::Command;
 
 use async_trait::async_trait;
 use serde::Deserialize;
+use tracing::{debug, info, instrument};
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
 use crate::capabilities::Capabilities;
@@ -637,6 +638,7 @@ impl BuildAdapter for ReactNativeAdapter {
     }
 
     fn detect(&self, path: &Path) -> Detection {
+        debug!(path = %path.display(), "detecting React Native project");
         if !file_exists(path, "package.json") {
             return Detection::No;
         }
@@ -719,7 +721,9 @@ impl BuildAdapter for ReactNativeAdapter {
         Ok(status)
     }
 
+    #[instrument(skip(self, ctx), fields(framework = "react-native", platform = %ctx.platform.as_str()))]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
+        info!(platform = %ctx.platform.as_str(), profile = ?ctx.profile, "building React Native project");
         // Install dependencies first
         let install_output = self.run_npx(&["npm", "install"], &ctx.path)?;
         if !install_output.status.success() {

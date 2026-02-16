@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 use crate::error::Result;
 
@@ -89,6 +90,7 @@ impl Workspace {
 
     /// Detect workspace type and configuration from a directory
     pub fn detect(path: &Path) -> Result<Option<Self>> {
+        debug!(path = %path.display(), "detecting workspace type");
         let registry = super::detector::WorkspaceDetectorRegistry::new();
         registry.detect(path)
     }

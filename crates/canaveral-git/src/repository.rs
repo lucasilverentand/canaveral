@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use git2::Repository;
+use tracing::{info, instrument};
 
 use canaveral_core::error::GitError;
 
@@ -17,7 +18,9 @@ pub struct GitRepo {
 
 impl GitRepo {
     /// Open a repository at the given path
+    #[instrument(fields(path = %path.display()))]
     pub fn open(path: &Path) -> Result<Self> {
+        info!(path = %path.display(), "opening git repository");
         let repo = Repository::open(path).map_err(|e| {
             if e.code() == git2::ErrorCode::NotFound {
                 GitError::RepositoryNotFound(path.to_path_buf())
@@ -33,7 +36,9 @@ impl GitRepo {
     }
 
     /// Discover and open a repository by searching parent directories
+    #[instrument(fields(start_path = %start_path.display()))]
     pub fn discover(start_path: &Path) -> Result<Self> {
+        info!(start_path = %start_path.display(), "discovering git repository");
         let repo = Repository::discover(start_path).map_err(|e| {
             if e.code() == git2::ErrorCode::NotFound {
                 GitError::NotARepository(start_path.to_path_buf())

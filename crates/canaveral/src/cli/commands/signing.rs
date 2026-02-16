@@ -3,6 +3,7 @@
 use clap::{Args, Subcommand};
 use console::style;
 use std::path::PathBuf;
+use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_signing::{
@@ -155,6 +156,14 @@ pub struct InfoCommand {
 impl SigningCommand {
     /// Execute the signing command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let subcommand_name = match &self.command {
+            SigningSubcommand::List(_) => "list",
+            SigningSubcommand::Sign(_) => "sign",
+            SigningSubcommand::Verify(_) => "verify",
+            SigningSubcommand::Info(_) => "info",
+            SigningSubcommand::Team(_) => "team",
+        };
+        info!(subcommand = subcommand_name, "executing signing command");
         // Create tokio runtime for async operations
         let rt = tokio::runtime::Runtime::new()?;
 

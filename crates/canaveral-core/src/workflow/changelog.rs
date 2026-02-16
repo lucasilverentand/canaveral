@@ -1,8 +1,11 @@
 //! Changelog workflow operations
 
+use std::path::Path;
+
+use tracing::{debug, info};
+
 use crate::config::Config;
 use crate::error::Result;
-use std::path::Path;
 
 /// Options for changelog generation
 #[derive(Debug, Clone)]
@@ -35,6 +38,7 @@ impl ChangelogOptions {
 /// Write changelog to file
 pub fn write_changelog(config: &Config, content: &str, prepend: bool) -> Result<()> {
     let path = &config.changelog.file;
+    info!(path = %path.display(), prepend, "writing changelog");
 
     if prepend && path.exists() {
         let existing = std::fs::read_to_string(path)?;
@@ -50,8 +54,10 @@ pub fn write_changelog(config: &Config, content: &str, prepend: bool) -> Result<
 /// Read existing changelog content
 pub fn read_changelog(path: &Path) -> Result<Option<String>> {
     if path.exists() {
+        debug!(path = %path.display(), "reading existing changelog");
         Ok(Some(std::fs::read_to_string(path)?))
     } else {
+        debug!(path = %path.display(), "no existing changelog found");
         Ok(None)
     }
 }

@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use clap::{Args, Subcommand};
 use console::style;
+use tracing::info;
 
 use canaveral_tasks::TaskCache;
 
@@ -53,6 +54,12 @@ pub struct CacheCleanCommand {
 
 impl CacheCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let action_name = match &self.action {
+            CacheAction::Prune(_) => "prune",
+            CacheAction::Status(_) => "status",
+            CacheAction::Clean(_) => "clean",
+        };
+        info!(action = action_name, "executing cache command");
         match &self.action {
             CacheAction::Prune(cmd) => cmd.execute(cli),
             CacheAction::Status(cmd) => cmd.execute(cli),

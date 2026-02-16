@@ -6,6 +6,8 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use tracing::{debug, info};
+
 use crate::types::common::{Dimensions, Locale, MediaAsset};
 use crate::types::google_play::{limits, GooglePlayLocalizedMetadata, GooglePlayMetadata, GooglePlayScreenshotSet};
 
@@ -117,6 +119,12 @@ impl GooglePlayValidator {
     ///
     /// A `ValidationResult` containing any issues found.
     pub fn validate(&self, metadata: &GooglePlayMetadata) -> ValidationResult {
+        debug!(
+            package_name = %metadata.package_name,
+            locale_count = metadata.localizations.len(),
+            strict = self.strict,
+            "validating Google Play metadata"
+        );
         let mut result = ValidationResult::new();
 
         // Validate package name
@@ -194,6 +202,12 @@ impl GooglePlayValidator {
                 }
             }
         }
+
+        info!(
+            errors = result.error_count(),
+            warnings = result.warning_count(),
+            "Google Play metadata validation complete"
+        );
 
         result
     }

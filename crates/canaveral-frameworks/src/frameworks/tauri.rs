@@ -7,7 +7,7 @@ use std::process::Command;
 
 use async_trait::async_trait;
 use regex::Regex;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 use walkdir::WalkDir;
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
@@ -513,6 +513,7 @@ impl BuildAdapter for TauriAdapter {
         Ok(status)
     }
 
+    #[instrument(skip(self, ctx), fields(framework = "tauri", platform = %ctx.platform.as_str()))]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
         let project_path = &ctx.path;
         let platform = ctx.platform;

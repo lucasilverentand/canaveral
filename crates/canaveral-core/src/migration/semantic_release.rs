@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use serde::Deserialize;
+use tracing::info;
 
 use crate::config::Config;
 use crate::error::{CanaveralError, Result};
@@ -183,6 +184,7 @@ impl Migrator for SemanticReleaseMigrator {
     }
 
     fn migrate(&self, path: &Path) -> Result<MigrationResult> {
+        info!(path = %path.display(), "migrating from semantic-release");
         let sr_config = self.parse_config(path)?;
         let mut config = Config::default();
         let mut result = MigrationResult::new(MigrationSource::SemanticRelease, config.clone());
@@ -255,6 +257,12 @@ impl Migrator for SemanticReleaseMigrator {
         result.manual_step("Update CI/CD pipeline to use canaveral");
 
         result.config = config;
+        info!(
+            warnings = result.warnings.len(),
+            unsupported = result.unsupported.len(),
+            manual_steps = result.manual_steps.len(),
+            "semantic-release migration complete"
+        );
         Ok(result)
     }
 }

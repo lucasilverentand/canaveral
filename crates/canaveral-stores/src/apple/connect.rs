@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 use super::notarize::Notarizer;
 
@@ -266,6 +266,7 @@ impl StoreAdapter for AppStoreConnect {
         Self::is_altool_available()
     }
 
+    #[instrument(skip(self), fields(store = "App Store Connect", path = %path.display()))]
     async fn validate_artifact(&self, path: &Path) -> Result<ValidationResult> {
         let app_info = super::extract_app_info(path).await?;
 
@@ -302,6 +303,7 @@ impl StoreAdapter for AppStoreConnect {
         }
     }
 
+    #[instrument(skip(self, options), fields(store = "App Store Connect", path = %path.display()))]
     async fn upload(&self, path: &Path, options: &UploadOptions) -> Result<UploadResult> {
         // Validate first
         let validation = self.validate_artifact(path).await?;
@@ -341,6 +343,7 @@ impl StoreAdapter for AppStoreConnect {
         self.upload_with_transporter(path).await
     }
 
+    #[instrument(skip(self), fields(store = "App Store Connect"))]
     async fn get_build_status(&self, build_id: &str) -> Result<BuildStatus> {
         // This would require API calls to get build status
         // For now, return a placeholder

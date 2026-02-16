@@ -7,6 +7,7 @@ use std::process::Command;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, instrument};
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
 use crate::capabilities::Capabilities;
@@ -158,6 +159,7 @@ impl BuildAdapter for ViteAdapter {
     }
 
     fn detect(&self, path: &Path) -> Detection {
+        debug!(path = %path.display(), "detecting Vite project");
         // Check for vite.config.* files
         let has_vite_config = file_exists(path, "vite.config.js")
             || file_exists(path, "vite.config.ts")
@@ -225,7 +227,9 @@ impl BuildAdapter for ViteAdapter {
         Ok(status)
     }
 
+    #[instrument(skip(self, ctx), fields(framework = "vite", platform = %ctx.platform.as_str()))]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
+        info!(platform = %ctx.platform.as_str(), profile = ?ctx.profile, "building Vite project");
         // Vite only supports web platform
         if ctx.platform != Platform::Web {
             return Err(FrameworkError::UnsupportedPlatform {

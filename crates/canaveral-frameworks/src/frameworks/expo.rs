@@ -7,6 +7,7 @@ use std::process::Command;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, instrument};
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
 use crate::capabilities::Capabilities;
@@ -579,6 +580,7 @@ impl BuildAdapter for ExpoAdapter {
     }
 
     fn detect(&self, path: &Path) -> Detection {
+        debug!(path = %path.display(), "detecting Expo project");
         if !file_exists(path, "package.json") {
             return Detection::No;
         }
@@ -660,7 +662,13 @@ impl BuildAdapter for ExpoAdapter {
         Ok(status)
     }
 
+    #[instrument(skip(self, ctx), fields(framework = "expo", platform = %ctx.platform.as_str()))]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
+        info!(
+            platform = %ctx.platform.as_str(),
+            use_eas = self.use_eas_build,
+            "building Expo project"
+        );
         if self.use_eas_build {
             self.build_with_eas(ctx).await
         } else {

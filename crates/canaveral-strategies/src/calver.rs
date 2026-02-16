@@ -9,6 +9,7 @@
 use chrono::{Datelike, Local};
 
 use canaveral_core::error::{Result, VersionError};
+use tracing::{debug, instrument};
 
 use crate::traits::VersionStrategy;
 use crate::types::{BumpType, VersionComponents};
@@ -190,6 +191,7 @@ impl VersionStrategy for CalVerStrategy {
         "calver"
     }
 
+    #[instrument(skip(self), fields(strategy = "calver"))]
     fn parse(&self, version: &str) -> Result<VersionComponents> {
         self.parse_internal(version)
     }
@@ -217,6 +219,7 @@ impl VersionStrategy for CalVerStrategy {
         }
     }
 
+    #[instrument(skip(self), fields(strategy = "calver", current = %self.format(current), bump = ?bump_type))]
     fn bump(&self, current: &VersionComponents, bump_type: BumpType) -> Result<VersionComponents> {
         let (date_major, date_minor) = self.current_date_components();
 
@@ -242,26 +245,18 @@ impl VersionStrategy for CalVerStrategy {
                 // For other formats, check if we're in a new period
                 if self.is_current_period(current) {
                     // Same period, increment micro version
-                    match bump_type {
-                        BumpType::Major | BumpType::Minor => {
-                            // Major/minor bumps in CalVer just increment micro
-                            Ok(VersionComponents::new(
-                                current.major,
-                                current.minor,
-                                current.patch + 1,
-                            ))
-                        }
-                        _ => {
-                            Ok(VersionComponents::new(
-                                current.major,
-                                current.minor,
-                                current.patch + 1,
-                            ))
-                        }
-                    }
+                    let result = VersionComponents::new(
+                        current.major,
+                        current.minor,
+                        current.patch + 1,
+                    );
+                    debug!(result = %self.format(&result), "same period, incremented micro");
+                    Ok(result)
                 } else {
                     // New period, reset micro to 0
-                    Ok(VersionComponents::new(date_major, date_minor, 0))
+                    let result = VersionComponents::new(date_major, date_minor, 0);
+                    debug!(result = %self.format(&result), "new period, reset micro");
+                    Ok(result)
                 }
             }
         }

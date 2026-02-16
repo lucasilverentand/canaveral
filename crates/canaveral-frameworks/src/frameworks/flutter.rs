@@ -6,6 +6,7 @@ use std::path::Path;
 use std::process::Command;
 
 use async_trait::async_trait;
+use tracing::{debug, info, instrument};
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
 #[cfg(test)]
@@ -113,6 +114,7 @@ impl BuildAdapter for FlutterAdapter {
     }
 
     fn detect(&self, path: &Path) -> Detection {
+        debug!(path = %path.display(), "detecting Flutter project");
         // Must have pubspec.yaml
         if !file_exists(path, "pubspec.yaml") {
             return Detection::No;
@@ -193,7 +195,9 @@ impl BuildAdapter for FlutterAdapter {
         Ok(status)
     }
 
+    #[instrument(skip(self, ctx), fields(framework = "flutter", platform = %ctx.platform.as_str()))]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
+        info!(platform = %ctx.platform.as_str(), profile = ?ctx.profile, "building Flutter project");
         let mut args = vec!["build"];
 
         // Platform-specific subcommand

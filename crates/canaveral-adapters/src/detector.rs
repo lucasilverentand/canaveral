@@ -2,15 +2,20 @@
 
 use std::path::Path;
 
+use tracing::{debug, instrument};
+
 use canaveral_core::error::Result;
 use canaveral_core::types::PackageInfo;
 
 use crate::registry::AdapterRegistry;
 
 /// Detect packages in a directory
+#[instrument(skip_all, fields(path = %path.display()))]
 pub fn detect_packages(path: &Path) -> Result<Vec<PackageInfo>> {
     let registry = AdapterRegistry::new();
-    detect_packages_with_registry(path, &registry)
+    let packages = detect_packages_with_registry(path, &registry)?;
+    debug!(count = packages.len(), "detected packages");
+    Ok(packages)
 }
 
 /// Detect packages using a custom registry
@@ -32,12 +37,14 @@ pub fn detect_packages_with_registry(
 }
 
 /// Detect packages recursively in a directory tree
+#[instrument(skip_all, fields(path = %path.display(), max_depth))]
 pub fn detect_packages_recursive(path: &Path, max_depth: usize) -> Result<Vec<PackageInfo>> {
     let registry = AdapterRegistry::new();
     let mut packages = Vec::new();
 
     detect_recursive_inner(path, &registry, 0, max_depth, &mut packages)?;
 
+    debug!(count = packages.len(), "detected packages recursively");
     Ok(packages)
 }
 

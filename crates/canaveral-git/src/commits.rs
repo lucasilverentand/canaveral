@@ -2,15 +2,19 @@
 
 use chrono::{TimeZone, Utc};
 use git2::{Oid, Sort};
+use tracing::{debug, instrument};
 
 use crate::repository::{GitRepo, Result};
 use crate::types::CommitInfo;
 
 impl GitRepo {
     /// Get commits since a specific commit hash
+    #[instrument(skip(self), fields(since))]
     pub fn commits_since(&self, since: &str) -> Result<Vec<CommitInfo>> {
         let since_oid = self.repo.revparse_single(since)?.id();
-        self.commits_since_oid(since_oid)
+        let commits = self.commits_since_oid(since_oid)?;
+        debug!(count = commits.len(), since, "retrieved commits since ref");
+        Ok(commits)
     }
 
     /// Get commits since a specific OID
@@ -34,16 +38,20 @@ impl GitRepo {
     }
 
     /// Get commits since a tag
+    #[instrument(skip(self), fields(tag_name))]
     pub fn commits_since_tag(&self, tag_name: &str) -> Result<Vec<CommitInfo>> {
         // Try to find the tag
         let tag_ref = format!("refs/tags/{}", tag_name);
         let reference = self.repo.find_reference(&tag_ref)?;
         let target = reference.peel_to_commit()?;
 
-        self.commits_since_oid(target.id())
+        let commits = self.commits_since_oid(target.id())?;
+        debug!(count = commits.len(), tag_name, "retrieved commits since tag");
+        Ok(commits)
     }
 
     /// Get all commits on the current branch
+    #[instrument(skip(self))]
     pub fn all_commits(&self) -> Result<Vec<CommitInfo>> {
         let head = self.head_commit()?;
 
@@ -59,10 +67,12 @@ impl GitRepo {
             commits.push(commit_to_info(&commit));
         }
 
+        debug!(count = commits.len(), "retrieved all commits");
         Ok(commits)
     }
 
     /// Get the most recent N commits
+    #[instrument(skip(self), fields(count))]
     pub fn recent_commits(&self, count: usize) -> Result<Vec<CommitInfo>> {
         let head = self.head_commit()?;
 
@@ -78,6 +88,7 @@ impl GitRepo {
             commits.push(commit_to_info(&commit));
         }
 
+        debug!(requested = count, returned = commits.len(), "retrieved recent commits");
         Ok(commits)
     }
 

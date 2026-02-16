@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
+use tracing::{info, instrument};
 
 use canaveral_core::monorepo::graph::DependencyGraph;
 
@@ -42,6 +43,7 @@ impl TaskDag {
     /// depends on package A, then:
     ///   B:test -> B:build -> A:build (if build has depends_on_packages)
     ///   A:test -> A:build
+    #[instrument(skip_all, fields(packages = packages.len(), target_tasks = target_tasks.len()))]
     pub fn build(
         package_graph: &DependencyGraph,
         pipeline: &HashMap<String, TaskDefinition>,
@@ -137,6 +139,12 @@ impl TaskDag {
             }
         }
 
+        info!(
+            task_count = nodes.len(),
+            wave_count = waves.len(),
+            "task DAG built"
+        );
+
         Ok(Self {
             nodes,
             waves,
@@ -145,6 +153,7 @@ impl TaskDag {
     }
 
     /// Topological sort using Kahn's algorithm
+    #[instrument(skip_all, fields(node_count = nodes.len()))]
     fn topological_sort(nodes: &HashMap<TaskId, TaskNode>) -> Result<Vec<TaskId>, DagError> {
         let mut in_degree: HashMap<TaskId, usize> = HashMap::new();
         let mut queue: VecDeque<TaskId> = VecDeque::new();
@@ -191,6 +200,7 @@ impl TaskDag {
     }
 
     /// Compute execution waves (groups of tasks that can run in parallel)
+    #[instrument(skip_all, fields(node_count = nodes.len()))]
     fn compute_waves(
         nodes: &HashMap<TaskId, TaskNode>,
         sorted: &[TaskId],

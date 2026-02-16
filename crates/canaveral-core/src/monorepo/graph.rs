@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, warn};
 
 use crate::error::{Result, WorkflowError};
 
@@ -37,6 +38,7 @@ pub struct DependencyGraph {
 impl DependencyGraph {
     /// Build a dependency graph from discovered packages
     pub fn build(packages: &[DiscoveredPackage]) -> Result<Self> {
+        debug!(packages = packages.len(), "building dependency graph");
         let mut nodes: HashMap<String, PackageNode> = HashMap::new();
 
         // Create initial nodes
@@ -84,6 +86,18 @@ impl DependencyGraph {
                     };
                 }
             }
+        }
+
+        let edge_count: usize = nodes.values().map(|n| n.dependencies.len()).sum();
+        info!(
+            packages = nodes.len(),
+            edges = edge_count,
+            max_depth = nodes.values().map(|n| n.depth).max().unwrap_or(0),
+            cycles = cycles.len(),
+            "dependency graph built"
+        );
+        if !cycles.is_empty() {
+            warn!(cycles = ?cycles, "circular dependencies detected");
         }
 
         Ok(Self {

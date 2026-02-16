@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 // Re-export config from types
 pub use crate::types::MicrosoftStoreConfig;
@@ -512,6 +512,7 @@ impl StoreAdapter for MicrosoftStore {
             && !self.config.tenant_id.is_empty()
     }
 
+    #[instrument(skip(self), fields(store = "Microsoft Store", path = %path.display()))]
     async fn validate_artifact(&self, path: &Path) -> Result<ValidationResult> {
         let app_info = Self::extract_package_info(path).await?;
 
@@ -561,6 +562,7 @@ impl StoreAdapter for MicrosoftStore {
         }
     }
 
+    #[instrument(skip(self, options), fields(store = "Microsoft Store", path = %path.display()))]
     async fn upload(&self, path: &Path, options: &UploadOptions) -> Result<UploadResult> {
         // Validate first
         let validation = self.validate_artifact(path).await?;
@@ -627,6 +629,7 @@ impl StoreAdapter for MicrosoftStore {
         })
     }
 
+    #[instrument(skip(self), fields(store = "Microsoft Store"))]
     async fn get_build_status(&self, build_id: &str) -> Result<BuildStatus> {
         let status = self.get_submission_status(build_id).await?;
 

@@ -8,6 +8,7 @@ use std::process::Command;
 
 use async_trait::async_trait;
 use plist::Value as PlistValue;
+use tracing::{debug, info, instrument};
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
 use crate::capabilities::Capabilities;
@@ -416,6 +417,7 @@ impl BuildAdapter for NativeIosAdapter {
     }
 
     fn detect(&self, path: &Path) -> Detection {
+        debug!(path = %path.display(), "detecting native iOS project");
         // Look for .xcodeproj or .xcworkspace
         if let Ok(entries) = std::fs::read_dir(path) {
             for entry in entries.flatten() {
@@ -523,8 +525,10 @@ impl BuildAdapter for NativeIosAdapter {
         Ok(status)
     }
 
+    #[instrument(skip(self, ctx), fields(framework = "native-ios", platform = "ios"))]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
         let path = &ctx.path;
+        info!(profile = ?ctx.profile, "building native iOS project");
 
         // Find Xcode project
         let xcode_project = self.find_xcode_project(path)?;

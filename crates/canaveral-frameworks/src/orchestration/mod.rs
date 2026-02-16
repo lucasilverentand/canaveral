@@ -13,6 +13,8 @@ pub use config::OrchestratorConfig;
 use std::path::Path;
 use std::time::Instant;
 
+use tracing::{info, instrument};
+
 use crate::artifacts::Artifact;
 use crate::context::BuildContext;
 use crate::error::{FrameworkError, Result};
@@ -75,6 +77,7 @@ impl Orchestrator {
     // -------------------------------------------------------------------------
 
     /// Build a project
+    #[instrument(skip(self, ctx), fields(path = %ctx.path.display(), platform = %ctx.platform.as_str()))]
     pub async fn build(&self, ctx: &BuildContext) -> Result<BuildResult> {
         let start = Instant::now();
 
@@ -186,10 +189,18 @@ impl Orchestrator {
     // -------------------------------------------------------------------------
 
     /// Detect frameworks in a project
+    #[instrument(skip(self), fields(path = %path.display()))]
     pub fn detect(&self, path: &Path) -> DetectResult {
         let build = self.registry.detect_build(path);
         let test = self.registry.detect_test(path);
         let ota = self.registry.detect_ota(path);
+
+        info!(
+            build_count = build.len(),
+            test_count = test.len(),
+            ota_count = ota.len(),
+            "framework detection complete"
+        );
 
         DetectResult { build, test, ota }
     }

@@ -9,6 +9,7 @@
 use chrono::{Datelike, Local};
 
 use canaveral_core::error::{Result, VersionError};
+use tracing::instrument;
 
 use crate::traits::VersionStrategy;
 use crate::types::{BumpType, VersionComponents};
@@ -87,6 +88,7 @@ impl VersionStrategy for BuildNumberStrategy {
         "buildnum"
     }
 
+    #[instrument(skip(self), fields(strategy = "buildnum"))]
     fn parse(&self, version: &str) -> Result<VersionComponents> {
         let parts: Vec<&str> = version.split('.').collect();
 
@@ -175,6 +177,7 @@ impl VersionStrategy for BuildNumberStrategy {
         }
     }
 
+    #[instrument(skip(self), fields(strategy = "buildnum", current_build = current.patch))]
     fn bump(&self, current: &VersionComponents, _bump_type: BumpType) -> Result<VersionComponents> {
         match &self.format {
             BuildNumberFormat::Simple => {

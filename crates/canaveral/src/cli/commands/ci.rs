@@ -2,6 +2,7 @@
 
 use clap::{Args, Subcommand};
 use console::style;
+use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_core::templates::{CITemplateRegistry, TemplateOptions};
@@ -76,6 +77,12 @@ pub struct CIValidateCommand {
 
 impl CICommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let action_name = match &self.action {
+            CIAction::Generate(_) => "generate",
+            CIAction::Run(_) => "run",
+            CIAction::Validate(_) => "validate",
+        };
+        info!(action = action_name, "executing ci command");
         match &self.action {
             CIAction::Generate(cmd) => cmd.execute(cli),
             CIAction::Run(cmd) => cmd.execute(cli),
