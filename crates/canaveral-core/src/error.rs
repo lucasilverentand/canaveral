@@ -37,6 +37,10 @@ pub enum CanaveralError {
     #[error(transparent)]
     Hook(#[from] HookError),
 
+    /// Task orchestration errors
+    #[error(transparent)]
+    Task(#[from] TaskError),
+
     /// IO errors
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -260,6 +264,34 @@ pub enum HookError {
     /// Invalid hook configuration
     #[error("Invalid hook configuration: {0}")]
     InvalidConfig(String),
+}
+
+/// Task orchestration errors
+#[derive(Debug, Error)]
+pub enum TaskError {
+    /// Task execution failed
+    #[error("Task '{task}' in package '{package}' failed: {reason}")]
+    ExecutionFailed {
+        task: String,
+        package: String,
+        reason: String,
+    },
+
+    /// Cyclic dependency in task graph
+    #[error("Cyclic dependency detected in task graph: {0}")]
+    CyclicDependency(String),
+
+    /// Task not found in pipeline
+    #[error("Task '{0}' not found in pipeline configuration")]
+    TaskNotFound(String),
+
+    /// No packages to run tasks on
+    #[error("No packages found to run tasks on")]
+    NoPackages,
+
+    /// Cache error
+    #[error("Task cache error: {0}")]
+    CacheError(String),
 }
 
 impl CanaveralError {

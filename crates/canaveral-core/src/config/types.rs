@@ -46,6 +46,22 @@ pub struct Config {
     /// Metadata management configuration
     #[serde(default)]
     pub metadata: MetadataConfig,
+
+    /// Task orchestration configuration
+    #[serde(default)]
+    pub tasks: TasksConfig,
+
+    /// CI/CD configuration
+    #[serde(default)]
+    pub ci: CIConfig,
+
+    /// PR validation configuration
+    #[serde(default)]
+    pub pr: PrConfig,
+
+    /// Release notes configuration
+    #[serde(default)]
+    pub release_notes: ReleaseNotesConfig,
 }
 
 impl Default for Config {
@@ -62,6 +78,10 @@ impl Default for Config {
             signing: SigningConfig::default(),
             stores: StoresConfig::default(),
             metadata: MetadataConfig::default(),
+            tasks: TasksConfig::default(),
+            ci: CIConfig::default(),
+            pr: PrConfig::default(),
+            release_notes: ReleaseNotesConfig::default(),
         }
     }
 }
@@ -743,6 +763,200 @@ pub struct GooglePlayStoreConfig {
     /// Default release track
     #[serde(default)]
     pub default_track: Option<String>,
+}
+
+/// Task orchestration configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TasksConfig {
+    /// Maximum concurrent tasks
+    pub concurrency: usize,
+
+    /// Task pipeline definitions
+    #[serde(default)]
+    pub pipeline: HashMap<String, PipelineTask>,
+
+    /// Cache configuration
+    #[serde(default)]
+    pub cache: CacheConfig,
+}
+
+impl Default for TasksConfig {
+    fn default() -> Self {
+        Self {
+            concurrency: 4,
+            pipeline: HashMap::new(),
+            cache: CacheConfig::default(),
+        }
+    }
+}
+
+/// A task in the pipeline configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PipelineTask {
+    /// Shell command to execute
+    pub command: Option<String>,
+
+    /// Tasks in the same package that must complete first
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+
+    /// Whether the same task must complete in dependency packages first
+    #[serde(default)]
+    pub depends_on_packages: bool,
+
+    /// Output glob patterns (for caching)
+    #[serde(default)]
+    pub outputs: Vec<String>,
+
+    /// Input glob patterns (for cache key computation)
+    #[serde(default)]
+    pub inputs: Vec<String>,
+
+    /// Environment variables
+    #[serde(default)]
+    pub env: HashMap<String, String>,
+
+    /// Whether this is a persistent/long-running task
+    #[serde(default)]
+    pub persistent: bool,
+}
+
+impl Default for PipelineTask {
+    fn default() -> Self {
+        Self {
+            command: None,
+            depends_on: Vec::new(),
+            depends_on_packages: false,
+            outputs: Vec::new(),
+            inputs: Vec::new(),
+            env: HashMap::new(),
+            persistent: false,
+        }
+    }
+}
+
+/// Cache configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CacheConfig {
+    /// Whether caching is enabled
+    pub enabled: bool,
+
+    /// Cache directory
+    pub dir: PathBuf,
+}
+
+impl Default for CacheConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            dir: PathBuf::from(".canaveral/cache"),
+        }
+    }
+}
+
+/// CI/CD configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CIConfig {
+    /// CI platform (github, gitlab)
+    pub platform: String,
+
+    /// CI mode (native, traditional)
+    pub mode: String,
+
+    /// Tasks to run on PR
+    #[serde(default)]
+    pub on_pr: Vec<String>,
+
+    /// Tasks to run on push to main
+    #[serde(default)]
+    pub on_push_main: Vec<String>,
+
+    /// Tasks to run on tag
+    #[serde(default)]
+    pub on_tag: Vec<String>,
+}
+
+impl Default for CIConfig {
+    fn default() -> Self {
+        Self {
+            platform: "github".to_string(),
+            mode: "native".to_string(),
+            on_pr: vec!["test".to_string(), "lint".to_string()],
+            on_push_main: vec!["test".to_string(), "release".to_string()],
+            on_tag: vec!["publish".to_string()],
+        }
+    }
+}
+
+/// PR validation configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PrConfig {
+    /// Branching model (trunk-based, gitflow, custom)
+    pub branching_model: String,
+
+    /// Checks to run on PR validation
+    #[serde(default)]
+    pub checks: Vec<String>,
+
+    /// Whether to require changelog entry
+    pub require_changelog: bool,
+
+    /// Whether to require conventional commits
+    pub require_conventional_commits: bool,
+}
+
+impl Default for PrConfig {
+    fn default() -> Self {
+        Self {
+            branching_model: "trunk-based".to_string(),
+            checks: vec![
+                "tests".to_string(),
+                "lint".to_string(),
+                "commit-format".to_string(),
+                "version-conflict".to_string(),
+            ],
+            require_changelog: false,
+            require_conventional_commits: true,
+        }
+    }
+}
+
+/// Release notes generation configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ReleaseNotesConfig {
+    /// Whether to categorize changes
+    pub categorize: bool,
+
+    /// Whether to include contributor list
+    pub include_contributors: bool,
+
+    /// Whether to include migration guide for breaking changes
+    pub include_migration_guide: bool,
+
+    /// Whether to auto-update store metadata with release notes
+    pub auto_update_store_metadata: bool,
+
+    /// Locales for release notes
+    #[serde(default)]
+    pub locales: Vec<String>,
+}
+
+impl Default for ReleaseNotesConfig {
+    fn default() -> Self {
+        Self {
+            categorize: true,
+            include_contributors: true,
+            include_migration_guide: true,
+            auto_update_store_metadata: false,
+            locales: vec!["en-US".to_string()],
+        }
+    }
 }
 
 #[cfg(test)]
