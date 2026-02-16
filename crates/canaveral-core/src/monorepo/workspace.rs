@@ -89,34 +89,12 @@ impl Workspace {
 
     /// Detect workspace type and configuration from a directory
     pub fn detect(path: &Path) -> Result<Option<Self>> {
-        // Try each workspace type in order of specificity
-        if let Some(ws) = Self::detect_cargo(path)? {
-            return Ok(Some(ws));
-        }
-        if let Some(ws) = Self::detect_pnpm(path)? {
-            return Ok(Some(ws));
-        }
-        if let Some(ws) = Self::detect_lerna(path)? {
-            return Ok(Some(ws));
-        }
-        if let Some(ws) = Self::detect_nx(path)? {
-            return Ok(Some(ws));
-        }
-        if let Some(ws) = Self::detect_turbo(path)? {
-            return Ok(Some(ws));
-        }
-        if let Some(ws) = Self::detect_npm_yarn(path)? {
-            return Ok(Some(ws));
-        }
-        if let Some(ws) = Self::detect_python(path)? {
-            return Ok(Some(ws));
-        }
-
-        Ok(None)
+        let registry = super::detector::WorkspaceDetectorRegistry::new();
+        registry.detect(path)
     }
 
     /// Detect Cargo workspace
-    fn detect_cargo(path: &Path) -> Result<Option<Self>> {
+    pub(crate) fn detect_cargo(path: &Path) -> Result<Option<Self>> {
         let cargo_toml = path.join("Cargo.toml");
         if !cargo_toml.exists() {
             return Ok(None);
@@ -162,7 +140,7 @@ impl Workspace {
     }
 
     /// Detect pnpm workspace
-    fn detect_pnpm(path: &Path) -> Result<Option<Self>> {
+    pub(crate) fn detect_pnpm(path: &Path) -> Result<Option<Self>> {
         let pnpm_workspace = path.join("pnpm-workspace.yaml");
         if !pnpm_workspace.exists() {
             return Ok(None);
@@ -185,7 +163,7 @@ impl Workspace {
     }
 
     /// Detect Lerna monorepo
-    fn detect_lerna(path: &Path) -> Result<Option<Self>> {
+    pub(crate) fn detect_lerna(path: &Path) -> Result<Option<Self>> {
         let lerna_json = path.join("lerna.json");
         if !lerna_json.exists() {
             return Ok(None);
@@ -208,7 +186,7 @@ impl Workspace {
     }
 
     /// Detect Nx monorepo
-    fn detect_nx(path: &Path) -> Result<Option<Self>> {
+    pub(crate) fn detect_nx(path: &Path) -> Result<Option<Self>> {
         let nx_json = path.join("nx.json");
         if !nx_json.exists() {
             return Ok(None);
@@ -225,7 +203,7 @@ impl Workspace {
     }
 
     /// Detect Turborepo
-    fn detect_turbo(path: &Path) -> Result<Option<Self>> {
+    pub(crate) fn detect_turbo(path: &Path) -> Result<Option<Self>> {
         let turbo_json = path.join("turbo.json");
         if !turbo_json.exists() {
             return Ok(None);
@@ -268,7 +246,7 @@ impl Workspace {
     }
 
     /// Detect npm or Yarn workspaces
-    fn detect_npm_yarn(path: &Path) -> Result<Option<Self>> {
+    pub(crate) fn detect_npm_yarn(path: &Path) -> Result<Option<Self>> {
         let package_json = path.join("package.json");
         if !package_json.exists() {
             return Ok(None);
@@ -325,7 +303,7 @@ impl Workspace {
     }
 
     /// Detect Python monorepo
-    fn detect_python(path: &Path) -> Result<Option<Self>> {
+    pub(crate) fn detect_python(path: &Path) -> Result<Option<Self>> {
         let pyproject = path.join("pyproject.toml");
         if !pyproject.exists() {
             return Ok(None);

@@ -2,6 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -181,6 +182,76 @@ impl PublishCallback for NoOpCallback {
     fn on_publish_start(&self, _package: &str, _version: &str) {}
     fn on_publish_complete(&self, _package: &str, _result: &PackagePublishResult) {}
     fn on_skip(&self, _package: &str, _reason: &SkipReason) {}
+}
+
+/// Registry that broadcasts publish events to multiple callbacks
+pub struct PublishCallbackRegistry {
+    callbacks: Vec<Arc<dyn PublishCallback>>,
+}
+
+impl PublishCallbackRegistry {
+    /// Create a new empty registry
+    pub fn new() -> Self {
+        Self {
+            callbacks: Vec::new(),
+        }
+    }
+
+    /// Register a callback
+    pub fn register<C: PublishCallback + 'static>(&mut self, callback: C) {
+        self.callbacks.push(Arc::new(callback));
+    }
+
+    /// Notify all callbacks that a publish is starting
+    pub fn on_publish_start(&self, package: &str, version: &str) {
+        for cb in &self.callbacks {
+            cb.on_publish_start(package, version);
+        }
+    }
+
+    /// Notify all callbacks that a publish completed
+    pub fn on_publish_complete(&self, package: &str, result: &PackagePublishResult) {
+        for cb in &self.callbacks {
+            cb.on_publish_complete(package, result);
+        }
+    }
+
+    /// Notify all callbacks that a package was skipped
+    pub fn on_skip(&self, package: &str, reason: &SkipReason) {
+        for cb in &self.callbacks {
+            cb.on_skip(package, reason);
+        }
+    }
+
+    /// Get all registered callbacks
+    pub fn all(&self) -> &[Arc<dyn PublishCallback>] {
+        &self.callbacks
+    }
+
+    /// Check if the registry has no callbacks
+    pub fn is_empty(&self) -> bool {
+        self.callbacks.is_empty()
+    }
+}
+
+impl Default for PublishCallbackRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PublishCallback for PublishCallbackRegistry {
+    fn on_publish_start(&self, package: &str, version: &str) {
+        self.on_publish_start(package, version);
+    }
+
+    fn on_publish_complete(&self, package: &str, result: &PackagePublishResult) {
+        self.on_publish_complete(package, result);
+    }
+
+    fn on_skip(&self, package: &str, reason: &SkipReason) {
+        self.on_skip(package, reason);
+    }
 }
 
 /// Publisher function type
@@ -787,5 +858,106 @@ mod tests {
         assert_eq!(result.failed().len(), 1);
         assert_eq!(result.successful()[0].package, "a");
         assert_eq!(result.failed()[0].package, "b");
+    }
+
+    #[test]
+    fn test_empty_registry() {
+        let registry = PublishCallbackRegistry::new();
+        assert!(registry.is_empty());
+        assert!(registry.all().is_empty());
+
+        // Should not panic with no callbacks
+        registry.on_publish_start("pkg", "1.0.0");
+        registry.on_publish_complete(
+            "pkg",
+            &PackagePublishResult {
+                package: "pkg".to_string(),
+                success: true,
+                error: None,
+                duration: Duration::from_secs(1),
+                registry_url: None,
+            },
+        );
+        registry.on_skip("pkg", &SkipReason::Private);
+    }
+
+    #[test]
+    fn test_register_and_broadcast() {
+        use std::sync::Mutex;
+
+        // Shared state across callbacks
+        let starts: Arc<Mutex<Vec<(String, String)>>> = Arc::new(Mutex::new(Vec::new()));
+        let completes: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let skips: Arc<Mutex<Vec<(String, SkipReason)>>> = Arc::new(Mutex::new(Vec::new()));
+
+        struct SharedCallback {
+            starts: Arc<Mutex<Vec<(String, String)>>>,
+            completes: Arc<Mutex<Vec<String>>>,
+            skips: Arc<Mutex<Vec<(String, SkipReason)>>>,
+        }
+
+        impl PublishCallback for SharedCallback {
+            fn on_publish_start(&self, package: &str, version: &str) {
+                self.starts
+                    .lock()
+                    .unwrap()
+                    .push((package.to_string(), version.to_string()));
+            }
+            fn on_publish_complete(&self, package: &str, _result: &PackagePublishResult) {
+                self.completes.lock().unwrap().push(package.to_string());
+            }
+            fn on_skip(&self, package: &str, reason: &SkipReason) {
+                self.skips
+                    .lock()
+                    .unwrap()
+                    .push((package.to_string(), reason.clone()));
+            }
+        }
+
+        let mut registry = PublishCallbackRegistry::new();
+
+        // Two callbacks sharing the same state — each event increments counts twice
+        registry.register(SharedCallback {
+            starts: starts.clone(),
+            completes: completes.clone(),
+            skips: skips.clone(),
+        });
+        registry.register(SharedCallback {
+            starts: starts.clone(),
+            completes: completes.clone(),
+            skips: skips.clone(),
+        });
+
+        assert!(!registry.is_empty());
+        assert_eq!(registry.all().len(), 2);
+
+        // Broadcast events
+        registry.on_publish_start("core", "2.0.0");
+        registry.on_publish_complete(
+            "core",
+            &PackagePublishResult {
+                package: "core".to_string(),
+                success: true,
+                error: None,
+                duration: Duration::from_secs(1),
+                registry_url: None,
+            },
+        );
+        registry.on_skip("internal", &SkipReason::Private);
+
+        // Both callbacks received all events (2 callbacks x 1 event each = 2 entries)
+        let starts = starts.lock().unwrap();
+        assert_eq!(starts.len(), 2);
+        assert!(starts.iter().all(|(p, v)| p == "core" && v == "2.0.0"));
+
+        let completes = completes.lock().unwrap();
+        assert_eq!(completes.len(), 2);
+        assert!(completes.iter().all(|p| p == "core"));
+
+        let skips = skips.lock().unwrap();
+        assert_eq!(skips.len(), 2);
+        assert!(skips
+            .iter()
+            .all(|(p, r)| p == "internal" && *r == SkipReason::Private));
     }
 }

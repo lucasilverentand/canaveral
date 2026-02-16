@@ -9,6 +9,7 @@
 //! - Coordinated publishing with failure handling
 
 pub mod changes;
+pub mod detector;
 pub mod discovery;
 pub mod graph;
 pub mod publishing;
@@ -24,4 +25,5 @@ pub use publishing::{
     SkippedPackage,
 };
 pub use versioning::{VersionBump, VersioningMode, VersioningStrategy};
+pub use detector::{WorkspaceDetector, WorkspaceDetectorRegistry};
 pub use workspace::{Workspace, WorkspaceType};
