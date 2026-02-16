@@ -6,10 +6,10 @@ pub mod output;
 use clap::{Parser, Subcommand};
 
 use commands::{
-    BuildCommand, ChangelogCommand, CompletionsCommand, DoctorCommand, FirebaseCommand,
-    InitCommand, MatchCommand, MetadataCommand, PublishCommand, ReleaseCommand, ScreenshotsCommand,
-    SigningCommand, StatusCommand, TestCommand, TestFlightCommand, ValidateCommand,
-    VersionCommand,
+    BuildCommand, CacheCommand, ChangelogCommand, CICommand, CompletionsCommand, DoctorCommand,
+    FirebaseCommand, InitCommand, MatchCommand, MetadataCommand, PrCommand, PublishCommand,
+    ReleaseCommand, RunCommand, ScreenshotsCommand, SigningCommand, StatusCommand, TestCommand,
+    TestFlightCommand, ValidateCommand, VersionCommand,
 };
 
 /// Canaveral - Universal release management CLI
@@ -101,6 +101,19 @@ pub enum Commands {
 
     /// Certificate and profile synchronization (match)
     Match(MatchCommand),
+
+    /// Run tasks across the workspace
+    Run(RunCommand),
+
+    /// Task cache management
+    Cache(CacheCommand),
+
+    /// CI pipeline management
+    #[command(name = "ci")]
+    CI(CICommand),
+
+    /// Pull request validation and preview
+    Pr(PrCommand),
 }
 
 impl Cli {
@@ -129,6 +142,10 @@ impl Cli {
             Commands::Test(ref cmd) => cmd.execute(&self),
             Commands::Screenshots(ref cmd) => cmd.execute(&self),
             Commands::Match(ref cmd) => cmd.execute(&self),
+            Commands::Run(ref cmd) => cmd.execute(&self),
+            Commands::Cache(ref cmd) => cmd.execute(&self),
+            Commands::CI(ref cmd) => cmd.execute(&self),
+            Commands::Pr(ref cmd) => cmd.execute(&self),
         }
     }
 }

@@ -5,9 +5,11 @@
 pub mod formatter;
 pub mod generator;
 pub mod parser;
+pub mod release_notes;
 pub mod types;
 
 pub use generator::ChangelogGenerator;
 pub use parser::{CommitParser, ConventionalParser};
+pub use release_notes::{ReleaseNotesGenerator, ReleaseNotes};
 pub use types::ParsedCommit;
 pub use types::{ChangelogEntry, Section};

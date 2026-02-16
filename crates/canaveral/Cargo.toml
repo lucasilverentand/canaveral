@@ -26,6 +26,7 @@ canaveral-signing = { workspace = true }
 canaveral-stores = { workspace = true }
 canaveral-metadata = { workspace = true, features = ["sync"] }
 canaveral-frameworks = { workspace = true }
+canaveral-tasks = { workspace = true }
 
 clap = { workspace = true }
 clap_complete = { workspace = true }

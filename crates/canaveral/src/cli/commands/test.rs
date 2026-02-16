@@ -63,6 +63,18 @@ pub struct TestCommand {
     /// Perform a dry run (validate but don't run tests)
     #[arg(long)]
     pub dry_run: bool,
+
+    /// Use smart test selection (only run tests covering changed code)
+    #[arg(long)]
+    pub smart: bool,
+
+    /// Only test affected packages (requires monorepo workspace)
+    #[arg(long)]
+    pub affected: bool,
+
+    /// Base ref for affected/smart detection (default: main)
+    #[arg(long, default_value = "main")]
+    pub base: String,
 }
 
 /// Platform argument

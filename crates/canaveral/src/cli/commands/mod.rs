@@ -1,15 +1,19 @@
 //! CLI commands
 
 mod build;
+mod cache;
 mod changelog;
+mod ci;
 mod completions;
 mod doctor;
 mod firebase;
 mod init;
 mod match_cmd;
 mod metadata;
+mod pr;
 mod publish;
 mod release;
+mod run;
 mod screenshots;
 mod signing;
 mod signing_team;
@@ -20,15 +24,19 @@ mod validate;
 mod version;
 
 pub use build::BuildCommand;
+pub use cache::CacheCommand;
 pub use changelog::ChangelogCommand;
+pub use ci::CICommand;
 pub use completions::CompletionsCommand;
 pub use doctor::DoctorCommand;
 pub use firebase::FirebaseCommand;
 pub use init::InitCommand;
 pub use match_cmd::MatchCommand;
 pub use metadata::MetadataCommand;
+pub use pr::PrCommand;
 pub use publish::PublishCommand;
 pub use release::ReleaseCommand;
+pub use run::RunCommand;
 pub use screenshots::ScreenshotsCommand;
 pub use signing::SigningCommand;
 pub use status::StatusCommand;
