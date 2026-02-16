@@ -8,9 +8,9 @@ use tracing::info;
 
 use commands::{
     BuildCommand, CacheCommand, ChangelogCommand, CICommand, CompletionsCommand, DoctorCommand,
-    FirebaseCommand, InitCommand, MatchCommand, MetadataCommand, PrCommand, PublishCommand,
-    ReleaseCommand, RunCommand, ScreenshotsCommand, SigningCommand, StatusCommand, TestCommand,
-    TestFlightCommand, ValidateCommand, VersionCommand,
+    FirebaseCommand, HooksCommand, InitCommand, MatchCommand, MetadataCommand, PrCommand,
+    PublishCommand, ReleaseCommand, RunCommand, ScreenshotsCommand, SigningCommand, StatusCommand,
+    TestCommand, TestFlightCommand, ValidateCommand, VersionCommand,
 };
 
 /// Canaveral - Universal release management CLI
@@ -115,6 +115,9 @@ pub enum Commands {
 
     /// Pull request validation and preview
     Pr(PrCommand),
+
+    /// Git hook management (install, uninstall, run, status)
+    Hooks(HooksCommand),
 }
 
 impl Cli {
@@ -148,6 +151,7 @@ impl Cli {
             Commands::Cache(_) => "cache",
             Commands::CI(_) => "ci",
             Commands::Pr(_) => "pr",
+            Commands::Hooks(_) => "hooks",
         };
         info!(command = command_name, verbose = self.verbose, quiet = self.quiet, "executing command");
 
@@ -173,6 +177,7 @@ impl Cli {
             Commands::Cache(ref cmd) => cmd.execute(&self),
             Commands::CI(ref cmd) => cmd.execute(&self),
             Commands::Pr(ref cmd) => cmd.execute(&self),
+            Commands::Hooks(ref cmd) => cmd.execute(&self),
         }
     }
 }

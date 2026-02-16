@@ -91,7 +91,36 @@ impl InitCommand {
         };
 
         // Write config
-        std::fs::write(&config_path, content)?;
+        std::fs::write(&config_path, &content)?;
+
+        // Auto-install git hooks if configured
+        let parsed_config: canaveral_core::config::Config = if format == "toml" {
+            toml::from_str(&content)?
+        } else {
+            serde_yaml::from_str(&content)?
+        };
+        if parsed_config.git_hooks.auto_install {
+            if let Ok(repo_root) = find_git_root(&cwd) {
+                match canaveral_git::hooks::install_all(&repo_root) {
+                    Ok(()) => {
+                        if !cli.quiet {
+                            println!(
+                                "{} Installed git hooks (commit-msg, pre-commit, pre-push)",
+                                style("✓").green().bold()
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        if !cli.quiet {
+                            println!(
+                                "{} Could not install git hooks: {e}",
+                                style("⚠").yellow().bold()
+                            );
+                        }
+                    }
+                }
+            }
+        }
 
         if !cli.quiet {
             println!(
@@ -107,5 +136,17 @@ impl InitCommand {
         }
 
         Ok(())
+    }
+}
+
+fn find_git_root(start: &std::path::Path) -> anyhow::Result<PathBuf> {
+    let mut path = start;
+    loop {
+        if path.join(".git").exists() {
+            return Ok(path.to_path_buf());
+        }
+        path = path
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Not inside a git repository"))?;
     }
 }

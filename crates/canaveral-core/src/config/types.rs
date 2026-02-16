@@ -62,6 +62,10 @@ pub struct Config {
     /// Release notes configuration
     #[serde(default)]
     pub release_notes: ReleaseNotesConfig,
+
+    /// Git hooks configuration (commit-msg, pre-commit, pre-push)
+    #[serde(default)]
+    pub git_hooks: GitHooksConfig,
 }
 
 impl Default for Config {
@@ -82,6 +86,7 @@ impl Default for Config {
             ci: CIConfig::default(),
             pr: PrConfig::default(),
             release_notes: ReleaseNotesConfig::default(),
+            git_hooks: GitHooksConfig::default(),
         }
     }
 }
@@ -955,6 +960,84 @@ impl Default for ReleaseNotesConfig {
             include_migration_guide: true,
             auto_update_store_metadata: false,
             locales: vec!["en-US".to_string()],
+        }
+    }
+}
+
+/// Git hooks configuration (commit-msg, pre-commit, pre-push validation)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GitHooksConfig {
+    /// Whether to auto-install hooks on `canaveral init`
+    pub auto_install: bool,
+
+    /// Commit message validation settings
+    pub commit_msg: CommitMsgHookConfig,
+
+    /// Pre-commit hook settings
+    pub pre_commit: ScriptHookConfig,
+
+    /// Pre-push hook settings
+    pub pre_push: ScriptHookConfig,
+}
+
+impl Default for GitHooksConfig {
+    fn default() -> Self {
+        Self {
+            auto_install: true,
+            commit_msg: CommitMsgHookConfig::default(),
+            pre_commit: ScriptHookConfig::default(),
+            pre_push: ScriptHookConfig::default(),
+        }
+    }
+}
+
+/// Commit message hook configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CommitMsgHookConfig {
+    /// Enforce conventional commits format
+    pub conventional_commits: bool,
+
+    /// Allowed commit types (empty = all standard types)
+    #[serde(default)]
+    pub allowed_types: Vec<String>,
+
+    /// Maximum subject line length
+    pub max_subject_length: usize,
+
+    /// Allow WIP commits (skip validation for messages starting with "WIP" or "wip")
+    pub allow_wip: bool,
+}
+
+impl Default for CommitMsgHookConfig {
+    fn default() -> Self {
+        Self {
+            conventional_commits: true,
+            allowed_types: Vec::new(),
+            max_subject_length: 72,
+            allow_wip: true,
+        }
+    }
+}
+
+/// Script-based hook configuration (pre-commit, pre-push)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ScriptHookConfig {
+    /// Commands to run
+    #[serde(default)]
+    pub commands: Vec<String>,
+
+    /// Whether to run commands in parallel
+    pub parallel: bool,
+}
+
+impl Default for ScriptHookConfig {
+    fn default() -> Self {
+        Self {
+            commands: Vec::new(),
+            parallel: false,
         }
     }
 }

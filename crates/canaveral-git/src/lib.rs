@@ -4,6 +4,7 @@
 //! tag management, and remote operations.
 
 mod commits;
+pub mod hooks;
 mod remote;
 mod repository;
 mod status;

@@ -37,6 +37,10 @@ pub enum CanaveralError {
     #[error(transparent)]
     Hook(#[from] HookError),
 
+    /// Git hook errors
+    #[error(transparent)]
+    GitHook(#[from] GitHookError),
+
     /// Task orchestration errors
     #[error(transparent)]
     Task(#[from] TaskError),
@@ -292,6 +296,30 @@ pub enum TaskError {
     /// Cache error
     #[error("Task cache error: {0}")]
     CacheError(String),
+}
+
+/// Git hook management errors
+#[derive(Debug, Error)]
+pub enum GitHookError {
+    /// Failed to install a git hook
+    #[error("Failed to install git hook '{hook}': {reason}")]
+    InstallFailed { hook: String, reason: String },
+
+    /// Failed to uninstall a git hook
+    #[error("Failed to uninstall git hook '{hook}': {reason}")]
+    UninstallFailed { hook: String, reason: String },
+
+    /// Commit message validation failed
+    #[error("Commit message validation failed: {0}")]
+    CommitMsgValidation(String),
+
+    /// Hook script execution failed
+    #[error("Hook script failed: {command} (exit code {exit_code})")]
+    ScriptFailed { command: String, exit_code: i32 },
+
+    /// IO error during hook operations
+    #[error("Git hook IO error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 impl CanaveralError {
