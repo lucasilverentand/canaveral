@@ -1,0 +1,127 @@
+# Canaveral — dogfooding on itself
+name = "canaveral"
+
+[versioning]
+strategy = "semver"
+tag_format = "v{version}"
+independent = false
+
+[git]
+remote = "origin"
+branch = "main"
+require_clean = true
+push_tags = true
+push_commits = true
+commit_message = "chore(release): {version}"
+
+[changelog]
+enabled = true
+file = "CHANGELOG.md"
+format = "markdown"
+include_hashes = true
+include_authors = false
+include_dates = true
+
+[changelog.types.feat]
+section = "Features"
+hidden = false
+
+[changelog.types.fix]
+section = "Bug Fixes"
+hidden = false
+
+[changelog.types.docs]
+section = "Documentation"
+hidden = false
+
+[changelog.types.perf]
+section = "Performance"
+hidden = false
+
+[changelog.types.refactor]
+section = "Refactoring"
+hidden = true
+
+[changelog.types.test]
+section = "Tests"
+hidden = true
+
+[changelog.types.chore]
+section = "Chores"
+hidden = true
+
+[[packages]]
+name = "canaveral"
+path = "crates/canaveral"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "canaveral-core"
+path = "crates/canaveral-core"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "canaveral-git"
+path = "crates/canaveral-git"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "canaveral-changelog"
+path = "crates/canaveral-changelog"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "canaveral-strategies"
+path = "crates/canaveral-strategies"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "canaveral-adapters"
+path = "crates/canaveral-adapters"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "canaveral-signing"
+path = "crates/canaveral-signing"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "canaveral-stores"
+path = "crates/canaveral-stores"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "canaveral-metadata"
+path = "crates/canaveral-metadata"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "canaveral-frameworks"
+path = "crates/canaveral-frameworks"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "canaveral-tasks"
+path = "crates/canaveral-tasks"
+type = "cargo"
+publish = true
+
+[publish]
+enabled = true
+dry_run = false
+
+[hooks]
+pre_version = []
+post_version = []
+pre_publish = []
+post_publish = []

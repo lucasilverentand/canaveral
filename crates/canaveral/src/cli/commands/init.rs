@@ -7,7 +7,7 @@ use console::style;
 use dialoguer::{Confirm, Select};
 use tracing::info;
 
-use canaveral_core::config::defaults::{DEFAULT_CONFIG_YAML, DEFAULT_CONFIG_TEMPLATE};
+use canaveral_core::config::defaults::{DEFAULT_CONFIG_TOML, DEFAULT_CONFIG_TEMPLATE};
 
 use crate::cli::Cli;
 
@@ -35,7 +35,7 @@ impl InitCommand {
         let config_path = self
             .output
             .clone()
-            .unwrap_or_else(|| cwd.join(DEFAULT_CONFIG_YAML));
+            .unwrap_or_else(|| cwd.join(DEFAULT_CONFIG_TOML));
 
         // Check if config already exists
         if config_path.exists() && !self.force {
@@ -62,9 +62,9 @@ impl InitCommand {
 
         // Choose format if not specified
         let format = if self.yes {
-            "yaml"
+            "toml"
         } else {
-            let formats = vec!["yaml", "toml"];
+            let formats = vec!["toml", "yaml"];
             let selection = Select::new()
                 .with_prompt("Configuration format")
                 .items(&formats)
@@ -74,18 +74,18 @@ impl InitCommand {
         };
 
         // Adjust path for format
-        let config_path = if format == "toml" && config_path.extension().is_some_and(|e| e == "yaml") {
-            config_path.with_extension("toml")
+        let config_path = if format == "yaml" && config_path.extension().is_some_and(|e| e == "toml") {
+            config_path.with_extension("yaml")
         } else {
             config_path
         };
 
         // Generate config
-        let content = if format == "toml" {
-            // Convert YAML to TOML
+        let content = if format == "yaml" {
+            // Convert TOML template to YAML
             let config: canaveral_core::config::Config =
-                serde_yaml::from_str(DEFAULT_CONFIG_TEMPLATE)?;
-            toml::to_string_pretty(&config)?
+                toml::from_str(DEFAULT_CONFIG_TEMPLATE)?;
+            serde_yaml::to_string(&config)?
         } else {
             DEFAULT_CONFIG_TEMPLATE.to_string()
         };

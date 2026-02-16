@@ -348,7 +348,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
 
-# Task configuration (from canaveral.yaml):
+# Task configuration (from canaveral.toml):
 #   PR tasks: {pr_tasks}
 #   Push tasks: {push_tasks}
 #   Tag tasks: {tag_tasks}

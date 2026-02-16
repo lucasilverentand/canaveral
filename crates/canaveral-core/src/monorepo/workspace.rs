@@ -43,7 +43,7 @@ impl WorkspaceType {
             Self::Nx => "nx.json",
             Self::Turbo => "turbo.json",
             Self::Python => "pyproject.toml",
-            Self::Custom => "canaveral.yaml",
+            Self::Custom => "canaveral.toml",
         }
     }
 }

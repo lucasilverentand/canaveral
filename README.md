@@ -82,73 +82,88 @@ canaveral release
 
 ## Configuration
 
-Canaveral works with zero config for simple projects (auto-detection) or a `canaveral.yaml` / `canaveral.toml` for full control:
+Canaveral works with zero config for simple projects (auto-detection) or a `canaveral.toml` for full control. The config can also live in `.github/canaveral.toml`:
 
-```yaml
-name: my-project
+```toml
+name = "my-project"
 
-versioning:
-  strategy: semver          # semver | calver | buildnum
-  tag_format: "v{version}"
-  independent: false        # true for independent monorepo versioning
+[versioning]
+strategy = "semver"          # semver | calver | buildnum
+tag_format = "v{version}"
+independent = false          # true for independent monorepo versioning
 
-git:
-  remote: origin
-  branch: main
-  require_clean: true
-  push_tags: true
-  commit_message: "chore(release): {version}"
+[git]
+remote = "origin"
+branch = "main"
+require_clean = true
+push_tags = true
+commit_message = "chore(release): {version}"
 
-changelog:
-  enabled: true
-  file: CHANGELOG.md
-  include_hashes: true
-  include_authors: false
-  types:
-    feat: { section: "Features", hidden: false }
-    fix: { section: "Bug Fixes", hidden: false }
-    docs: { section: "Documentation", hidden: false }
-    perf: { section: "Performance", hidden: false }
+[changelog]
+enabled = true
+file = "CHANGELOG.md"
+include_hashes = true
+include_authors = false
 
-packages:
-  - name: core
-    path: ./core
-    type: cargo
-    publish: true
-  - name: web
-    path: ./web
-    type: npm
-  - name: ios-app
-    path: ./ios
-    type: xcode
-    publish: false
+[changelog.types.feat]
+section = "Features"
+hidden = false
 
-hooks:
-  pre_version:
-    - "cargo fmt --check"
-  post_publish:
-    - "notify-slack.sh"
+[changelog.types.fix]
+section = "Bug Fixes"
+hidden = false
 
-tasks:
-  concurrency: 4
-  pipeline:
-    build:
-      depends_on_packages: true
-      outputs: ["dist/**", "target/**"]
-      inputs: ["src/**"]
-    test:
-      depends_on: ["build"]
-      depends_on_packages: true
-    lint:
-      command: "cargo clippy"
+[changelog.types.docs]
+section = "Documentation"
+hidden = false
 
-publish:
-  enabled: true
-  dry_run: false
-  registries:
-    my-registry:
-      url: "https://npm.pkg.github.com"
-      token_env: GITHUB_TOKEN
+[changelog.types.perf]
+section = "Performance"
+hidden = false
+
+[[packages]]
+name = "core"
+path = "./core"
+type = "cargo"
+publish = true
+
+[[packages]]
+name = "web"
+path = "./web"
+type = "npm"
+
+[[packages]]
+name = "ios-app"
+path = "./ios"
+type = "xcode"
+publish = false
+
+[hooks]
+pre_version = ["cargo fmt --check"]
+post_publish = ["notify-slack.sh"]
+
+[tasks]
+concurrency = 4
+
+[tasks.pipeline.build]
+depends_on_packages = true
+outputs = ["dist/**", "target/**"]
+inputs = ["src/**"]
+
+[tasks.pipeline.test]
+depends_on = ["build"]
+depends_on_packages = true
+
+[tasks.pipeline.lint]
+command = "cargo clippy"
+
+[publish]
+enabled = true
+dry_run = false
+
+[publish.registries.my-registry]
+url = "https://npm.pkg.github.com"
+token_env = "GITHUB_TOKEN"
 ```
 
 See [docs/architecture/configuration.md](docs/architecture/configuration.md) for the full configuration reference.
@@ -158,7 +173,7 @@ See [docs/architecture/configuration.md](docs/architecture/configuration.md) for
 ### Core workflow
 
 ```bash
-canaveral init                   # Create a canaveral.yaml config
+canaveral init                   # Create a canaveral.toml config
 canaveral status                 # Show repo status, current version, pending changes
 canaveral validate               # Validate config and repo state
 canaveral doctor                 # Check environment for required tools

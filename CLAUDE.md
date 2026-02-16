@@ -25,7 +25,7 @@ Rust workspace with 10 crates. Each crate has a focused responsibility:
 
 - **Trait-based adapters** — `PackageAdapter` trait in canaveral-adapters, `VersionStrategy` trait in canaveral-strategies, `StoreUploader` trait in canaveral-stores. Add new ecosystems by implementing the trait.
 - **Layered architecture** — CLI → Orchestration → Strategy → Adapter → Infrastructure. Each layer only calls downward.
-- **Config-driven** — `canaveral.yaml` or `canaveral.toml`. Auto-detection as fallback. CLI flags override config.
+- **Config-driven** — `canaveral.toml` (preferred) or `canaveral.yaml`. Also searches `.github/` subdirectory. Auto-detection as fallback. CLI flags override config.
 - **Monorepo-first** — Workspace detection (Cargo, npm, pnpm, yarn, lerna, nx, turbo), dependency graph with topological sorting, change detection via git diff, coordinated or independent versioning.
 
 ## Building and testing

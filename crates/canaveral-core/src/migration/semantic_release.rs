@@ -252,7 +252,7 @@ impl Migrator for SemanticReleaseMigrator {
         }
 
         // Common manual steps
-        result.manual_step("Review generated .canaveral.yaml configuration");
+        result.manual_step("Review generated canaveral.toml configuration");
         result.manual_step("Remove old semantic-release configuration files");
         result.manual_step("Update CI/CD pipeline to use canaveral");
 

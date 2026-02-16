@@ -253,17 +253,6 @@ fn find_repo_root() -> anyhow::Result<PathBuf> {
 }
 
 fn load_config(repo_root: &PathBuf) -> anyhow::Result<Config> {
-    let yaml_path = repo_root.join("canaveral.yaml");
-    let toml_path = repo_root.join("canaveral.toml");
-
-    if yaml_path.exists() {
-        let content = std::fs::read_to_string(&yaml_path)?;
-        Ok(serde_yaml::from_str(&content)?)
-    } else if toml_path.exists() {
-        let content = std::fs::read_to_string(&toml_path)?;
-        Ok(toml::from_str(&content)?)
-    } else {
-        // Return defaults if no config file
-        Ok(Config::default())
-    }
+    let (config, _) = canaveral_core::config::load_config_or_default(repo_root);
+    Ok(config)
 }

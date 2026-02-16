@@ -125,7 +125,7 @@ impl PackageDiscovery {
             WorkspaceType::Npm | WorkspaceType::Yarn | WorkspaceType::Pnpm |
             WorkspaceType::Lerna | WorkspaceType::Turbo | WorkspaceType::Nx => "package.json",
             WorkspaceType::Python => "pyproject.toml",
-            WorkspaceType::Custom => "canaveral.yaml",
+            WorkspaceType::Custom => "canaveral.toml",
         }
     }
 

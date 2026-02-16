@@ -212,7 +212,7 @@ impl Migrator for ReleasePleaseMigrator {
             let converted = self.convert_changelog_sections(sections, &mut result);
             if !converted.is_empty() {
                 result.manual_step(
-                    "Configure changelog sections in canaveral.yaml changelog.sections",
+                    "Configure changelog sections in canaveral.toml under [changelog.types]",
                 );
             }
         }
@@ -259,7 +259,7 @@ impl Migrator for ReleasePleaseMigrator {
         }
 
         // Common manual steps
-        result.manual_step("Review generated .canaveral.yaml configuration");
+        result.manual_step("Review generated canaveral.toml configuration");
         result.manual_step("Remove release-please configuration files");
         result.manual_step("Update CI/CD pipeline to use canaveral instead of release-please");
         result.manual_step("Remove release-please GitHub App if installed");
