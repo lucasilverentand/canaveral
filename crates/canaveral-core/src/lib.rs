@@ -18,7 +18,9 @@ pub use hooks::{Hook, HookContext, HookRunner, HookStage, HooksConfig};
 pub use plugins::{ExternalPlugin, PluginConfig, PluginInfo, PluginRegistry, PluginType};
 pub use migration::{
     auto_migrate, detect_tool, MigrationResult, MigrationSource, Migrator,
-    ReleasePleaseMigrator, SemanticReleaseMigrator,
+    MigratorRegistry, ReleasePleaseMigrator, SemanticReleaseMigrator,
 };
-pub use templates::{CITemplate, GitHubActionsTemplate, GitLabCITemplate, TemplateOptions};
+pub use monorepo::detector::{WorkspaceDetector, WorkspaceDetectorRegistry};
+pub use monorepo::publishing::PublishCallbackRegistry;
+pub use templates::{CITemplate, CITemplateRegistry, GitHubActionsTemplate, GitLabCITemplate, TemplateOptions};
 pub use types::{ReleaseResult, ReleaseType};

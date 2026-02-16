@@ -96,7 +96,7 @@ pub mod utils;
 pub mod validation;
 
 pub use error::MetadataError;
-pub use storage::{FastlaneStorage, MetadataStorage, StorageFormat, UnifiedStorage};
+pub use storage::{FastlaneStorage, MetadataStorage, MetadataStorageRegistry, StorageFormat, UnifiedStorage};
 pub use types::apple::{
     AppleAgeRating, AppleCategory, AppleLocalizedMetadata, AppleMetadata, AppleScreenshotSet,
 };
