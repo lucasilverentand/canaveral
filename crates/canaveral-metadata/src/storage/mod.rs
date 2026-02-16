@@ -12,9 +12,11 @@
 //!   compact and manageable alternative to the Fastlane directory structure.
 
 mod fastlane;
+mod registry;
 mod unified;
 
 pub use fastlane::FastlaneStorage;
+pub use registry::{MetadataStorageEntry, MetadataStorageRegistry};
 pub use unified::UnifiedStorage;
 
 use crate::{AppleMetadata, GooglePlayMetadata, Locale, Platform, Result};

@@ -3,6 +3,7 @@
 //! Provides secure storage and synchronization of code signing certificates
 //! and provisioning profiles across a team, similar to fastlane match.
 
+pub mod registry;
 pub mod storage;
 
 use std::collections::HashMap;
@@ -13,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Result, SigningError};
 use crate::team::{decrypt_data, encrypt_data, generate_keypair, KeyPair};
 
+pub use registry::{StorageBackendEntry, StorageBackendRegistry};
 pub use storage::{GitStorage, S3Storage, StorageBackend, SyncStorage};
 
 /// Certificate type for iOS
