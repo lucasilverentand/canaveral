@@ -9,12 +9,14 @@
 use std::path::Path;
 
 use crate::config::Config;
-use crate::error::{CanaveralError, Result};
+use crate::error::Result;
 
 mod release_please;
+mod registry;
 mod semantic_release;
 
 pub use release_please::ReleasePleaseMigrator;
+pub use registry::MigratorRegistry;
 pub use semantic_release::SemanticReleaseMigrator;
 
 /// Migration source type
@@ -127,20 +129,7 @@ pub trait Migrator {
 
 /// Auto-detect and migrate from any supported tool
 pub fn auto_migrate(path: &Path) -> Result<MigrationResult> {
-    let migrators: Vec<Box<dyn Migrator>> = vec![
-        Box::new(SemanticReleaseMigrator::new()),
-        Box::new(ReleasePleaseMigrator::new()),
-    ];
-
-    for migrator in migrators {
-        if migrator.can_migrate(path) {
-            return migrator.migrate(path);
-        }
-    }
-
-    Err(CanaveralError::other(
-        "No supported release tool configuration found",
-    ))
+    MigratorRegistry::new().migrate(path)
 }
 
 /// Detect which release tool is configured
