@@ -4,7 +4,7 @@ use clap::{Args, Subcommand};
 use console::style;
 
 use canaveral_core::config::load_config_or_default;
-use canaveral_core::templates::{CITemplate, GitHubActionsTemplate, TemplateOptions};
+use canaveral_core::templates::{CITemplateRegistry, TemplateOptions};
 
 use crate::cli::{Cli, OutputFormat};
 
@@ -135,10 +135,13 @@ impl CIGenerateCommand {
             }
         } else {
             // Traditional mode: use existing template generators
-            let template: Box<dyn CITemplate> = match self.platform.as_str() {
-                "github" => Box::new(GitHubActionsTemplate::new()),
-                _ => anyhow::bail!("Unsupported CI platform: {}", self.platform),
-            };
+            let registry = CITemplateRegistry::new();
+            let template = registry.get(&self.platform)
+                .ok_or_else(|| anyhow::anyhow!(
+                    "Unsupported CI platform: {}. Available: {}",
+                    self.platform,
+                    registry.platform_names().join(", ")
+                ))?;
 
             let content = template.generate(&options)?;
 

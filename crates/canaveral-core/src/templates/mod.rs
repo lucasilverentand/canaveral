@@ -12,9 +12,11 @@ use crate::error::Result;
 
 mod github;
 mod gitlab;
+mod registry;
 
 pub use github::GitHubActionsTemplate;
 pub use gitlab::GitLabCITemplate;
+pub use registry::CITemplateRegistry;
 
 /// Template generation options
 #[derive(Debug, Clone, Default)]
@@ -89,7 +91,7 @@ impl TemplateOptions {
 }
 
 /// CI/CD template generator trait
-pub trait CITemplate {
+pub trait CITemplate: Send + Sync {
     /// Get the CI platform name
     fn platform_name(&self) -> &'static str;
 
