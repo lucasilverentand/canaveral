@@ -2,189 +2,108 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
-
-env:
-  CARGO_TERM_COLOR: always
+  packages: write
 
 jobs:
-  build:
-    name: Build ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Linux x86_64 (GNU)
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            archive: tar.gz
-
-          # Linux x86_64 (musl - static)
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu-latest
-            archive: tar.gz
-
-          # Linux ARM64 (GNU)
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            archive: tar.gz
-            cross: true
-
-          # macOS x86_64
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            archive: tar.gz
-
-          # macOS ARM64 (Apple Silicon)
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            archive: tar.gz
-
-          # Windows x86_64
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            archive: zip
-
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: dtolnay/rust-action@stable
         with:
-          targets: ${{ matrix.target }}
+          toolchain: stable
 
-      - name: Install cross
-        if: matrix.cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
-
-      - name: Install musl tools
-        if: contains(matrix.target, 'musl')
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
-
-      - name: Build (cross)
-        if: matrix.cross
-        run: cross build --release --target ${{ matrix.target }}
-
-      - name: Build (native)
-        if: '!matrix.cross'
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Create archive (Unix)
-        if: matrix.archive == 'tar.gz'
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar czvf ../../../canaveral-${{ matrix.target }}.tar.gz canaveral
-          cd ../../..
-
-      - name: Create archive (Windows)
-        if: matrix.archive == 'zip'
-        shell: pwsh
-        run: |
-          cd target/${{ matrix.target }}/release
-          Compress-Archive -Path canaveral.exe -DestinationPath ../../../canaveral-${{ matrix.target }}.zip
-          cd ../../..
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Cache cargo
+        uses: actions/cache@v4
         with:
-          name: canaveral-${{ matrix.target }}
-          path: canaveral-${{ matrix.target }}.${{ matrix.archive }}
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt -- --check
 
   release:
-    name: Create Release
-    needs: build
+    name: Release
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [ci]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          path: artifacts
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate checksums
-        run: |
-          cd artifacts
-          for dir in */; do
-            for file in "$dir"*; do
-              sha256sum "$file" >> checksums.txt
-            done
-          done
-          mv checksums.txt ..
-          cd ..
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: stable
 
-      - name: Get version from tag
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Canaveral
+        run: cargo install canaveral
+
+      - name: Calculate version
         id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Generate release notes
         run: |
-          cat > release_notes.md << 'EOF'
-          ## Installation
+          VERSION=$(canaveral version --print)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-          ### Using Cargo
-          ```bash
-          cargo install canaveral
-          ```
+      - name: Generate changelog
+        run: canaveral changelog --output CHANGELOG.md
 
-          ### Pre-built Binaries
+      - name: Bump version
+        run: canaveral version --set ${{ steps.version.outputs.version }}
 
-          Download the appropriate binary for your platform:
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(release): ${{ steps.version.outputs.version }}"
+          git tag "v${{ steps.version.outputs.version }}"
+          git push --follow-tags
 
-          | Platform | Architecture | Download |
-          |----------|--------------|----------|
-          | Linux | x86_64 (glibc) | [canaveral-x86_64-unknown-linux-gnu.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/canaveral-x86_64-unknown-linux-gnu.tar.gz) |
-          | Linux | x86_64 (musl) | [canaveral-x86_64-unknown-linux-musl.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/canaveral-x86_64-unknown-linux-musl.tar.gz) |
-          | Linux | ARM64 | [canaveral-aarch64-unknown-linux-gnu.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/canaveral-aarch64-unknown-linux-gnu.tar.gz) |
-          | macOS | x86_64 | [canaveral-x86_64-apple-darwin.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/canaveral-x86_64-apple-darwin.tar.gz) |
-          | macOS | ARM64 (Apple Silicon) | [canaveral-aarch64-apple-darwin.tar.gz](https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/canaveral-aarch64-apple-darwin.tar.gz) |
-          | Windows | x86_64 | [canaveral-x86_64-pc-windows-msvc.zip](https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/canaveral-x86_64-pc-windows-msvc.zip) |
-
-          ### Verify Download
-
-          Verify your download using the checksums file:
-          ```bash
-          sha256sum -c checksums.txt --ignore-missing
-          ```
-          EOF
+      - name: Publish to crates.io
+        run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          body_path: release_notes.md
-          files: |
-            artifacts/**/*
-            checksums.txt
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-crates:
-    name: Publish to crates.io
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-action@stable
-
-      - name: Publish crates
-        run: |
-          # Publish in dependency order
-          cargo publish -p canaveral-core --token ${{ secrets.CRATES_IO_TOKEN }}
-          sleep 30
-          cargo publish -p canaveral-git --token ${{ secrets.CRATES_IO_TOKEN }}
-          sleep 30
-          cargo publish -p canaveral-changelog --token ${{ secrets.CRATES_IO_TOKEN }}
-          sleep 30
-          cargo publish -p canaveral-strategies --token ${{ secrets.CRATES_IO_TOKEN }}
-          sleep 30
-          cargo publish -p canaveral-adapters --token ${{ secrets.CRATES_IO_TOKEN }}
-          sleep 30
-          cargo publish -p canaveral --token ${{ secrets.CRATES_IO_TOKEN }}
-        continue-on-error: true  # In case some crates are already published
+          tag_name: v${{ steps.version.outputs.version }}
+          generate_release_notes: true

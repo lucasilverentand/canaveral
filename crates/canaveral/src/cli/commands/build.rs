@@ -39,8 +39,8 @@ pub struct BuildCommand {
     pub output: Option<PathBuf>,
 
     /// Version to embed in the build
-    #[arg(long)]
-    pub version: Option<String>,
+    #[arg(long = "build-version", value_name = "VERSION")]
+    pub build_version: Option<String>,
 
     /// Build number to embed
     #[arg(long)]
@@ -193,7 +193,7 @@ impl BuildCommand {
             ctx = ctx.with_flavor(flavor);
         }
 
-        if let Some(ref version) = self.version {
+        if let Some(ref version) = self.build_version {
             ctx = ctx.with_version(version);
         }
 
@@ -260,7 +260,7 @@ impl BuildCommand {
             if let Some(ref flavor) = self.flavor {
                 println!("  Flavor:   {}", style(flavor).cyan());
             }
-            if let Some(ref version) = self.version {
+            if let Some(ref version) = self.build_version {
                 println!("  Version:  {}", style(version).cyan());
             }
             if self.dry_run {

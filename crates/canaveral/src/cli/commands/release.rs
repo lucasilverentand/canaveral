@@ -23,8 +23,8 @@ pub struct ReleaseCommand {
     pub release_type: Option<ReleaseType>,
 
     /// Explicit version to release
-    #[arg(long)]
-    pub version: Option<String>,
+    #[arg(long = "as-version", value_name = "VERSION")]
+    pub as_version: Option<String>,
 
     /// Dry run - don't make any changes
     #[arg(long)]
@@ -60,7 +60,7 @@ impl ReleaseCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
         info!(
             release_type = ?self.release_type,
-            version = ?self.version,
+            version = ?self.as_version,
             dry_run = self.dry_run,
             no_changelog = self.no_changelog,
             no_publish = self.no_publish,
@@ -106,7 +106,7 @@ impl ReleaseCommand {
             .unwrap_or_else(|| "0.0.0".to_string());
 
         // Determine next version
-        let next_version = if let Some(v) = &self.version {
+        let next_version = if let Some(v) = &self.as_version {
             v.clone()
         } else {
             // Get commits and determine bump type

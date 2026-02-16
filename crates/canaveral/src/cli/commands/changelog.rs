@@ -14,8 +14,8 @@ use crate::cli::{Cli, OutputFormat};
 #[derive(Debug, Args)]
 pub struct ChangelogCommand {
     /// Version to generate changelog for
-    #[arg(short, long)]
-    pub version: Option<String>,
+    #[arg(long = "for-version", value_name = "VERSION")]
+    pub for_version: Option<String>,
 
     /// Write to file (default: print to stdout)
     #[arg(short, long)]
@@ -33,7 +33,7 @@ pub struct ChangelogCommand {
 impl ChangelogCommand {
     /// Execute the changelog command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
-        info!(version = ?self.version, write = self.write, all = self.all, "executing changelog command");
+        info!(version = ?self.for_version, write = self.write, all = self.all, "executing changelog command");
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
@@ -43,7 +43,7 @@ impl ChangelogCommand {
         let latest_tag = repo.find_latest_tag(None)?;
 
         // Determine version
-        let version = self.version.clone().unwrap_or_else(|| {
+        let version = self.for_version.clone().unwrap_or_else(|| {
             latest_tag
                 .as_ref()
                 .and_then(|t| t.version.clone())
