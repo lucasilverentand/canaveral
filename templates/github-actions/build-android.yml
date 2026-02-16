@@ -77,7 +77,6 @@ jobs:
           canaveral build \
             --platform android \
             --profile ${{ inputs.build_type || 'debug' }} \
-            --output-format github-actions
         env:
           CI: true
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -105,8 +104,9 @@ jobs:
       - name: Upload to Google Play (Release AAB only)
         if: inputs.build_type == 'release' && inputs.artifact_type == 'aab' && github.ref == 'refs/heads/main'
         run: |
-          canaveral store upload android \
-            --artifact build/android/*.aab \
+          canaveral publish google-play build/android/*.aab \
+            --package-name "$ANDROID_PACKAGE_NAME" \
+            --service-account play-service-account.json \
             --track internal
         env:
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}

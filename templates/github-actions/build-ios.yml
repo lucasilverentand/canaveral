@@ -72,8 +72,7 @@ jobs:
         run: |
           canaveral build \
             --platform ios \
-            --profile ${{ inputs.build_type || 'debug' }} \
-            --output-format github-actions
+            --profile ${{ inputs.build_type || 'debug' }}
         env:
           CI: true
 
@@ -90,7 +89,7 @@ jobs:
       - name: Upload to TestFlight (Release only)
         if: inputs.build_type == 'release' && github.ref == 'refs/heads/main'
         run: |
-          canaveral testflight upload build/ios/*.ipa \
+          canaveral test-flight upload build/ios/*.ipa \
             --changelog "Build from commit ${{ github.sha }}"
         env:
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}

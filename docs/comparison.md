@@ -185,18 +185,18 @@ canaveral publish
 
 ### 5. Extensibility
 
-Add support for anything:
-```typescript
-// Custom adapter
-export class MyAdapter implements PackageAdapter {
-  // ...
-}
+Add support for anything via external subprocess plugins (any language):
 
-// Custom strategy
-export class MyStrategy implements VersionStrategy {
-  // ...
-}
+```yaml
+# canaveral.yaml
+plugins:
+  - name: my-custom-adapter
+    plugin_type: adapter
+    command: /usr/local/bin/my-adapter-plugin
+    enabled: true
 ```
+
+Plugins communicate via JSON over stdin/stdout, so they can be written in any language. See the [Plugin System](./architecture/plugins.md) documentation.
 
 ## Migration Guides
 

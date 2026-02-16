@@ -21,30 +21,42 @@ Canaveral uses App Store Connect API keys for authentication. No Apple ID/passwo
 ### Configure
 
 ```bash
-export ASC_API_KEY_ID="XXXXXXXXXX"
-export ASC_API_KEY_ISSUER="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-export ASC_API_KEY_PATH="/path/to/AuthKey_XXXXXXXXXX.p8"
+export APP_STORE_CONNECT_API_KEY_ID="XXXXXXXXXX"
+export APP_STORE_CONNECT_ISSUER_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+export APP_STORE_CONNECT_API_KEY_PATH="/path/to/AuthKey_XXXXXXXXXX.p8"
 ```
 
-## Upload
+## Upload via TestFlight
+
+The recommended flow is to upload via TestFlight first:
 
 ```bash
-# Upload IPA
-canaveral upload ios --artifact build/ios/MyApp.ipa
+# Upload IPA to TestFlight
+canaveral testflight upload build/ios/MyApp.ipa
 
-# Upload and submit for review
-canaveral upload ios --artifact build/ios/MyApp.ipa --submit-for-review
+# With changelog
+canaveral testflight upload build/ios/MyApp.ipa --changelog "New features"
+```
+
+## Publish to App Store
+
+```bash
+# Submit to App Store Connect
+canaveral publish apple --artifact build/ios/MyApp.ipa
 ```
 
 ## Metadata Management
 
 ```bash
-# Sync metadata from App Store
-canaveral metadata pull ios
+# Initialize metadata directory
+canaveral metadata init
 
-# Push metadata to App Store
-canaveral metadata push ios
+# Validate metadata against App Store requirements
+canaveral metadata validate
+
+# Sync metadata with App Store
+canaveral metadata sync
 
 # Preview changes
-canaveral metadata diff ios
+canaveral metadata diff
 ```

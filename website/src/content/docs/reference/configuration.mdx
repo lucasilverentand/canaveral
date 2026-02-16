@@ -1,31 +1,44 @@
 ---
 title: Configuration File
-description: Complete reference for canaveral.toml.
+description: Complete reference for canaveral.yaml / canaveral.toml.
 ---
 
 # Configuration Reference
 
-Complete reference for the `canaveral.toml` configuration file.
+Complete reference for the `canaveral.yaml` (or `canaveral.toml`) configuration file.
 
-See [Configuration](/canaveral/getting-started/configuration/) for a detailed guide.
+See [Configuration](/canaveral/getting-started/configuration/) for a detailed guide with examples.
+
+## Top-Level Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Project name |
 
 ## Sections
 
-- `[project]` - Project settings
-- `[ios]` - iOS-specific settings
-- `[android]` - Android-specific settings
-- `[build]` - Build settings
-- `[signing]` - Certificate sync settings
-- `[testflight]` - TestFlight settings
-- `[play_store]` - Google Play settings
-- `[firebase]` - Firebase settings
-- `[screenshots]` - Screenshot settings
+| Section | Description |
+|---------|-------------|
+| `versioning` | Version strategy, tag format, prerelease identifiers |
+| `git` | Remote, branch, commit/tag signing, push behavior |
+| `changelog` | Changelog generation settings, format, included types |
+| `packages` | Package definitions for monorepo workspaces |
+| `hooks` | Lifecycle hook scripts (pre/post version, changelog, publish, git) |
+| `publish` | Registry publishing behavior, retry, ordering |
+| `signing` | Code signing provider, identity, platform-specific options |
+| `stores` | App store and registry credentials (Apple, Google Play, npm, crates.io) |
+| `metadata` | App store metadata path and default locale |
+| `tasks` | Task orchestration: pipeline DAG, concurrency, caching |
+| `ci` | CI pipeline configuration: platform, event-based task lists |
+| `pr` | PR validation: branching model, checks, conventional commit enforcement |
+| `release_notes` | Release note templates and options |
 
-## Environment Variables
+## Config File Format
 
-Use `${VAR_NAME}` syntax for environment variable substitution:
+Canaveral supports both YAML and TOML formats. It looks for configuration files in this order:
 
-```toml
-[signing]
-password = "${MATCH_PASSWORD}"
-```
+1. `canaveral.yaml`
+2. `canaveral.yml`
+3. `canaveral.toml`
+
+If no config file is found, sensible defaults are used with auto-detection.

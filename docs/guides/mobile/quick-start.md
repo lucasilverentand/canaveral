@@ -6,10 +6,9 @@ Get started with Canaveral for mobile app CI/CD in under 5 minutes.
 
 ```bash
 # macOS/Linux
-curl -fsSL https://get.canaveral.dev | sh
+cargo install canaveral
 
-# Add to PATH (or restart terminal)
-export PATH="$HOME/.canaveral/bin:$PATH"
+# Ensure ~/.cargo/bin is in your PATH
 ```
 
 ## Verify Installation
@@ -167,9 +166,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Canaveral
-        run: |
-          curl -fsSL https://get.canaveral.dev | sh
-          echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
+        run: cargo install canaveral
 
       - name: Sync Certificates
         run: canaveral match sync --profile-type appstore --readonly
@@ -191,9 +188,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Canaveral
-        run: |
-          curl -fsSL https://get.canaveral.dev | sh
-          echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
+        run: cargo install canaveral
 
       - name: Setup Keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
@@ -224,8 +219,7 @@ build-ios:
   stage: build
   tags: [macos]
   script:
-    - curl -fsSL https://get.canaveral.dev | sh
-    - export PATH="$HOME/.canaveral/bin:$PATH"
+    - cargo install canaveral
     - canaveral match sync --profile-type appstore --readonly
     - canaveral build --platform ios --profile release --output-format gitlab-ci
   artifacts:
@@ -236,8 +230,7 @@ build-android:
   stage: build
   image: cimg/android:2024.01
   script:
-    - curl -fsSL https://get.canaveral.dev | sh
-    - export PATH="$HOME/.canaveral/bin:$PATH"
+    - cargo install canaveral
     - canaveral build --platform android --profile release --output-format gitlab-ci
   artifacts:
     paths:

@@ -5,7 +5,7 @@ This document defines the CLI interface for Canaveral, following the [Command Li
 ## Design Principles
 
 ### Human-First
-- Output is designed for humans by default, with machine-readable options available via `--json`
+- Output is designed for humans by default, with machine-readable options available via `--format json`
 - Detect TTY to adapt behavior (interactive prompts, colors, progress indicators)
 - Keep output concise but informative
 
@@ -35,7 +35,7 @@ canaveral <command> [options]
 
 ## Primary Commands
 
-### `canaveral release [type]`
+### `canaveral release`
 
 Execute a full release: calculate version, generate changelog, commit, tag, and publish.
 
@@ -44,31 +44,32 @@ Execute a full release: calculate version, generate changelog, commit, tag, and 
 canaveral release
 
 # Explicit version bump
-canaveral release patch
-canaveral release minor
-canaveral release major
+canaveral release --release-type minor
+canaveral release -r patch
 
-# Pre-release
-canaveral release prepatch --preid alpha
-canaveral release preminor --preid beta
-canaveral release prerelease  # increment existing pre-release
+# Set explicit version
+canaveral release --version 2.0.0
+
+# Dry run
+canaveral release --dry-run
+
+# Skip specific steps
+canaveral release --no-git --no-publish --no-changelog
 ```
 
 **Options:**
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--dry-run` | `-n` | Preview changes without executing |
-| `--no-git` | | Skip git commit, tag, and push |
+| `--release-type <type>` | `-r` | Release type (major, minor, patch, prerelease, custom) |
+| `--version <ver>` | | Explicit version to release |
+| `--dry-run` | | Preview changes without executing |
+| `--no-git` | | Skip git operations (commit, tag, push) |
 | `--no-publish` | | Skip publishing to registries |
 | `--no-changelog` | | Skip changelog generation |
-| `--preid <id>` | | Pre-release identifier (alpha, beta, rc) |
-| `--tag <tag>` | | Registry tag (e.g., latest, next) |
-| `--filter <pattern>` | | Filter packages by name or glob (repeatable) |
-| `--exclude <pattern>` | | Exclude packages by name or glob (repeatable) |
-| `--changed` | | Only release packages with changes |
-| `--force` | `-f` | Continue on non-critical errors |
 | `--yes` | `-y` | Skip confirmation prompts |
+| `--allow-branch` | | Allow release from non-release branch |
+| `--package <name>` | `-p` | Package to release (for monorepos) |
 
 **Example output:**
 
@@ -97,103 +98,120 @@ Would perform:
 Run without --dry-run to execute.
 ```
 
-### `canaveral version [type]`
+### `canaveral version`
 
-Calculate and update version without publishing.
+Calculate the next version based on commits.
 
 ```bash
 # Auto-detect from commits
 canaveral version
 
-# Explicit bump
-canaveral version minor
+# Force a specific release type
+canaveral version --release-type minor
 
-# Set specific version
-canaveral version 2.0.0
+# Show current version only
+canaveral version --current
+
+# For a specific package
+canaveral version --package my-lib
 ```
 
 **Options:**
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--dry-run` | `-n` | Show version without updating files |
-| `--no-git` | | Update files but don't commit |
-| `--preid <id>` | | Pre-release identifier |
-| `--filter <pattern>` | | Filter packages |
+| `--release-type <type>` | `-r` | Force a specific release type (major, minor, patch, prerelease, custom) |
+| `--current` | | Show current version only |
+| `--package <name>` | `-p` | Package name (for monorepos) |
 
 ### `canaveral changelog`
 
 Generate changelog from commits.
 
 ```bash
-# Generate for unreleased changes
+# Generate and print to stdout
 canaveral changelog
 
-# Generate for specific version range
-canaveral changelog --from v1.2.0 --to v1.3.0
+# Generate for a specific version
+canaveral changelog --version 1.2.0
 
-# Output to stdout (don't write file)
-canaveral changelog --stdout
+# Write to file
+canaveral changelog --write
+
+# Write to specific file
+canaveral changelog --write --output CHANGES.md
+
+# Include all commit types (don't filter)
+canaveral changelog --all
 ```
 
 **Options:**
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--version <ver>` | | Version header for changelog |
-| `--from <ref>` | | Starting git ref |
-| `--to <ref>` | | Ending git ref (default: HEAD) |
-| `--stdout` | | Output to stdout instead of file |
-| `--format <fmt>` | | Output format: `markdown`, `json` |
+| `--version <ver>` | `-v` | Version to generate changelog for |
+| `--write` | `-w` | Write to file (default: print to stdout) |
+| `--output <path>` | `-o` | Output file (defaults to configured changelog file) |
+| `--all` | | Include all commits (don't filter by type) |
 
 ### `canaveral publish`
 
-Publish current version to registries.
+Publish to app stores or package registries. Uses subcommands for each target.
 
 ```bash
-# Publish all packages
-canaveral publish
+# Publish to npm
+canaveral publish npm ./dist/my-package-1.0.0.tgz --tag latest
 
-# Publish specific packages
-canaveral publish --filter @myorg/core
+# Publish to crates.io
+canaveral publish crates ./target/package/my-crate-1.0.0.crate
 
-# Publish to specific registry
-canaveral publish --registry https://npm.mycompany.com
+# Publish to Apple App Store
+canaveral publish apple ./build/App.ipa --api-key-id KEY_ID --api-issuer-id ISSUER_ID --api-key key.p8
+
+# Publish to Google Play
+canaveral publish google-play ./build/app.aab --package-name com.example.app --service-account sa.json
+
+# Publish to Microsoft Store
+canaveral publish microsoft ./build/app.msix --tenant-id TID --client-id CID --client-secret SEC --app-id AID
 ```
 
-**Options:**
+**Subcommands:**
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--dry-run` | `-n` | Preview publish without executing |
-| `--tag <tag>` | | Registry tag |
-| `--registry <url>` | | Override registry URL |
-| `--filter <pattern>` | | Filter packages |
-| `--access <level>` | | npm access level: `public`, `restricted` |
+| Subcommand | Description |
+|------------|-------------|
+| `npm` | Publish to NPM registry |
+| `crates` | Publish to Crates.io registry |
+| `apple` | Publish to Apple App Store |
+| `google-play` | Publish to Google Play Store |
+| `microsoft` | Publish to Microsoft Store |
+
+Each subcommand requires an artifact path and has its own authentication options. All subcommands support `--dry-run` and `--verbose`.
 
 ### `canaveral init`
 
-Initialize configuration in current project.
+Initialize a new Canaveral configuration.
 
 ```bash
-# Interactive setup (default in TTY)
+# Interactive setup (prompts for format)
 canaveral init
 
-# Auto-detect and generate config non-interactively
-canaveral init --auto
+# Use defaults without prompting
+canaveral init --yes
 
-# Specify config format
-canaveral init --format yaml
-canaveral init --format toml
+# Overwrite existing config
+canaveral init --force
+
+# Write to specific file
+canaveral init --output canaveral.toml
 ```
 
 **Options:**
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--auto` | | Auto-detect settings, skip prompts |
-| `--format <fmt>` | | Config format: `yaml`, `toml` |
-| `--force` | `-f` | Overwrite existing config |
+| `--force` | `-f` | Overwrite existing configuration |
+| `--yes` | `-y` | Use defaults without prompting |
+| `--output <path>` | `-o` | Output file path |
 
 ### `canaveral status`
 
@@ -222,7 +240,7 @@ Run 'canaveral release --dry-run' to preview the release.
 **Example output (JSON):**
 
 ```bash
-$ canaveral status --json
+$ canaveral status --format json
 ```
 ```json
 {
@@ -270,14 +288,14 @@ Available on all commands:
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--config <path>` | `-c` | Path to config file |
-| `--verbose` | `-v` | Show detailed output (repeatable: -vv, -vvv) |
-| `--quiet` | `-q` | Suppress non-essential output |
-| `--json` | | Output in JSON format |
-| `--no-color` | | Disable colored output |
-| `--no-input` | | Disable all interactive prompts |
+| `--verbose` | `-v` | Enable verbose output |
+| `--quiet` | `-q` | Suppress output except errors |
+| `--format <fmt>` | | Output format: `text` (default), `json` |
+| `--directory <path>` | `-C` | Working directory |
 | `--help` | `-h` | Show help |
 | `--version` | `-V` | Show Canaveral version |
+
+Note: There is no `--config`, `--json`, `--no-color`, or `--no-input` flag. Use `--format json` for JSON output. Color is controlled by the `NO_COLOR` environment variable or terminal detection.
 
 ---
 
@@ -300,7 +318,6 @@ Colors are automatically disabled when:
 - Output is not a TTY (piped or redirected)
 - `NO_COLOR` environment variable is set
 - `TERM=dumb`
-- `--no-color` flag is passed
 
 Colors are used sparingly:
 - **Red**: Errors only
@@ -325,7 +342,7 @@ Publishing packages... [2/5] @myorg/utils
 
 ### TTY Detection
 
-When stdin is a TTY and `--no-input` is not set:
+When stdin is a TTY:
 - Prompt for missing required information
 - Show confirmation prompts for destructive actions
 - Allow interactive selection menus
@@ -356,9 +373,6 @@ Type 'v1.2.3' to confirm:
 ```bash
 # Skip confirmations
 canaveral release --yes
-
-# Disable all interactivity
-canaveral release --no-input
 
 # Auto-detected in CI
 CI=true canaveral release
@@ -441,10 +455,10 @@ esac
 
 Settings are resolved in this order (highest priority first):
 
-1. **Command-line flags** (`--tag-prefix release-`)
-2. **Environment variables** (`CANAVERAL_TAG_PREFIX=release-`)
-3. **Project config** (`.canaveral.toml` in project root)
-4. **User config** (`~/.config/canaveral/config.toml`)
+1. **Command-line flags** (e.g., `--format json`)
+2. **Environment variables** (e.g., `CANAVERAL_LOG=debug`)
+3. **Project config** (`canaveral.yaml`, `canaveral.yml`, or `canaveral.toml` in project root)
+4. **Auto-detection** (package manager and convention detection)
 5. **Built-in defaults**
 
 ### Config File Locations
@@ -465,7 +479,7 @@ Following XDG Base Directory Specification:
 
 | Variable | Description |
 |----------|-------------|
-| `CANAVERAL_CONFIG` | Path to config file |
+| `CANAVERAL_VERSION` | Current version (set during hooks) |
 | `CANAVERAL_LOG` | Log level: `error`, `warn`, `info`, `debug`, `trace` |
 
 ### Respected Standard Variables
@@ -544,21 +558,21 @@ TYPE:
     prerelease  Increment pre-release (1.3.0-alpha.0 -> 1.3.0-alpha.1)
 
 OPTIONS:
-    -n, --dry-run           Preview changes without executing
-        --no-git            Skip git operations
-        --no-publish        Skip publishing to registries
-        --preid <ID>        Pre-release identifier [default: alpha]
-        --filter <PATTERN>  Filter packages (can be repeated)
-    -f, --force             Continue on non-critical errors
-    -y, --yes               Skip confirmation prompts
+    -r, --release-type <TYPE>  Release type (major, minor, patch, prerelease, custom)
+        --version <VER>        Explicit version to release
+        --dry-run              Preview changes without executing
+        --no-git               Skip git operations
+        --no-publish           Skip publishing to registries
+        --no-changelog         Skip changelog generation
+    -y, --yes                  Skip confirmation prompts
+        --allow-branch         Allow release from non-release branch
+    -p, --package <NAME>       Package to release (monorepos)
 
 GLOBAL OPTIONS:
-    -c, --config <PATH>     Path to config file
-    -v, --verbose           Increase verbosity (-v, -vv, -vvv)
+    -v, --verbose           Enable verbose output
     -q, --quiet             Suppress non-essential output
-        --json              Output JSON format
-        --no-color          Disable colors
-        --no-input          Disable interactive prompts
+        --format <FMT>      Output format: text (default), json
+    -C, --directory <PATH>  Working directory
     -h, --help              Show this help
     -V, --version           Show version
 

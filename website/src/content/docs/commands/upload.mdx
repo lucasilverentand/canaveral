@@ -1,83 +1,107 @@
 ---
-title: upload
-description: Upload your app to the App Store or Google Play.
+title: publish
+description: Publish to app stores and package registries.
 ---
 
-# canaveral upload
+# canaveral publish
 
-Upload your app to the App Store or Google Play Store.
+Publish packages to registries and upload builds to app stores. Supports npm, crates.io, Apple App Store, Google Play, and Microsoft Store.
 
 ## Synopsis
 
 ```bash
-canaveral upload <PLATFORM> [OPTIONS]
+canaveral publish <TARGET> [OPTIONS]
 ```
 
-## Platforms
+## Targets
 
-- `ios` - Upload to App Store Connect
-- `android` - Upload to Google Play Console
-
-## Options
-
-### iOS Options
-
-| Option | Description |
+| Target | Description |
 |--------|-------------|
-| `--artifact <PATH>` | Path to IPA file |
-| `--skip-metadata` | Skip metadata upload |
-| `--skip-screenshots` | Skip screenshot upload |
-| `--submit-for-review` | Submit for App Store review |
+| `npm` | Publish to npm registry |
+| `crates` | Publish to crates.io |
+| `apple` | Submit to Apple App Store Connect |
+| `google-play` | Upload to Google Play Console |
+| `microsoft` | Submit to Microsoft Store |
 
-### Android Options
-
-| Option | Description |
-|--------|-------------|
-| `--artifact <PATH>` | Path to AAB or APK file |
-| `--track <TRACK>` | Release track: `internal`, `alpha`, `beta`, `production` |
-| `--release-status <STATUS>` | Status: `completed`, `draft`, `halted`, `inProgress` |
-| `--release-notes <TEXT>` | Release notes |
-
-## Examples
-
-### App Store
+## npm
 
 ```bash
-# Upload IPA
-canaveral upload ios --artifact build/ios/MyApp.ipa
+# Publish package to npm
+canaveral publish npm
 
-# Upload and submit for review
-canaveral upload ios --artifact build/ios/MyApp.ipa --submit-for-review
+# Publish with specific tag
+canaveral publish npm --tag beta
 
-# Skip metadata
-canaveral upload ios --artifact build/ios/MyApp.ipa --skip-metadata
+# Dry run
+canaveral publish npm --dry-run
 ```
 
-### Google Play
+## crates
 
 ```bash
-# Upload to internal testing
-canaveral store upload android --artifact build/android/app.aab --track internal
+# Publish to crates.io
+canaveral publish crates
+
+# Dry run
+canaveral publish crates --dry-run
+```
+
+## apple
+
+```bash
+# Submit to App Store Connect
+canaveral publish apple --artifact build/ios/MyApp.ipa
+```
+
+## google-play
+
+```bash
+# Upload to internal testing track
+canaveral publish google-play --artifact build/android/app.aab --track internal
 
 # Upload to production
-canaveral store upload android --artifact build/android/app.aab --track production
+canaveral publish google-play --artifact build/android/app.aab --track production
+```
 
-# With release notes
-canaveral store upload android --artifact build/android/app.aab --track internal --release-notes "Bug fixes"
+## microsoft
+
+```bash
+# Submit to Microsoft Store
+canaveral publish microsoft --artifact build/windows/MyApp.msix
 ```
 
 ## Environment Variables
 
-### iOS (App Store Connect)
+### npm
 
 | Variable | Description |
 |----------|-------------|
-| `ASC_API_KEY_ID` | API key ID |
-| `ASC_API_KEY_ISSUER` | API key issuer ID |
-| `ASC_API_KEY_PATH` | Path to .p8 key file |
+| `NPM_TOKEN` | npm registry authentication token |
 
-### Android (Google Play)
+### crates.io
 
 | Variable | Description |
 |----------|-------------|
-| `GOOGLE_PLAY_SERVICE_ACCOUNT` | Path to service account JSON |
+| `CARGO_REGISTRY_TOKEN` | crates.io API token |
+
+### Apple App Store Connect
+
+| Variable | Description |
+|----------|-------------|
+| `APP_STORE_CONNECT_API_KEY_ID` | API key ID |
+| `APP_STORE_CONNECT_ISSUER_ID` | API key issuer ID |
+| `APP_STORE_CONNECT_API_KEY` | API key content (PEM) or path to .p8 file |
+| `APP_STORE_CONNECT_API_KEY_PATH` | Path to .p8 key file |
+| `APP_STORE_CONNECT_TEAM_ID` | Team ID (optional) |
+
+### Google Play
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_KEY` | Service account JSON content or path to file |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Google Cloud credentials file path |
+
+## See Also
+
+- [testflight](/canaveral/commands/testflight/) - TestFlight beta distribution
+- [build](/canaveral/commands/build/) - Build your app

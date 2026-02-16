@@ -21,20 +21,21 @@ Canaveral uses Google Play Developer API with a service account.
 ### Configure
 
 ```bash
-export GOOGLE_PLAY_SERVICE_ACCOUNT="/path/to/service-account.json"
+# Path to service account JSON file
+export GOOGLE_PLAY_SERVICE_ACCOUNT_KEY="/path/to/service-account.json"
+
+# Or use Google Application Default Credentials
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 ```
 
 ## Upload
 
 ```bash
 # Upload to internal testing
-canaveral store upload android --artifact build/android/app.aab --track internal
+canaveral publish google-play --artifact build/android/app.aab --track internal
 
 # Upload to production
-canaveral store upload android --artifact build/android/app.aab --track production
-
-# With release notes
-canaveral store upload android --artifact build/android/app.aab --track internal --release-notes "Bug fixes"
+canaveral publish google-play --artifact build/android/app.aab --track production
 ```
 
 ## Tracks

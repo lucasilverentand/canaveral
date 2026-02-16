@@ -5,23 +5,29 @@ description: Environment variables used by Canaveral.
 
 # Environment Variables
 
-## iOS / App Store
+## iOS / App Store Connect
+
+| Variable | Description |
+|----------|-------------|
+| `APP_STORE_CONNECT_API_KEY_ID` | App Store Connect API key ID |
+| `APP_STORE_CONNECT_ISSUER_ID` | App Store Connect issuer ID |
+| `APP_STORE_CONNECT_API_KEY` | API key content (PEM string) or path to .p8 file |
+| `APP_STORE_CONNECT_API_KEY_PATH` | Path to .p8 key file |
+| `APP_STORE_CONNECT_TEAM_ID` | Apple Developer Team ID (optional) |
+
+## Certificate Sync (Match)
 
 | Variable | Description |
 |----------|-------------|
 | `MATCH_GIT_URL` | Git URL for certificate storage |
 | `MATCH_PASSWORD` | Certificate encryption password |
-| `ASC_API_KEY_ID` | App Store Connect API key ID |
-| `ASC_API_KEY_ISSUER` | App Store Connect API key issuer |
-| `ASC_API_KEY_PATH` | Path to .p8 key file |
-| `CANAVERAL_TEAM_ID` | Apple Developer Team ID |
-| `CANAVERAL_BUNDLE_ID` | iOS bundle identifier |
 
-## Android / Play Store
+## Android / Google Play
 
 | Variable | Description |
 |----------|-------------|
-| `GOOGLE_PLAY_SERVICE_ACCOUNT` | Path to service account JSON |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_KEY` | Service account JSON content or path to file |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Google Cloud credentials file path |
 | `ANDROID_KEYSTORE_PATH` | Path to keystore file |
 | `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
 | `ANDROID_KEY_ALIAS` | Signing key alias |
@@ -31,5 +37,15 @@ description: Environment variables used by Canaveral.
 
 | Variable | Description |
 |----------|-------------|
+| `FIREBASE_PROJECT_ID` | Firebase project ID |
+| `FIREBASE_APP_ID` | Firebase app ID |
 | `FIREBASE_TOKEN` | Firebase CLI token |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase service account path |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Google Cloud credentials file path |
+
+## Package Registries
+
+| Variable | Description |
+|----------|-------------|
+| `NPM_TOKEN` | npm registry authentication token |
+| `CARGO_REGISTRY_TOKEN` | crates.io API token |

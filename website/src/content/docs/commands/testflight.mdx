@@ -5,7 +5,7 @@ description: Upload and manage TestFlight builds.
 
 # canaveral testflight
 
-Upload builds to TestFlight and manage beta testing.
+Upload builds to TestFlight and manage beta testing. Includes tester management, build status, group management, and expiration handling.
 
 ## Synopsis
 
@@ -19,27 +19,124 @@ canaveral testflight <COMMAND> [OPTIONS]
 |---------|-------------|
 | `upload` | Upload a build to TestFlight |
 | `status` | Check build processing status |
+| `builds` | List TestFlight builds |
 | `testers` | Manage beta testers |
+| `groups` | Manage tester groups |
 | `submit` | Submit for external testing review |
+| `expire` | Expire old builds |
 
 ## Upload
 
+Upload an IPA to TestFlight.
+
 ```bash
+# Basic upload
 canaveral testflight upload build/ios/MyApp.ipa
-canaveral testflight upload build/ios/MyApp.ipa --changelog "Bug fixes"
+
+# With changelog
+canaveral testflight upload build/ios/MyApp.ipa --changelog "Bug fixes and improvements"
+
+# Specify locale for changelog
+canaveral testflight upload build/ios/MyApp.ipa --changelog "Bug fixes" --locale en-US
+
+# Skip automatic distribution to testers
+canaveral testflight upload build/ios/MyApp.ipa --skip-distribution
+
+# Specify API credentials explicitly
+canaveral testflight upload build/ios/MyApp.ipa \
+  --api-key-id XXXXXXXXXX \
+  --issuer-id xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+  --api-key /path/to/AuthKey.p8
 ```
+
+### Upload Options
+
+| Option | Description |
+|--------|-------------|
+| `[IPA]` | Path to IPA file (positional, required) |
+| `--api-key-id <ID>` | App Store Connect API key ID |
+| `--issuer-id <ID>` | App Store Connect issuer ID |
+| `--api-key <PATH>` | Path to API key .p8 file |
+| `--skip-distribution` | Don't distribute to testers after upload |
+| `--changelog <TEXT>` | What's new text for testers |
+| `--locale <LOCALE>` | Locale for changelog text |
 
 ## Status
 
+Check build processing status.
+
 ```bash
 canaveral testflight status
-canaveral testflight status --build-number 42
+```
+
+## Builds
+
+List TestFlight builds.
+
+```bash
+canaveral testflight builds
 ```
 
 ## Testers
 
+Manage beta testers.
+
 ```bash
+# List testers
 canaveral testflight testers list
+
+# Add a tester
 canaveral testflight testers add user@example.com
+
+# Add a tester to a specific group
+canaveral testflight testers add user@example.com --group "Internal Testers"
+
+# Remove a tester
 canaveral testflight testers remove user@example.com
 ```
+
+## Groups
+
+Manage tester groups.
+
+```bash
+# List groups
+canaveral testflight groups list
+
+# Create a new group
+canaveral testflight groups create "QA Team"
+
+# Delete a group
+canaveral testflight groups delete "QA Team"
+```
+
+## Submit
+
+Submit a build for external testing review.
+
+```bash
+canaveral testflight submit
+```
+
+## Expire
+
+Expire old TestFlight builds.
+
+```bash
+canaveral testflight expire
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `APP_STORE_CONNECT_API_KEY_ID` | API key ID |
+| `APP_STORE_CONNECT_ISSUER_ID` | API key issuer ID |
+| `APP_STORE_CONNECT_API_KEY` | API key content (PEM) or path to .p8 file |
+| `APP_STORE_CONNECT_API_KEY_PATH` | Path to .p8 key file |
+| `APP_STORE_CONNECT_TEAM_ID` | Team ID (optional) |
+
+## See Also
+
+- [build](/canaveral/commands/build/) - Build your app
+- [publish](/canaveral/commands/upload/) - Publish to app stores

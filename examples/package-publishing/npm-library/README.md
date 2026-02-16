@@ -39,16 +39,29 @@ canaveral publish npm example-my-library-1.0.0.tgz --tag next
 ### Version Management
 
 ```bash
-# Get current version
-canaveral version get
+# Show current version
+canaveral version --current
 
-# Bump version
-canaveral version bump patch  # 1.0.0 -> 1.0.1
-canaveral version bump minor  # 1.0.1 -> 1.1.0
-canaveral version bump major  # 1.1.0 -> 2.0.0
+# Calculate next version (auto-detected from commits)
+canaveral version
 
-# Set specific version
-canaveral version set 1.2.3
+# Force a specific bump type
+canaveral version --release-type patch
+canaveral version --release-type minor
+canaveral version --release-type major
+```
+
+### Full Release
+
+```bash
+# Create a release (bumps version, generates changelog, creates tag)
+canaveral release --yes
+
+# Release a specific version
+canaveral release --version 1.2.3 --yes
+
+# Dry run
+canaveral release --dry-run
 ```
 
 ## CI/CD Integration
@@ -112,13 +125,21 @@ publish:
 You can configure NPM publishing in `canaveral.toml`:
 
 ```toml
-[project]
 name = "my-npm-library"
-version = "1.0.0"
 
-[stores.npm]
-registry_url = "https://registry.npmjs.org"  # Default
-# token will be read from NPM_TOKEN env var or ~/.npmrc
+[versioning]
+strategy = "semver"
+tag_format = "v{version}"
+
+[[packages]]
+name = "@example/my-library"
+path = "."
+type = "npm"
+publish = true
+
+[publish.registries.npm]
+url = "https://registry.npmjs.org"
+# Token will be read from NPM_TOKEN env var
 ```
 
 ## Authentication
@@ -126,11 +147,9 @@ registry_url = "https://registry.npmjs.org"  # Default
 Canaveral looks for your NPM token in this order:
 
 1. `NPM_TOKEN` environment variable
-2. `~/.npmrc` file (looks for `//registry.npmjs.org/:_authToken=...`)
-3. `--token` flag on the command line
+2. `--token` flag on the command line
 
 ## Learn More
 
-- [Canaveral NPM Registry Documentation](https://canaveral.dev/docs/registries/npm)
 - [NPM Publishing Guide](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry)
 - [Semantic Versioning](https://semver.org)

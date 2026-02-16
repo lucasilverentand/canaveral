@@ -18,32 +18,65 @@ Initial release with core functionality:
   - Native iOS (Xcode)
   - Native Android (Gradle)
   - Tauri (macOS, Windows, Linux)
+  - Electron (macOS, Windows, Linux)
+  - Vite (Web)
+  - Next.js (Web)
+  - Astro (Web)
+
+- **Version Management**
+  - SemVer, CalVer, and build number strategies
+  - Conventional commit parsing
+  - Changelog generation
+  - Monorepo coordinated and independent versioning
 
 - **Distribution**
   - App Store Connect integration
   - Google Play Console integration
-  - TestFlight automation
+  - TestFlight automation (upload, testers, groups, builds)
   - Firebase App Distribution
+  - Microsoft Store
+  - npm registry publishing
+  - crates.io publishing
 
 - **Code Signing**
   - Match-style certificate sync
   - Git, S3, GCS, Azure storage backends
-  - Automatic certificate/profile creation
+  - macOS codesign, Windows signtool, Android apksigner, GPG providers
+
+- **Build Orchestration**
+  - Task pipeline DAG with topological sorting
+  - Parallel task execution with configurable concurrency
+  - Task caching with content-hash based invalidation
+  - Monorepo workspace detection (Cargo, npm, pnpm, yarn, lerna, nx, turbo)
+  - Change detection and affected package computation
 
 - **CI/CD**
-  - GitHub Actions integration
+  - GitHub Actions integration and config generation
   - GitLab CI integration
-  - JSON output format
-  - Structured error handling
+  - JSON output format for machine consumption
+  - PR validation and preview
+  - CI pipeline management (`ci generate`, `ci run`, `ci validate`)
 
 ### Commands
 
-- `canaveral build` - Build apps
-- `canaveral test` - Run tests
-- `canaveral version` - Manage versions
-- `canaveral upload` - Upload to stores
+- `canaveral init` - Initialize a new configuration
+- `canaveral version` - Calculate the next version
+- `canaveral changelog` - Generate changelog from commits
+- `canaveral release` - Create a full release
+- `canaveral status` - Show repository status
+- `canaveral validate` - Validate configuration
+- `canaveral build` - Build apps for any platform
+- `canaveral test` - Run tests with smart selection
+- `canaveral publish` - Publish to registries and app stores
 - `canaveral testflight` - TestFlight management
-- `canaveral match` - Certificate sync
-- `canaveral screenshots` - Screenshot automation
-- `canaveral metadata` - Metadata management
+- `canaveral firebase` - Firebase App Distribution
+- `canaveral match` - Certificate and profile sync
+- `canaveral signing` - Code signing operations
+- `canaveral metadata` - App store metadata management
+- `canaveral screenshots` - Screenshot capture and framing
+- `canaveral run` - Run tasks across a workspace
+- `canaveral cache` - Task cache management
+- `canaveral ci` - CI pipeline management
+- `canaveral pr` - PR validation and preview
 - `canaveral doctor` - Environment check
+- `canaveral completions` - Shell completions

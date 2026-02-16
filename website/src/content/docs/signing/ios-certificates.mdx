@@ -21,7 +21,7 @@ iOS apps must be signed with a valid certificate to run on devices or be submitt
 The recommended way to manage certificates is with Canaveral's match command:
 
 ```bash
-canaveral match init --storage git --git-url git@github.com:org/certs.git
+canaveral match init --storage git --git-url git@github.com:org/certs.git --team-id TEAMID
 canaveral match sync --profile-type development
 canaveral match sync --profile-type appstore
 ```
@@ -34,9 +34,11 @@ If you prefer manual certificate management:
 
 1. Create certificate in Apple Developer Portal
 2. Download and install in Keychain
-3. Configure in `canaveral.toml`:
+3. Configure in `canaveral.yaml`:
 
-```toml
-[ios.signing]
-identity = "Apple Distribution: Your Company (TEAMID)"
+```yaml
+signing:
+  enabled: true
+  provider: macos
+  identity: "Apple Distribution: Your Company (TEAMID)"
 ```

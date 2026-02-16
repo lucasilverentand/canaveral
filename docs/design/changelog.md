@@ -150,54 +150,57 @@ Follows [keepachangelog.com](https://keepachangelog.com) conventions:
 
 ## Configuration
 
+The changelog section in `canaveral.yaml` maps to the `ChangelogConfig` struct:
+
 ```yaml
 changelog:
-  # Commit parsing format
-  format: conventional-commits  # or: angular, custom
+  # Enable changelog generation
+  enabled: true
 
   # Output file
   file: CHANGELOG.md
 
   # Output format
-  outputFormat: markdown  # or: keepachangelog, json
+  format: markdown
 
-  # Include commit types in changelog
-  include:
-    - feat
-    - fix
-    - perf
-    - revert
+  # Optional header text
+  header: null
 
-  # Exclude types (takes precedence)
-  exclude:
-    - chore
-    - docs
-    - style
-    - test
+  # Include commit hashes in changelog entries
+  include_hashes: true
 
-  # Section headers
-  sections:
-    feat: "Features"
-    fix: "Bug Fixes"
-    perf: "Performance Improvements"
-    revert: "Reverts"
-    breaking: "BREAKING CHANGES"
+  # Include commit authors
+  include_authors: false
 
-  # Link formats
-  links:
-    commit: "https://github.com/${owner}/${repo}/commit/${hash}"
-    issue: "https://github.com/${owner}/${repo}/issues/${id}"
-    pr: "https://github.com/${owner}/${repo}/pull/${id}"
+  # Include dates
+  include_dates: true
 
-  # Include author in entries
-  includeAuthor: false
-
-  # Group by scope
-  groupByScope: false
-
-  # Maximum entries per section (0 = unlimited)
-  maxEntries: 0
+  # Commit type to section mapping
+  types:
+    feat:
+      section: Features
+      hidden: false
+    fix:
+      section: Bug Fixes
+      hidden: false
+    docs:
+      section: Documentation
+      hidden: false
+    perf:
+      section: Performance
+      hidden: false
+    refactor:
+      section: Refactoring
+      hidden: true
+    test:
+      section: Tests
+      hidden: true
+    chore:
+      section: Chores
+      hidden: true
 ```
+
+Types marked `hidden: true` are not included in the changelog output by default.
 
 ## Reference Detection
 
@@ -232,27 +235,23 @@ changelog:
 ### Generate Changelog
 
 ```bash
-# Generate for unreleased changes
+# Generate for unreleased changes (prints to stdout)
 canaveral changelog
 
 # Generate for specific version
 canaveral changelog --version 1.2.0
 
-# Custom range
-canaveral changelog --from v1.1.0 --to v1.2.0
+# Write to file
+canaveral changelog --write
 
-# Output to stdout
-canaveral changelog --stdout
+# Write to specific file
+canaveral changelog --write --output CHANGES.md
+
+# Include all commit types
+canaveral changelog --all
 
 # JSON output
 canaveral changelog --format json
-```
-
-### Preview Changelog
-
-```bash
-# Preview what would be generated
-canaveral changelog --dry-run
 ```
 
 ## Monorepo Changelogs

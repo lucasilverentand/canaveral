@@ -108,11 +108,9 @@ jobs:
           for locale in "${LOCALE_ARRAY[@]}"; do
             echo "Capturing screenshots for locale: $locale"
             canaveral screenshots capture \
-              --platform ios \
-              --device "${{ matrix.device.id }}" \
-              --locale "$locale" \
-              --output "screenshots/ios/${{ matrix.device.name }}/$locale" \
-              --output-format github-actions
+              --devices "${{ matrix.device.id }}" \
+              --locales "$locale" \
+              --output "screenshots/ios/${{ matrix.device.name }}/$locale"
           done
         env:
           CI: true
@@ -121,9 +119,8 @@ jobs:
         if: inputs.frame
         run: |
           canaveral screenshots frame \
-            --input "screenshots/ios/${{ matrix.device.name }}" \
-            --output "screenshots/framed/ios/${{ matrix.device.name }}" \
-            --device "${{ matrix.device.name }}"
+            "screenshots/ios/${{ matrix.device.name }}" \
+            --output "screenshots/framed/ios/${{ matrix.device.name }}"
 
       - name: Upload Raw Screenshots
         uses: actions/upload-artifact@v4
@@ -215,20 +212,17 @@ jobs:
             for locale in "${LOCALE_ARRAY[@]}"; do
               echo "Capturing screenshots for locale: $locale"
               canaveral screenshots capture \
-                --platform android \
-                --device "${{ matrix.device.avd }}" \
-                --locale "$locale" \
-                --output "screenshots/android/${{ matrix.device.name }}/$locale" \
-                --output-format github-actions
+                --devices "${{ matrix.device.avd }}" \
+                --locales "$locale" \
+                --output "screenshots/android/${{ matrix.device.name }}/$locale"
             done
 
       - name: Frame Screenshots
         if: inputs.frame
         run: |
           canaveral screenshots frame \
-            --input "screenshots/android/${{ matrix.device.name }}" \
-            --output "screenshots/framed/android/${{ matrix.device.name }}" \
-            --device "${{ matrix.device.name }}"
+            "screenshots/android/${{ matrix.device.name }}" \
+            --output "screenshots/framed/android/${{ matrix.device.name }}"
 
       - name: Upload Raw Screenshots
         uses: actions/upload-artifact@v4

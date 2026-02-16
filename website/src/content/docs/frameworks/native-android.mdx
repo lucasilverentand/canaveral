@@ -23,8 +23,8 @@ Canaveral detects native Android projects by the presence of `build.gradle` or `
 # Debug APK
 canaveral build --platform android --profile debug
 
-# Release APK
-canaveral build --platform android --profile release --config format=apk
+# Release APK (pass format via extra args)
+canaveral build --platform android --profile release -- --build-type apk
 ```
 
 ### AAB Build (Play Store)
@@ -41,7 +41,7 @@ canaveral build --platform android --profile release
 ### Build with Flavor
 
 ```bash
-canaveral build --platform android --profile release --config flavor=production
+canaveral build --platform android --profile release --flavor production
 ```
 
 ## Gradle Support
@@ -86,14 +86,11 @@ Version is read from `app/build.gradle` or `app/build.gradle.kts`:
 # Show version
 canaveral version
 
-# Bump version (updates versionName and versionCode)
-canaveral version --bump patch
+# Calculate next version
+canaveral version --release-type patch
 
-# Set specific version
-canaveral version --set 2.0.0
-
-# Only bump versionCode
-canaveral version --build
+# Show current version
+canaveral version --current
 ```
 
 ## Signing
@@ -107,14 +104,23 @@ export ANDROID_KEY_ALIAS=release
 export ANDROID_KEY_PASSWORD=password
 ```
 
-### Configuration File
+### Build Command Options
 
-```toml title="canaveral.toml"
-[android.signing]
-keystore_path = "${ANDROID_KEYSTORE_PATH}"
-keystore_password = "${ANDROID_KEYSTORE_PASSWORD}"
-key_alias = "${ANDROID_KEY_ALIAS}"
-key_password = "${ANDROID_KEY_PASSWORD}"
+```bash
+canaveral build --platform android --profile release \
+  --keystore "${ANDROID_KEYSTORE_PATH}" \
+  --key-alias "${ANDROID_KEY_ALIAS}"
+```
+
+Or configure signing in `canaveral.yaml`:
+
+```yaml
+signing:
+  enabled: true
+  provider: android
+  android:
+    keystore_path: "${ANDROID_KEYSTORE_PATH}"
+    key_alias: "${ANDROID_KEY_ALIAS}"
 ```
 
 ### Gradle Signing Config
@@ -165,57 +171,35 @@ android {
 Build with flavor:
 
 ```bash
-canaveral build --platform android --profile release --config flavor=production
+canaveral build --platform android --profile release --flavor production
 ```
 
-## Configuration
+## Build Configuration
 
-Android-specific options in `canaveral.toml`:
+Pass additional arguments to Gradle using `--`:
 
-```toml
-[android]
-package_name = "com.example.myapp"
+```bash
+# Pass extra Gradle args
+canaveral build --platform android --profile release -- --stacktrace --info
 
-# Gradle project directory (if not root)
-project_dir = "android"
-
-# Module name (default: app)
-module = "app"
-
-# Build type (default based on profile)
-build_type = "Release"
-
-# Flavor
-flavor = "production"
-
-# Output format
-output_format = "aab"  # aab or apk
-
-# ProGuard/R8
-minify_enabled = true
-shrink_resources = true
-
-# Additional Gradle args
-gradle_args = ["--stacktrace", "--info"]
+# Build specific flavor
+canaveral build --platform android --profile release --flavor production
 ```
 
 ## Testing
 
-### Unit Tests
+### Tests
 
 ```bash
-canaveral test --type unit --platform android
+# Run tests
+canaveral test --platform android
+
+# Run with filter
+canaveral test --platform android --filter "LoginTest"
+
+# JUnit output for CI
+canaveral test --platform android --reporter junit --output test-results/results.xml
 ```
-
-Runs `./gradlew test`.
-
-### Instrumented Tests
-
-```bash
-canaveral test --type integration --platform android
-```
-
-Runs `./gradlew connectedAndroidTest`.
 
 ## CI/CD Integration
 
@@ -254,9 +238,9 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Upload to Play Store
-        run: canaveral store upload android --artifact build/android/*.aab --track internal
+        run: canaveral publish google-play --artifact build/android/*.aab --track internal
         env:
-          GOOGLE_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY }}
 ```
 
 ## Troubleshooting

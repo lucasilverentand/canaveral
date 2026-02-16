@@ -78,50 +78,25 @@ The architecture follows a layered design with clear separation of concerns:
 
 ## Crate Structure
 
+The workspace contains 11 crates (1 binary + 10 libraries):
+
 ```
 canaveral/
-├── Cargo.toml              # Workspace root
+├── Cargo.toml                  # Workspace root
 ├── crates/
-│   ├── canaveral/          # Main binary crate
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── main.rs
-│   │       └── cli/        # Command definitions
-│   ├── canaveral-core/     # Core library
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── workflow.rs # Release workflow
-│   │       ├── hooks.rs    # Hook system
-│   │       └── validation.rs
-│   ├── canaveral-git/      # Git operations
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── commits.rs
-│   │       └── tags.rs
-│   ├── canaveral-strategies/ # Version strategies
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── semver.rs
-│   │       ├── calver.rs
-│   │       └── buildnum.rs
-│   ├── canaveral-adapters/ # Package adapters
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── npm/
-│   │       ├── cargo/
-│   │       └── python/
-│   └── canaveral-changelog/ # Changelog generation
-│       ├── Cargo.toml
-│       └── src/
-│           ├── lib.rs
-│           ├── parser.rs
-│           └── generator.rs
-├── docs/                   # Documentation
-└── tests/                  # Integration tests
+│   ├── canaveral/              # Main binary crate (CLI)
+│   ├── canaveral-core/         # Config, hooks, plugins, migration, monorepo, workflow
+│   ├── canaveral-git/          # Git operations via git2 (libgit2)
+│   ├── canaveral-changelog/    # Conventional commit parsing, changelog generation
+│   ├── canaveral-strategies/   # Version strategies (SemVer, CalVer, build numbers)
+│   ├── canaveral-adapters/     # Package adapters (npm, Cargo, Python, Go, Maven, Docker)
+│   ├── canaveral-signing/      # Code signing (macOS, Windows, Android, GPG)
+│   ├── canaveral-stores/       # App store uploaders (Apple, Google Play, Microsoft, npm, crates.io)
+│   ├── canaveral-metadata/     # App store metadata management
+│   ├── canaveral-frameworks/   # Framework adapters (Flutter, React Native, Vite, Next.js, etc.)
+│   └── canaveral-tasks/        # Task orchestration (DAG, caching, smart test selection)
+├── docs/                       # Documentation
+└── tests/                      # Integration tests
 ```
 
 ## Key Dependencies
@@ -131,6 +106,7 @@ canaveral/
 [workspace.dependencies]
 # CLI
 clap = { version = "4", features = ["derive", "env"] }
+clap_complete = "4"
 dialoguer = "0.11"
 indicatif = "0.17"
 console = "0.15"
@@ -140,24 +116,36 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 toml = "0.8"
+toml_edit = "0.22"
 
 # Git
 git2 = "0.18"
 
-# HTTP
-reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+# Async
 tokio = { version = "1", features = ["full"] }
 
-# Utilities
+# Error handling
 thiserror = "1"
 anyhow = "1"
+
+# Logging/tracing
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Versioning
 semver = "1"
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Utilities
 regex = "1"
 glob = "0.3"
-keyring = "2"
+globset = "0.4"
+walkdir = "2"
+tempfile = "3"
+url = "2"
+dirs = "5"
+which = "7"
+sha2 = "0.10"
 ```
 
 ## Data Flow
@@ -200,10 +188,11 @@ User Command
 - Reusable components
 - Easier testing
 
-### 3. Plugin System via Dynamic Loading
-- Plugins as shared libraries (.so, .dylib, .dll)
-- Or WASM plugins for sandboxed execution
+### 3. Plugin System via External Subprocess
+- Plugins as external executables communicating via JSON over stdin/stdout
+- Three plugin types: Adapter, Strategy, Formatter
 - Clear trait interfaces for extension points
+- Plugin registry with discovery from search paths
 
 ### 4. Configuration-as-Code
 - YAML for human readability (primary)

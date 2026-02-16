@@ -63,16 +63,6 @@ jobs:
     registry-token: ${{ secrets.NPM_TOKEN }}
 ```
 
-### Pre-release
-
-```yaml
-- uses: canaveral/action@v1
-  with:
-    bump: minor
-    preid: beta  # Creates 1.2.0-beta.0
-    registry-token: ${{ secrets.NPM_TOKEN }}
-```
-
 ### Dry Run (Preview)
 
 ```yaml
@@ -120,14 +110,6 @@ jobs:
     skip-git: true        # Don't commit/tag/push
 ```
 
-### Custom Tag Prefix
-
-```yaml
-- uses: canaveral/action@v1
-  with:
-    tag-prefix: ''  # No prefix (1.0.0 instead of v1.0.0)
-```
-
 ### Using Outputs
 
 ```yaml
@@ -156,21 +138,16 @@ jobs:
 | Input | Description | Default |
 |-------|-------------|---------|
 | `command` | Command to run: `release`, `version`, `changelog`, `init` | `release` |
-| `bump` | Version bump: `major`, `minor`, `patch`, `auto` | `auto` |
-| `version` | Explicit version to set (overrides bump) | |
-| `preid` | Pre-release identifier: `alpha`, `beta`, `rc` | |
+| `bump` | Version bump type: `major`, `minor`, `patch`, `auto` (from commits) | `auto` |
+| `version` | Explicit version string (overrides bump) | |
 | `package` | Package name for monorepo releases | |
-| `package-type` | Package type: `npm`, `cargo`, `python`, `go`, `maven`, `docker` | auto-detect |
-| `tag-prefix` | Git tag prefix | `v` |
 | `git-user-name` | Git user name for commits | `github-actions[bot]` |
 | `git-user-email` | Git user email for commits | `github-actions[bot]@users.noreply.github.com` |
-| `push` | Push commits and tags to remote | `true` |
 | `dry-run` | Simulate without making changes | `false` |
 | `skip-publish` | Skip registry publishing | `false` |
 | `skip-changelog` | Skip changelog generation | `false` |
 | `skip-git` | Skip git operations | `false` |
 | `registry-token` | Token for package registry | |
-| `config` | Path to canaveral.yaml | |
 | `working-directory` | Working directory | `.` |
 | `canaveral-version` | Canaveral version to use | `latest` |
 

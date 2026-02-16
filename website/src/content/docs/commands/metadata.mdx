@@ -5,7 +5,7 @@ description: Manage app store metadata.
 
 # canaveral metadata
 
-Sync and manage app store metadata.
+Manage app store metadata for Apple App Store and Google Play. Uses a Fastlane-compatible directory layout for metadata files.
 
 ## Synopsis
 
@@ -17,32 +17,64 @@ canaveral metadata <COMMAND> [OPTIONS]
 
 | Command | Description |
 |---------|-------------|
-| `pull` | Download metadata from store |
-| `push` | Upload metadata to store |
-| `diff` | Show pending changes |
+| `init` | Initialize metadata directory structure |
+| `validate` | Validate metadata against store requirements |
+| `export` | Export metadata from current project |
+| `add-locale` | Add a new locale |
+| `remove-locale` | Remove a locale |
+| `list-locales` | List configured locales |
+| `screenshots` | Manage screenshot metadata |
+| `sync` | Sync metadata with app stores |
+| `diff` | Show differences between local and remote metadata |
 
-## Pull
+## Init
+
+Initialize the metadata directory structure.
 
 ```bash
-canaveral metadata pull ios
-canaveral metadata pull android
+canaveral metadata init
 ```
 
-## Push
+## Validate
+
+Validate metadata against Apple and Google requirements (character limits, required fields, screenshot dimensions, etc.).
 
 ```bash
-canaveral metadata push ios
-canaveral metadata push android
+canaveral metadata validate
+```
+
+## Locale Management
+
+```bash
+# List locales
+canaveral metadata list-locales
+
+# Add a new locale
+canaveral metadata add-locale de-DE
+
+# Remove a locale
+canaveral metadata remove-locale de-DE
+```
+
+## Sync
+
+Sync metadata with app stores.
+
+```bash
+canaveral metadata sync
 ```
 
 ## Diff
 
+Show differences between local metadata and what is currently on the store.
+
 ```bash
-canaveral metadata diff ios
-canaveral metadata diff android
+canaveral metadata diff
 ```
 
 ## Metadata Structure
+
+Metadata is stored in a Fastlane-compatible directory layout:
 
 ```
 metadata/
@@ -51,14 +83,25 @@ metadata/
 │   │   ├── name.txt
 │   │   ├── subtitle.txt
 │   │   ├── description.txt
-│   │   └── keywords.txt
+│   │   ├── keywords.txt
+│   │   ├── promotional_text.txt
+│   │   ├── release_notes.txt
+│   │   └── screenshots/
+│   │       ├── iPhone_6.5/
+│   │       └── iPad_12.9/
 │   └── de-DE/
 │       └── ...
 └── android/
     ├── en-US/
     │   ├── title.txt
     │   ├── short_description.txt
-    │   └── full_description.txt
+    │   ├── full_description.txt
+    │   └── changelogs/
+    │       └── default.txt
     └── de-DE/
         └── ...
 ```
+
+## See Also
+
+- [screenshots](/canaveral/commands/screenshots/) - Screenshot capture and framing

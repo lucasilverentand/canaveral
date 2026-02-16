@@ -1,11 +1,11 @@
 ---
 title: match
-description: Sync iOS certificates and profiles.
+description: Sync certificates and provisioning profiles across your team.
 ---
 
 # canaveral match
 
-Sync iOS certificates and provisioning profiles across your team.
+Sync iOS certificates and provisioning profiles across your team using encrypted storage. Supports Git, S3, GCS, and Azure Blob storage backends.
 
 ## Synopsis
 
@@ -19,27 +19,116 @@ canaveral match <COMMAND> [OPTIONS]
 |---------|-------------|
 | `init` | Initialize certificate storage |
 | `sync` | Sync certificates and profiles |
-| `nuke` | Remove and regenerate certificates |
+| `nuke` | Remove and regenerate all certificates |
+| `status` | Show certificate and profile status |
 
 ## Init
 
+Initialize a new certificate storage backend.
+
 ```bash
+# Git storage
 canaveral match init --storage git --git-url git@github.com:org/certs.git --team-id TEAMID
+
+# S3 storage
 canaveral match init --storage s3 --bucket my-certs --team-id TEAMID
+
+# GCS storage
+canaveral match init --storage gcs --bucket my-certs --team-id TEAMID
+
+# Azure Blob storage
+canaveral match init --storage azure --bucket my-container --team-id TEAMID
 ```
+
+### Init Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--storage <TYPE>` | | Storage backend: `git`, `s3`, `gcs`, `azure` |
+| `--git-url <URL>` | | Git repository URL (for git storage) |
+| `--branch <BRANCH>` | | Git branch (default: main) |
+| `--bucket <NAME>` | | Bucket name (for S3/GCS/Azure) |
+| `--prefix <PREFIX>` | | Key prefix in bucket |
+| `--region <REGION>` | | AWS region (for S3) |
+| `--team-id <ID>` | `-t` | Apple Developer Team ID (required) |
+| `--output <PATH>` | `-o` | Output directory for certificates |
 
 ## Sync
 
+Sync certificates and profiles from storage.
+
 ```bash
+# Sync development certificates
 canaveral match sync --profile-type development
+
+# Sync App Store distribution certificates
 canaveral match sync --profile-type appstore
+
+# Read-only mode (for CI - won't create new certs)
 canaveral match sync --profile-type appstore --readonly
+
+# Force re-download
+canaveral match sync --profile-type appstore --force
+
+# Sync for specific app IDs
+canaveral match sync --profile-type appstore --app-ids com.example.app1,com.example.app2
 ```
 
-## Options
+### Sync Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile-type <TYPE>` | `-p` | Profile type: `development`, `adhoc`, `appstore`, `enterprise` |
+| `--readonly` | | Don't create new certificates, only download existing |
+| `--force` | | Force re-download even if cached |
+| `--app-ids <IDS>` | | Comma-separated app identifiers |
+| `--keyfile <PATH>` | | Path to encryption key file |
+| `--config <PATH>` | `-c` | Path to match configuration file |
+
+## Nuke
+
+Remove all certificates and profiles from storage and regenerate them.
+
+```bash
+# Nuke development certificates
+canaveral match nuke --profile-type development
+
+# Skip confirmation prompt
+canaveral match nuke --profile-type development --yes
+```
+
+### Nuke Options
 
 | Option | Description |
 |--------|-------------|
-| `--profile-type` | Type: `development`, `appstore`, `adhoc`, `enterprise` |
-| `--readonly` | Don't create new certificates |
-| `--force` | Regenerate certificates |
+| `--profile-type <TYPE>` | Profile type to nuke |
+| `--keyfile <PATH>` | Path to encryption key file |
+| `--config <PATH>` | Path to match configuration file |
+| `--yes` | Skip confirmation prompt |
+
+## Status
+
+Show current certificate and profile status.
+
+```bash
+canaveral match status
+```
+
+### Status Options
+
+| Option | Description |
+|--------|-------------|
+| `--keyfile <PATH>` | Path to encryption key file |
+| `--config <PATH>` | Path to match configuration file |
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `MATCH_PASSWORD` | Encryption password for certificate storage |
+| `MATCH_GIT_URL` | Git URL for certificate storage |
+
+## See Also
+
+- [signing](/canaveral/signing/overview/) - Code signing overview
+- [build](/canaveral/commands/build/) - Build your app

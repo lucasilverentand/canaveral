@@ -69,19 +69,16 @@ version: 1.2.3+42  # version+build_number
 ```
 
 ```bash
-# Show version
-canaveral version              # Shows 1.2.3 (build 42)
+# Calculate next version from conventional commits
+canaveral version
 
-# Bump version
-canaveral version --bump patch # 1.2.3+42 -> 1.2.4+43
-canaveral version --bump minor # 1.2.3+42 -> 1.3.0+43
-canaveral version --bump major # 1.2.3+42 -> 2.0.0+43
+# Specify release type
+canaveral version --release-type patch  # 1.2.3 -> 1.2.4
+canaveral version --release-type minor  # 1.2.3 -> 1.3.0
+canaveral version --release-type major  # 1.2.3 -> 2.0.0
 
-# Set specific version
-canaveral version --set 2.0.0
-
-# Only bump build number
-canaveral version --build
+# Show current version
+canaveral version --current
 ```
 
 <Aside type="note">
@@ -93,29 +90,27 @@ canaveral version --build
 ### Unit Tests
 
 ```bash
-canaveral test --type unit
+canaveral test
 ```
 
 Runs `flutter test` for unit and widget tests.
 
-### Widget Tests
+### With Filter
 
 ```bash
-canaveral test --type widget
+canaveral test --filter "login"
 ```
 
 ### Integration Tests
 
 ```bash
-canaveral test --type integration
+canaveral test --platform ios
 ```
-
-Runs tests in the `integration_test/` directory.
 
 ### With Coverage
 
 ```bash
-canaveral test --type unit --coverage
+canaveral test --coverage
 ```
 
 Generates a coverage report in `coverage/lcov.info`.
@@ -156,50 +151,22 @@ Support for Flutter flavor builds:
 
 ```bash
 # Build with flavor
-canaveral build --platform ios --profile release --config flavor=production
+canaveral build --platform ios --profile release --flavor production
 
 # Android with flavor
-canaveral build --platform android --profile release --config flavor=production
-```
-
-Configure flavors in `canaveral.toml`:
-
-```toml
-[flutter]
-default_flavor = "production"
-
-[flutter.flavors.development]
-bundle_id_suffix = ".dev"
-android_application_id_suffix = ".dev"
-
-[flutter.flavors.staging]
-bundle_id_suffix = ".staging"
-
-[flutter.flavors.production]
-# No suffix for production
+canaveral build --platform android --profile release --flavor production
 ```
 
 ## Build Configuration
 
-Additional Flutter-specific options in `canaveral.toml`:
+Pass additional arguments to the underlying Flutter build command using `--`:
 
-```toml
-[flutter]
-# Dart defines
-dart_defines = ["FLAVOR=production", "API_URL=https://api.example.com"]
+```bash
+# Pass extra args to flutter build
+canaveral build --platform ios --profile release -- --dart-define=FLAVOR=production --obfuscate --split-debug-info=build/symbols
 
-# Split debug info (for crash reporting)
-split_debug_info = true
-debug_info_output = "build/symbols"
-
-# Obfuscation
-obfuscate = true
-
-# Tree shake icons
-tree_shake_icons = true
-
-# Additional build args
-extra_args = ["--no-sound-null-safety"]
+# Android with extra args
+canaveral build --platform android --profile release -- --dart-define=API_URL=https://api.example.com
 ```
 
 ## CI/CD Integration
@@ -224,10 +191,10 @@ jobs:
         run: curl -fsSL https://get.canaveral.dev | sh
 
       - name: Build iOS
-        run: canaveral build --platform ios --profile release --output-format github-actions
+        run: canaveral build --platform ios --profile release
 
       - name: Build Android
-        run: canaveral build --platform android --profile release --output-format github-actions
+        run: canaveral build --platform android --profile release
 ```
 
 ## Troubleshooting

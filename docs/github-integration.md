@@ -83,43 +83,40 @@ Canaveral integrates with GitHub at multiple levels:
 # Navigate to your repository
 cd my-project
 
-# Initialize Canaveral (auto-detects package type)
+# Initialize Canaveral (interactive, auto-detects package type)
 canaveral init
 
-# Or specify the package type explicitly
-canaveral init --type npm
-canaveral init --type cargo
-canaveral init --type python
+# Or use defaults without prompting
+canaveral init --yes
 ```
 
 This creates a `canaveral.yaml` configuration file:
 
 ```yaml
-version: 1
-strategy: semver
+versioning:
+  strategy: semver
+  tag_format: "v{version}"
 
-package:
-  type: npm              # Auto-detected
-  path: .
+packages:
+  - name: my-app
+    path: .
+    type: npm              # Auto-detected
 
 git:
-  tagPrefix: "v"
   branch: main
-  push: true
+  push_tags: true
+  push_commits: true
 
 changelog:
-  format: conventional-commits
+  enabled: true
   file: CHANGELOG.md
 ```
 
 ### 2. Generate GitHub Actions Workflow
 
 ```bash
-# Generate a release workflow
-canaveral init --ci github
-
-# With custom options
-canaveral init --ci github --branch main --include-tests
+# The init command generates a basic config; CI workflows are configured via the ci section
+canaveral init
 ```
 
 This creates `.github/workflows/release.yml`.
@@ -549,14 +546,13 @@ Configure Canaveral to create pre-releases from specific branches:
 # canaveral.yaml
 git:
   branch: main
-  prereleases:
-    - branch: develop
-      preid: alpha
-    - branch: beta
-      preid: beta
-    - branch: "rc/*"
-      preid: rc
+
+versioning:
+  strategy: semver
+  prerelease_identifier: alpha  # Set for pre-release branches
 ```
+
+Note: Branch-to-prerelease mapping is handled at the CI workflow level rather than in the configuration file. Use `--allow-branch` when releasing from non-main branches.
 
 This enables:
 - Pushes to `develop` → `1.2.3-alpha.1`
@@ -597,52 +593,58 @@ This converts:
 ### Full canaveral.yaml Example
 
 ```yaml
-version: 1
-
-# Version strategy: semver, calver, or buildnum
-strategy: semver
+# Version strategy
+versioning:
+  strategy: semver
+  tag_format: "v{version}"
+  independent: false
 
 # Package configuration
-package:
-  type: npm
-  path: .
-  registry: https://registry.npmjs.org
-
-# Monorepo settings (if applicable)
-monorepo:
-  mode: independent  # or "fixed"
-  packages:
-    - packages/*
-    - apps/*
-  ignoreChanges:
-    - "**/*.md"
-    - "**/*.test.ts"
+packages:
+  - name: my-web-app
+    path: ./web
+    type: npm
+    publish: true
+    registry: https://registry.npmjs.org
 
 # Git settings
 git:
-  tagPrefix: "v"
+  remote: origin
   branch: main
-  push: true
-  signTags: false
-  signCommits: false
-  commitMessageFormat: "chore(release): ${version}"
+  require_clean: true
+  push_tags: true
+  push_commits: true
+  commit_message: "chore(release): {version}"
+  sign_commits: false
+  sign_tags: false
 
 # Changelog settings
 changelog:
-  format: conventional-commits
+  enabled: true
   file: CHANGELOG.md
+  include_hashes: true
+  include_authors: false
 
 # Hooks for custom automation
 hooks:
-  pre-version:
-    - npm test
-    - npm run build
-  post-version:
-    - echo "Version updated to ${VERSION}"
-  pre-publish:
+  pre_version:
+    - cargo test
+  post_version: []
+  pre_publish:
     - ./scripts/validate-release.sh
-  post-publish:
+  post_publish:
     - ./scripts/notify-slack.sh
+
+# CI/CD configuration
+ci:
+  platform: github
+  mode: native
+  on_pr:
+    - test
+    - lint
+  on_push_main:
+    - test
+    - release
 ```
 
 ### Environment Variables

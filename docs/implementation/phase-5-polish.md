@@ -9,83 +9,42 @@
 ### 5.1 Plugin System Implementation
 
 - [x] Plugin discovery from multiple sources
-- [x] External subprocess plugin execution (JSON communication)
+- [x] External subprocess plugin execution (JSON over stdin/stdout)
 - [x] Plugin configuration and lifecycle
 - [x] Error isolation
-- [ ] WASM plugin runtime (optional - future enhancement)
+
+Plugins are external executables that communicate via JSON over stdin/stdout:
 
 ```rust
-// crates/canaveral-core/src/plugins/loader.rs
-use libloading::{Library, Symbol};
-use std::path::Path;
+// crates/canaveral-core/src/plugins/mod.rs
 
-pub struct PluginLoader {
-    plugins: Vec<LoadedPlugin>,
+pub struct PluginRegistry {
+    plugins: Vec<ExternalPlugin>,
 }
 
-struct LoadedPlugin {
-    name: String,
-    library: Library,
-    plugin: Box<dyn Plugin>,
+pub struct ExternalPlugin {
+    pub config: PluginConfig,
+    pub info: Option<PluginInfo>,
 }
 
-impl PluginLoader {
-    pub fn discover(&mut self, search_paths: &[PathBuf]) -> Result<()> {
-        for path in search_paths {
-            if path.is_dir() {
-                for entry in std::fs::read_dir(path)? {
-                    let entry = entry?;
-                    let path = entry.path();
-                    if self.is_plugin_library(&path) {
-                        self.load_plugin(&path)?;
-                    }
-                }
-            }
-        }
-        Ok(())
+impl ExternalPlugin {
+    /// Execute a plugin action by sending JSON to stdin and reading from stdout
+    pub fn execute(&self, action: &str, input: serde_json::Value) -> Result<serde_json::Value> {
+        let request = PluginRequest {
+            action: action.to_string(),
+            input,
+            config: self.config.config.clone().unwrap_or_default(),
+        };
+        // Spawn process, write JSON to stdin, read JSON from stdout
+        // ...
     }
-
-    fn load_plugin(&mut self, path: &Path) -> Result<()> {
-        unsafe {
-            let library = Library::new(path)?;
-
-            // Get plugin entry point
-            let create_plugin: Symbol<fn() -> Box<dyn Plugin>> =
-                library.get(b"create_plugin")?;
-
-            let plugin = create_plugin();
-            let name = plugin.name().to_string();
-
-            self.plugins.push(LoadedPlugin {
-                name,
-                library,
-                plugin,
-            });
-        }
-        Ok(())
-    }
-
-    fn is_plugin_library(&self, path: &Path) -> bool {
-        let ext = path.extension().and_then(|e| e.to_str());
-        matches!(ext, Some("so") | Some("dylib") | Some("dll"))
-    }
-}
-
-// Plugin trait that all plugins must implement
-pub trait Plugin: Send + Sync {
-    fn name(&self) -> &str;
-    fn version(&self) -> &str;
-    fn plugin_type(&self) -> PluginType;
-    fn init(&mut self, config: serde_json::Value) -> Result<()>;
-    fn shutdown(&mut self) -> Result<()>;
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum PluginType {
-    Strategy,
     Adapter,
-    Changelog,
-    Hook,
+    Strategy,
+    Formatter,
 }
 ```
 
@@ -222,9 +181,9 @@ runs:
       shell: bash
       run: |
         if [ "${{ inputs.version }}" = "latest" ]; then
-          curl -fsSL https://canaveral.dev/install.sh | sh
+          cargo install canaveral
         else
-          curl -fsSL https://canaveral.dev/install.sh | sh -s -- --version ${{ inputs.version }}
+          cargo install canaveral -s -- --version ${{ inputs.version }}
         fi
 
     - name: Run Canaveral
@@ -290,7 +249,7 @@ pub async fn migrate_from_semantic_release(path: &Path) -> Result<Config> {
 
 - [x] API documentation (rustdoc)
 - [x] Implementation documentation
-- [x] E2E test suite (205 tests across 6 crates)
+- [x] E2E test suite (530+ tests across 11 crates)
 - [ ] Performance benchmarks (future enhancement)
 
 ```rust
@@ -419,7 +378,7 @@ Phase 5 is complete when:
 6. [x] GitLab CI template generator works
 7. [x] Migration from semantic-release works
 8. [x] API documentation is generated
-9. [x] E2E tests pass on all platforms (205 tests)
+9. [x] E2E tests pass on all platforms (530+ tests)
 10. [x] Binary builds for Linux, macOS, Windows (6 targets)
 11. [ ] Install script works (future enhancement)
 12. [ ] Performance targets met (<100ms version calculation) (future benchmarking)

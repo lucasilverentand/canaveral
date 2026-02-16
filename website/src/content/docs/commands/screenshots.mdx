@@ -5,7 +5,7 @@ description: Capture and frame app store screenshots.
 
 # canaveral screenshots
 
-Capture and frame screenshots for app store listings.
+Capture and frame screenshots for app store listings. Supports automated capture across devices and locales, plus device framing with templates.
 
 ## Synopsis
 
@@ -17,28 +17,109 @@ canaveral screenshots <COMMAND> [OPTIONS]
 
 | Command | Description |
 |---------|-------------|
-| `capture` | Capture screenshots on devices |
-| `frame` | Add device frames to screenshots |
+| `capture` | Capture screenshots on devices/simulators |
+| `frame` | Add device frames and text to screenshots |
+| `devices` | List available devices for screenshot capture |
+| `init` | Initialize screenshot configuration |
+
+## Init
+
+Initialize a screenshot configuration file.
+
+```bash
+canaveral screenshots init
+```
 
 ## Capture
 
+Capture screenshots across devices and locales.
+
 ```bash
+# Capture using configuration file
 canaveral screenshots capture --config screenshots.yaml
+
+# Capture on specific devices
 canaveral screenshots capture --devices "iPhone 15 Pro,Pixel 7"
+
+# Capture for specific locales
+canaveral screenshots capture --locales "en_US,de_DE"
+
+# Specify output directory
+canaveral screenshots capture --config screenshots.yaml --output screenshots/
+
+# Clean status bar (remove battery, time, etc.)
+canaveral screenshots capture --clean-status-bar
+
+# Dry run
+canaveral screenshots capture --config screenshots.yaml --dry-run
 ```
+
+### Capture Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--config <FILE>` | `-c` | Path to screenshot configuration YAML |
+| `--output <DIR>` | `-o` | Output directory |
+| `--devices <LIST>` | `-d` | Comma-separated device names |
+| `--locales <LIST>` | `-l` | Comma-separated locale codes |
+| `--app-id <ID>` | | App bundle identifier |
+| `--clean-status-bar` | | Remove status bar content |
+| `--dry-run` | | Show what would be captured |
 
 ## Frame
 
+Add device frames, titles, and backgrounds to screenshots.
+
 ```bash
-canaveral screenshots frame --template white
-canaveral screenshots frame --template black --text "Welcome to MyApp"
+# Frame a screenshot with default template
+canaveral screenshots frame screenshot.png
+
+# Use a specific template
+canaveral screenshots frame screenshot.png --template minimal
+
+# Add title and subtitle text
+canaveral screenshots frame screenshot.png --title "Welcome" --subtitle "Get started in seconds"
+
+# Specify output path
+canaveral screenshots frame screenshot.png --output framed/screenshot.png
+
+# Use a preset
+canaveral screenshots frame screenshot.png --preset appstore
+
+# Set background color
+canaveral screenshots frame screenshot.png --background "#1a1a2e"
 ```
 
-## Configuration
+### Frame Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `[INPUT]` | | Input screenshot file (positional) |
+| `--output <PATH>` | `-o` | Output file path |
+| `--template <TYPE>` | `-f` | Template: `minimal`, `device`, `perspective`, `floating` |
+| `--preset <NAME>` | | Preset configuration name |
+| `--title <TEXT>` | | Title text overlay |
+| `--subtitle <TEXT>` | | Subtitle text overlay |
+| `--background <COLOR>` | | Background color (hex) |
+| `--device-type <TYPE>` | | Device type for frame |
+
+## Devices
+
+List available devices for screenshot capture.
+
+```bash
+canaveral screenshots devices
+```
+
+## Configuration File
 
 ```yaml title="screenshots.yaml"
 devices:
   - name: "iPhone 15 Pro"
+    platform: ios
+  - name: "iPhone 15 Pro Max"
+    platform: ios
+  - name: "iPad Pro 12.9"
     platform: ios
   - name: "Pixel 7"
     platform: android
@@ -46,10 +127,22 @@ devices:
 locales:
   - en_US
   - de_DE
+  - ja_JP
+  - fr_FR
 
 screens:
   - name: home
     route: /
   - name: settings
     route: /settings
+  - name: profile
+    route: /profile
+
+options:
+  clean_status_bar: true
+  output_dir: screenshots
 ```
+
+## See Also
+
+- [metadata](/canaveral/commands/metadata/) - App store metadata management

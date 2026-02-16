@@ -36,10 +36,10 @@ This document outlines the phased approach to building Canaveral, with each phas
 ### Deliverables
 
 1. **CLI Framework**
-   - Project scaffolding with Bun
-   - Commander.js command structure
+   - Rust workspace with Cargo
+   - Clap command structure (derive macros)
    - Help system and version info
-   - Colored output and progress indicators
+   - Colored output (console crate) and progress indicators (indicatif)
 
 2. **Configuration System**
    - YAML configuration loading
@@ -222,7 +222,7 @@ This document outlines the phased approach to building Canaveral, with each phas
 2. **Hook System**
    - Lifecycle hook execution
    - Script hooks (shell commands)
-   - Plugin hooks (JavaScript)
+   - Environment variable passing
    - Error handling
 
 3. **CI/CD Integration**

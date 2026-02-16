@@ -1,11 +1,11 @@
 ---
 title: version
-description: Manage your app's version number.
+description: Calculate the next version based on conventional commits.
 ---
 
 # canaveral version
 
-Manage your app's version number across all platform-specific files.
+Calculate the next version based on conventional commits since the last tag. Uses the configured versioning strategy (SemVer, CalVer, or build number).
 
 ## Synopsis
 
@@ -15,74 +15,83 @@ canaveral version [OPTIONS]
 
 ## Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--bump <LEVEL>` | Bump version: `patch`, `minor`, `major` | - |
-| `--set <VERSION>` | Set specific version | - |
-| `--build` | Also bump build number | `false` |
-| `--output-format <FORMAT>` | Output format: `text`, `json` | `text` |
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--release-type <TYPE>` | `-r` | Release type: `major`, `minor`, `patch`, `prerelease`, `custom` | Auto (from commits) |
+| `--current` | | Show current version only (do not calculate next) | `false` |
+| `--package <NAME>` | `-p` | Target a specific package in a monorepo | - |
+
+### Global Options
+
+| Option | Description |
+|--------|-------------|
+| `--format json` | Output version information as JSON |
+| `--verbose` | Show detailed version calculation |
+| `--quiet` | Suppress output except errors |
 
 ## Examples
+
+### Calculate Next Version
+
+```bash
+# Auto-detect from conventional commits
+canaveral version
+# Output: 1.3.0
+
+# Specify release type
+canaveral version --release-type patch   # 1.2.3 -> 1.2.4
+canaveral version --release-type minor   # 1.2.3 -> 1.3.0
+canaveral version --release-type major   # 1.2.3 -> 2.0.0
+```
 
 ### Show Current Version
 
 ```bash
+canaveral version --current
+# Output: 1.2.3
+```
+
+### Monorepo Usage
+
+```bash
+# Version a specific package
+canaveral version --package my-lib
+
+# Version all packages
 canaveral version
-# Output: 1.2.3 (build 42)
-```
-
-### Bump Version
-
-```bash
-# Patch: 1.2.3 -> 1.2.4
-canaveral version --bump patch
-
-# Minor: 1.2.3 -> 1.3.0
-canaveral version --bump minor
-
-# Major: 1.2.3 -> 2.0.0
-canaveral version --bump major
-
-# Also bump build number
-canaveral version --bump patch --build
-```
-
-### Set Specific Version
-
-```bash
-canaveral version --set 2.0.0
-
-# With build number
-canaveral version --set 2.0.0 --build
 ```
 
 ### JSON Output
 
 ```bash
-canaveral version --output-format json
+canaveral version --format json
 ```
 
 ```json
 {
-  "version": "1.2.3",
-  "build_number": 42,
-  "files_updated": [
-    "pubspec.yaml",
-    "ios/Runner/Info.plist",
-    "android/app/build.gradle"
-  ]
+  "current": "1.2.3",
+  "next": "1.3.0",
+  "bump_type": "minor",
+  "strategy": "semver"
 }
 ```
 
-## Files Updated
+## Version Strategies
 
-Canaveral updates version in all relevant files for your framework:
+The version strategy is configured in `canaveral.yaml`:
 
-| Framework | Files |
-|-----------|-------|
-| Flutter | `pubspec.yaml` |
-| Expo | `app.json`, `app.config.js` |
-| React Native | `package.json`, `ios/*/Info.plist`, `android/app/build.gradle` |
-| Native iOS | `Info.plist` |
-| Native Android | `build.gradle` or `build.gradle.kts` |
-| Tauri | `tauri.conf.json`, `Cargo.toml` |
+```yaml
+versioning:
+  strategy: semver       # semver, calver, or build-number
+  tag_format: "v{version}"
+  independent: false     # Independent versioning per package (monorepo)
+```
+
+- **semver** -- Parses conventional commits. Breaking changes (`feat!:`, `BREAKING CHANGE:`) bump major. Features (`feat:`) bump minor. Fixes (`fix:`) bump patch.
+- **calver** -- Calendar-based versioning (e.g., `2026.02.1`).
+- **build-number** -- Simple incrementing integer.
+
+## See Also
+
+- [release](/canaveral/commands/) - Create a full release (version + changelog + tag + publish)
+- [changelog](/canaveral/commands/) - Generate changelog from commits

@@ -1,306 +1,427 @@
 ---
 title: Configuration
-description: Configure Canaveral with canaveral.toml.
+description: Configure Canaveral with canaveral.yaml or canaveral.toml.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 # Configuration
 
-Canaveral uses a `canaveral.toml` file in your project root for configuration. The `canaveral init` command generates this file with sensible defaults based on your project.
+Canaveral uses a `canaveral.yaml` or `canaveral.toml` file in your project root for configuration. The `canaveral init` command generates this file with sensible defaults based on your project. If no config file is found, Canaveral uses auto-detected defaults.
 
 ## Basic Structure
 
-```toml title="canaveral.toml"
-[project]
-name = "MyApp"
-# framework = "flutter"  # Auto-detected if not specified
+<Tabs>
+  <TabItem label="YAML">
+    ```yaml title="canaveral.yaml"
+    name: MyApp
 
-[ios]
-bundle_id = "com.example.myapp"
-team_id = "TEAMID123"
+    versioning:
+      strategy: semver
+      tag_format: "v{version}"
 
-[android]
-package_name = "com.example.myapp"
+    git:
+      branch: main
+      require_clean: true
+      push_tags: true
 
-[build]
-output_format = "text"  # text, json, github-actions, gitlab-ci
+    changelog:
+      enabled: true
+      file: CHANGELOG.md
 
-[signing]
-storage = "git"
-git_url = "git@github.com:org/certs.git"
+    packages: []
 
-[testflight]
-api_key_id = "${ASC_API_KEY_ID}"
-api_key_issuer = "${ASC_API_KEY_ISSUER}"
-api_key_path = "${ASC_API_KEY_PATH}"
+    hooks: {}
+    ```
+  </TabItem>
+  <TabItem label="TOML">
+    ```toml title="canaveral.toml"
+    name = "MyApp"
 
-[play_store]
-service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
+    [versioning]
+    strategy = "semver"
+    tag_format = "v{version}"
+
+    [git]
+    branch = "main"
+    require_clean = true
+    push_tags = true
+
+    [changelog]
+    enabled = true
+    file = "CHANGELOG.md"
+    ```
+  </TabItem>
+</Tabs>
+
+## Versioning Section
+
+Controls how versions are calculated and formatted.
+
+```yaml
+versioning:
+  # Version strategy: semver, calver, or build-number
+  strategy: semver
+
+  # Tag format template. {version} is replaced with the version string.
+  tag_format: "v{version}"
+
+  # Independent versioning per package (monorepo)
+  independent: false
+
+  # Prerelease identifier (e.g., "alpha", "beta", "rc")
+  prerelease_identifier: ""
+
+  # Build metadata appended to version
+  build_metadata: ""
 ```
 
-## Project Section
+### Strategies
 
-```toml
-[project]
-# Project name (used in outputs and logs)
-name = "MyApp"
+- **semver** -- Semantic versioning (major.minor.patch) based on conventional commits. Breaking changes bump major, features bump minor, fixes bump patch.
+- **calver** -- Calendar versioning (e.g., 2026.02.1).
+- **build-number** -- Simple incrementing build number.
 
-# Framework override (auto-detected by default)
-# Options: flutter, expo, react-native, native-ios, native-android, tauri
-framework = "flutter"
+## Git Section
 
-# Default profile for builds
-default_profile = "release"
+Controls git behavior during releases.
 
-# Output directory for build artifacts
-output_dir = "build"
+```yaml
+git:
+  # Remote name
+  remote: origin
+
+  # Main branch name
+  branch: main
+
+  # Require clean working directory before release
+  require_clean: true
+
+  # Push tags after creating them
+  push_tags: true
+
+  # Push commits after versioning
+  push_commits: true
+
+  # Commit message template. {version} is replaced.
+  commit_message: "chore(release): {version}"
+
+  # Sign commits with GPG
+  sign_commits: false
+
+  # Sign tags with GPG
+  sign_tags: false
 ```
 
-## iOS Section
+## Changelog Section
 
-```toml
-[ios]
-# Bundle identifier (required for iOS builds)
-bundle_id = "com.example.myapp"
+Controls changelog generation from conventional commits.
 
-# Apple Developer Team ID
-team_id = "TEAMID123"
+```yaml
+changelog:
+  # Enable changelog generation
+  enabled: true
 
-# Xcode scheme (auto-detected if not specified)
-scheme = "MyApp"
+  # Output file path
+  file: CHANGELOG.md
 
-# Export method for IPA
-# Options: app-store, ad-hoc, development, enterprise
-export_method = "app-store"
+  # Format: markdown or json
+  format: markdown
 
-# Minimum iOS version
-minimum_ios_version = "14.0"
+  # Header text prepended to changelog
+  header: "# Changelog"
+
+  # Include commit hashes in output
+  include_hashes: true
+
+  # Include commit authors
+  include_authors: false
+
+  # Include dates
+  include_dates: true
+
+  # Commit type display names (customize section headers)
+  types:
+    feat: Features
+    fix: Bug Fixes
+    docs: Documentation
+    refactor: Code Refactoring
+    perf: Performance
+    test: Tests
+    chore: Maintenance
 ```
 
-## Android Section
+## Packages Section
 
-```toml
-[android]
-# Application ID / package name
-package_name = "com.example.myapp"
+Define packages in a monorepo. Each package can have its own adapter and publish configuration.
 
-# Build flavor (optional)
-flavor = "production"
+```yaml
+packages:
+  - name: my-lib
+    path: packages/my-lib
+    adapter: npm
+    publish: true
 
-# Build type (defaults based on profile)
-# build_type = "Release"
-
-# Keystore configuration (can use environment variables)
-keystore_path = "${ANDROID_KEYSTORE_PATH}"
-keystore_password = "${ANDROID_KEYSTORE_PASSWORD}"
-key_alias = "${ANDROID_KEY_ALIAS}"
-key_password = "${ANDROID_KEY_PASSWORD}"
-
-# Minimum SDK version
-min_sdk_version = 24
-target_sdk_version = 34
+  - name: my-cli
+    path: crates/my-cli
+    adapter: cargo
+    publish: true
 ```
 
-## Build Section
+Supported adapters: `npm`, `cargo`, `python`, `go`, `maven`, `docker`.
 
-```toml
-[build]
-# Output format for build information
-# Options: text, json, github-actions, gitlab-ci
-output_format = "text"
+## Hooks Section
 
-# Enable verbose logging
-verbose = false
+Run scripts at various lifecycle stages. Canaveral supports 8 hook stages:
 
-# Number of parallel jobs (defaults to CPU count)
-jobs = 4
+```yaml
+hooks:
+  pre_version:
+    - "echo 'About to bump version'"
+  post_version:
+    - "./scripts/update-lock.sh"
+  pre_changelog:
+    - "echo 'Generating changelog'"
+  post_changelog:
+    - "./scripts/format-changelog.sh"
+  pre_publish:
+    - "cargo test"
+    - "cargo clippy"
+  post_publish:
+    - "./scripts/notify-slack.sh"
+  pre_git:
+    - "echo 'About to commit and tag'"
+  post_git:
+    - "echo 'Committed and tagged'"
+```
 
-# Additional arguments passed to underlying build tools
-[build.ios_args]
-extra_args = ["-allowProvisioningUpdates"]
+## Publish Section
 
-[build.android_args]
-extra_args = ["--stacktrace"]
+Configure registry publishing behavior.
+
+```yaml
+publish:
+  # Publish in dependency order for monorepos
+  ordered: true
+
+  # Retry failed publishes
+  retry: 2
+
+  # Dry run (validate without publishing)
+  dry_run: false
+
+  # Registry overrides
+  registries:
+    npm:
+      registry: "https://registry.npmjs.org"
+      access: public
+    cargo:
+      registry: "crates-io"
 ```
 
 ## Signing Section
 
-```toml
-[signing]
-# Certificate storage backend
-# Options: git, s3, gcs, azure
-storage = "git"
+Configure code signing for builds.
 
-# Git storage configuration
-git_url = "git@github.com:org/certs.git"
-git_branch = "main"
+```yaml
+signing:
+  # Enable code signing
+  enabled: true
 
-# S3 storage configuration
-# storage = "s3"
-# bucket = "my-certs-bucket"
-# region = "us-east-1"
-# prefix = "certificates/"
+  # Provider: macos, windows, android, gpg
+  provider: macos
 
-# GCS storage configuration
-# storage = "gcs"
-# bucket = "my-certs-bucket"
-# prefix = "certificates/"
+  # Signing identity
+  identity: "Apple Distribution: My Company (TEAMID)"
 
-# Azure Blob storage configuration
-# storage = "azure"
-# container = "certificates"
-# connection_string = "${AZURE_STORAGE_CONNECTION_STRING}"
+  # Verify signatures after signing
+  verify_after_sign: true
 
-# Encryption password (use environment variable)
-password = "${MATCH_PASSWORD}"
+  # macOS-specific options
+  macos:
+    keychain: login
+    entitlements: MyApp.entitlements
+
+  # Android-specific options
+  android:
+    keystore_path: "${ANDROID_KEYSTORE_PATH}"
+    key_alias: "${ANDROID_KEY_ALIAS}"
+
+  # GPG signing options
+  gpg:
+    key_id: "ABCDEF1234567890"
 ```
 
-## TestFlight Section
+## Stores Section
 
-```toml
-[testflight]
-# App Store Connect API Key
-api_key_id = "${ASC_API_KEY_ID}"
-api_key_issuer = "${ASC_API_KEY_ISSUER}"
-api_key_path = "${ASC_API_KEY_PATH}"
+Configure app store and registry credentials.
 
-# Or use base64-encoded key content
-# api_key_content = "${ASC_API_KEY_CONTENT_BASE64}"
+```yaml
+stores:
+  apple:
+    api_key_id: "${APP_STORE_CONNECT_API_KEY_ID}"
+    issuer_id: "${APP_STORE_CONNECT_ISSUER_ID}"
+    api_key_path: "${APP_STORE_CONNECT_API_KEY_PATH}"
+    team_id: "${APP_STORE_CONNECT_TEAM_ID}"
 
-# Skip waiting for build processing
-skip_waiting = false
+  google_play:
+    service_account_key: "${GOOGLE_PLAY_SERVICE_ACCOUNT_KEY}"
 
-# Automatically submit for review
-submit_for_review = false
+  npm:
+    token: "${NPM_TOKEN}"
+    registry: "https://registry.npmjs.org"
 
-# Default changelog
-default_changelog = "Bug fixes and improvements"
+  crates_io:
+    token: "${CARGO_REGISTRY_TOKEN}"
 ```
 
-## Play Store Section
+## Tasks Section
 
-```toml
-[play_store]
-# Service account JSON file path
-service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
+Configure task orchestration for monorepo workflows (the `run` command).
 
-# Or use base64-encoded JSON content
-# service_account_json = "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON}"
+```yaml
+tasks:
+  # Maximum concurrent tasks
+  concurrency: 4
 
-# Default track for uploads
-default_track = "internal"
+  # Task pipeline definitions
+  pipeline:
+    build:
+      command: "cargo build"
+      depends_on_packages: true   # Run in dependency order
+      outputs:
+        - "target/**"
+    test:
+      command: "cargo test"
+      depends_on:
+        - build
+    lint:
+      command: "cargo clippy"
 
-# Release status
-# Options: completed, draft, halted, inProgress
-release_status = "completed"
+  # Task caching
+  cache:
+    enabled: true
 ```
 
-## Firebase Section
+## CI Section
 
-```toml
-[firebase]
-# Firebase project ID
-project_id = "my-project"
+Configure CI pipeline behavior for the `ci` command.
 
-# App IDs (optional, auto-detected from config)
-ios_app_id = "1:123456789:ios:abcdef"
-android_app_id = "1:123456789:android:abcdef"
+```yaml
+ci:
+  # CI platform: github, gitlab
+  platform: github
 
-# Default distribution groups
-default_groups = ["testers", "qa"]
+  # CI mode
+  mode: standard
 
-# Firebase token (use environment variable)
-token = "${FIREBASE_TOKEN}"
+  # Tasks to run on pull requests
+  on_pr:
+    - lint
+    - test
+
+  # Tasks to run on push to main
+  on_push_main:
+    - build
+    - test
+    - publish
+
+  # Tasks to run on tag push
+  on_tag:
+    - build
+    - publish
+    - release
 ```
 
-## Screenshots Section
+## PR Section
 
-```toml
-[screenshots]
-# Output directory for screenshots
-output_dir = "screenshots"
+Configure pull request validation for the `pr` command.
 
-# Devices to capture on
-devices = [
-  { name = "iPhone 15 Pro", platform = "ios" },
-  { name = "iPhone 15 Pro Max", platform = "ios" },
-  { name = "Pixel 7", platform = "android" },
-]
+```yaml
+pr:
+  # Branching model: trunk, gitflow, github-flow
+  branching_model: trunk
 
-# Locales to capture
-locales = ["en_US", "de_DE", "ja_JP", "fr_FR"]
+  # Checks to run during PR validation
+  checks:
+    - commit-format
+    - version-conflict
+    - tests
+    - lint
 
-# Add clean status bar
-clean_status_bar = true
+  # Require changelog entry
+  require_changelog: false
+
+  # Require conventional commits
+  require_conventional_commits: true
+```
+
+## Release Notes Section
+
+```yaml
+release_notes:
+  # Template for release notes
+  template: default
+
+  # Include contributor list
+  include_contributors: true
+```
+
+## Metadata Section
+
+Configure app store metadata management.
+
+```yaml
+metadata:
+  # Path to metadata directory
+  path: metadata
+
+  # Default locale
+  default_locale: en-US
 ```
 
 ## Environment Variables
 
-Canaveral supports environment variable substitution using `${VAR_NAME}` syntax:
-
-```toml
-[signing]
-password = "${MATCH_PASSWORD}"  # Uses MATCH_PASSWORD env var
-```
+Canaveral reads credentials and configuration from environment variables. Use environment variables for all sensitive values.
 
 <Aside type="tip">
-  Always use environment variables for sensitive values like passwords and API keys.
+  Always use environment variables for sensitive values like passwords, API keys, and tokens. Never commit credentials to your repository.
 </Aside>
 
 ### Common Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `MATCH_PASSWORD` | Encryption password for certificates |
-| `MATCH_GIT_URL` | Git URL for certificate storage |
-| `ASC_API_KEY_ID` | App Store Connect API key ID |
-| `ASC_API_KEY_ISSUER` | App Store Connect API key issuer |
-| `ASC_API_KEY_PATH` | Path to App Store Connect API key file |
-| `GOOGLE_PLAY_SERVICE_ACCOUNT` | Path to Google Play service account JSON |
+| `APP_STORE_CONNECT_API_KEY_ID` | App Store Connect API key ID |
+| `APP_STORE_CONNECT_ISSUER_ID` | App Store Connect issuer ID |
+| `APP_STORE_CONNECT_API_KEY` | App Store Connect API key (PEM content or path to .p8 file) |
+| `APP_STORE_CONNECT_API_KEY_PATH` | Path to App Store Connect .p8 key file |
+| `APP_STORE_CONNECT_TEAM_ID` | App Store Connect team ID (optional) |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_KEY` | Google Play service account JSON (content or path) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Google Cloud credentials file path |
+| `FIREBASE_PROJECT_ID` | Firebase project ID |
+| `FIREBASE_APP_ID` | Firebase app ID |
+| `FIREBASE_TOKEN` | Firebase CLI token |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase service account path |
+| `NPM_TOKEN` | npm registry token |
+| `CARGO_REGISTRY_TOKEN` | crates.io API token |
 | `ANDROID_KEYSTORE_PATH` | Path to Android keystore |
 | `ANDROID_KEYSTORE_PASSWORD` | Android keystore password |
 | `ANDROID_KEY_ALIAS` | Android signing key alias |
 | `ANDROID_KEY_PASSWORD` | Android signing key password |
-| `FIREBASE_TOKEN` | Firebase CLI token |
-
-## Multiple Environments
-
-Use different configurations for different environments:
-
-```toml title="canaveral.toml"
-[project]
-name = "MyApp"
-
-# Default iOS config
-[ios]
-bundle_id = "com.example.myapp"
-
-# Development environment overrides
-[environments.development.ios]
-bundle_id = "com.example.myapp.dev"
-
-# Staging environment overrides
-[environments.staging.ios]
-bundle_id = "com.example.myapp.staging"
-```
-
-Use with the `--env` flag:
-
-```bash
-canaveral build --platform ios --env staging
-```
+| `MATCH_PASSWORD` | Encryption password for match certificate storage |
+| `MATCH_GIT_URL` | Git URL for match certificate storage |
 
 ## Validation
 
-Validate your configuration:
+Validate your configuration and repository state:
 
 ```bash
-canaveral config validate
+canaveral validate
 ```
 
-Show resolved configuration (with environment variables expanded):
+Check your environment for required tools:
 
 ```bash
-canaveral config show
+canaveral doctor
 ```

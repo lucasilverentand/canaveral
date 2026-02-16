@@ -15,11 +15,8 @@ Canaveral supports multiple output formats for CI/CD integration:
 |--------|-------------|
 | `text` | Human-readable output (default) |
 | `json` | Machine-readable JSON |
-| `github-actions` | GitHub Actions outputs and annotations |
-| `gitlab-ci` | GitLab CI variables and reports |
-
 ```bash
-canaveral build --platform ios --output-format github-actions
+canaveral build --platform ios --format json
 ```
 
 ## Supported Platforms
@@ -42,5 +39,5 @@ canaveral build --platform ios --output-format github-actions
 
 4. **Use structured output** for downstream steps:
    ```bash
-   canaveral build --output-format github-actions
+   canaveral build --platform ios --format json
    ```

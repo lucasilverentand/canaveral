@@ -1,7 +1,30 @@
-[project]
 name = "my-npm-library"
-version = "1.0.0"
 
-[stores.npm]
-registry_url = "https://registry.npmjs.org"
-# Token will be read from NPM_TOKEN env var or ~/.npmrc
+[versioning]
+strategy = "semver"
+tag_format = "v{version}"
+
+[changelog]
+enabled = true
+file = "CHANGELOG.md"
+include_hashes = true
+include_authors = false
+
+[git]
+branch = "main"
+push_tags = true
+push_commits = true
+
+[[packages]]
+name = "@example/my-library"
+path = "."
+type = "npm"
+publish = true
+
+[publish]
+enabled = true
+dry_run = false
+
+[publish.registries.npm]
+url = "https://registry.npmjs.org"
+# Token will be read from NPM_TOKEN env var

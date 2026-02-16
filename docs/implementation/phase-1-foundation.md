@@ -112,13 +112,17 @@ struct Cli {
     #[arg(short, long, global = true)]
     verbose: bool,
 
-    /// Output format
+    /// Suppress output except errors
+    #[arg(short, long, global = true)]
+    quiet: bool,
+
+    /// Output format (text or json)
     #[arg(long, global = true, default_value = "text")]
     format: OutputFormat,
 
-    /// Path to config file
-    #[arg(short, long, global = true)]
-    config: Option<PathBuf>,
+    /// Working directory
+    #[arg(short = 'C', long, global = true)]
+    directory: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]

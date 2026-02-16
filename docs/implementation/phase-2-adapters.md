@@ -41,85 +41,60 @@ crates/canaveral-adapters/src/
 **Trait definition:**
 ```rust
 // crates/canaveral-adapters/src/traits.rs
-use async_trait::async_trait;
 use std::path::Path;
-use anyhow::Result;
+use canaveral_core::error::Result;
+use canaveral_core::types::PackageInfo;
 
-#[async_trait]
+/// Trait for package adapters (synchronous)
 pub trait PackageAdapter: Send + Sync {
-    /// Adapter name
-    fn name(&self) -> &str;
+    /// Get the adapter name (e.g., "npm", "cargo")
+    fn name(&self) -> &'static str;
 
-    /// Ecosystem identifier (npm, cargo, python, etc.)
-    fn ecosystem(&self) -> &str;
+    /// Get the default registry URL for this adapter
+    fn default_registry(&self) -> &'static str;
 
-    /// Manifest filename (package.json, Cargo.toml, etc.)
-    fn manifest_file(&self) -> &str;
+    /// Check if this adapter applies to the given path
+    fn detect(&self, path: &Path) -> bool;
 
-    /// Detect if this adapter applies to the project
-    async fn detect(&self, project_path: &Path) -> Result<bool>;
+    /// Get package information from manifest
+    fn get_info(&self, path: &Path) -> Result<PackageInfo>;
 
-    /// Read current version from manifest
-    async fn read_version(&self, manifest_path: &Path) -> Result<String>;
+    /// Get current version
+    fn get_version(&self, path: &Path) -> Result<String>;
 
-    /// Write new version to manifest
-    async fn write_version(&self, manifest_path: &Path, version: &str) -> Result<()>;
+    /// Set version in manifest
+    fn set_version(&self, path: &Path, version: &str) -> Result<()>;
 
-    /// Publish package to registry
-    async fn publish(&self, options: &PublishOptions) -> Result<PublishResult>;
+    /// Publish package (simple version)
+    fn publish(&self, path: &Path, dry_run: bool) -> Result<()>;
 
-    /// Unpublish a version (optional)
-    async fn unpublish(&self, _version: &str) -> Result<()> {
-        Err(anyhow::anyhow!("Unpublish not supported"))
-    }
+    /// Publish package with detailed options
+    fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()>;
 
-    /// Validate manifest file
-    async fn validate_manifest(&self, manifest_path: &Path) -> Result<ValidationResult>;
+    /// Validate that the package can be published
+    fn validate_publishable(&self, path: &Path) -> Result<ValidationResult>;
 
-    /// Validate registry credentials
-    async fn validate_credentials(&self) -> Result<bool>;
+    /// Check if authentication is configured
+    fn check_auth(&self, credentials: &mut CredentialProvider) -> Result<bool>;
 
-    /// Read dependencies (for monorepo support)
-    async fn read_dependencies(&self, manifest_path: &Path) -> Result<Vec<Dependency>> {
-        Ok(vec![])
-    }
+    /// Get the manifest filename(s) this adapter handles
+    fn manifest_names(&self) -> &[&str];
 
-    /// Update dependency versions
-    async fn write_dependencies(
-        &self,
-        manifest_path: &Path,
-        deps: &[Dependency],
-    ) -> Result<()> {
-        Ok(())
-    }
-}
+    /// Build the package (if applicable)
+    fn build(&self, path: &Path) -> Result<()>;
 
-#[derive(Debug, Clone)]
-pub struct PublishOptions {
-    pub path: PathBuf,
-    pub version: String,
-    pub dry_run: bool,
-    pub registry: Option<String>,
-    pub tag: Option<String>,
-    pub access: Option<Access>,
-}
+    /// Run tests (if applicable)
+    fn test(&self, path: &Path) -> Result<()>;
 
-#[derive(Debug, Clone)]
-pub struct PublishResult {
-    pub success: bool,
-    pub package_name: String,
-    pub version: String,
-    pub registry: String,
-    pub url: Option<String>,
-    pub error: Option<String>,
-}
+    /// Clean build artifacts (if applicable)
+    fn clean(&self, path: &Path) -> Result<()>;
 
-#[derive(Debug, Clone, Copy)]
-pub enum Access {
-    Public,
-    Restricted,
+    /// Pack for publishing without actually publishing
+    fn pack(&self, path: &Path) -> Result<Option<PathBuf>>;
 }
 ```
+
+Note: The `PackageAdapter` trait is synchronous (not async). The `StoreAdapter` trait in `canaveral-stores` is async for store uploaders (App Store Connect, Google Play, etc.).
 
 ### 2.2 npm Adapter
 
@@ -130,114 +105,36 @@ pub enum Access {
 - [x] Handle access levels (public/restricted)
 - [x] Support npm tags (latest, next, etc.)
 
-**npm adapter:**
+**npm adapter (simplified):**
 ```rust
 // crates/canaveral-adapters/src/npm/mod.rs
-use crate::traits::{PackageAdapter, PublishOptions, PublishResult};
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use std::path::Path;
-use tokio::process::Command;
+pub struct NpmAdapter;
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct PackageJson {
-    pub name: String,
-    pub version: String,
-    #[serde(default)]
-    pub private: bool,
-    #[serde(default)]
-    pub dependencies: HashMap<String, String>,
-    #[serde(default)]
-    pub dev_dependencies: HashMap<String, String>,
-    #[serde(flatten)]
-    pub other: serde_json::Value,
-}
-
-pub struct NpmAdapter {
-    registry: String,
-}
-
-#[async_trait]
 impl PackageAdapter for NpmAdapter {
-    fn name(&self) -> &str { "npm" }
-    fn ecosystem(&self) -> &str { "npm" }
-    fn manifest_file(&self) -> &str { "package.json" }
+    fn name(&self) -> &'static str { "npm" }
+    fn default_registry(&self) -> &'static str { "https://registry.npmjs.org" }
+    fn manifest_names(&self) -> &[&str] { &["package.json"] }
 
-    async fn detect(&self, project_path: &Path) -> Result<bool> {
-        Ok(project_path.join("package.json").exists())
+    fn detect(&self, path: &Path) -> bool {
+        path.join("package.json").exists()
     }
 
-    async fn read_version(&self, manifest_path: &Path) -> Result<String> {
-        let content = tokio::fs::read_to_string(manifest_path).await?;
-        let pkg: PackageJson = serde_json::from_str(&content)?;
-        Ok(pkg.version)
+    fn get_version(&self, path: &Path) -> Result<String> {
+        let content = std::fs::read_to_string(path.join("package.json"))?;
+        let pkg: serde_json::Value = serde_json::from_str(&content)?;
+        Ok(pkg["version"].as_str().unwrap_or("0.0.0").to_string())
     }
 
-    async fn write_version(&self, manifest_path: &Path, version: &str) -> Result<()> {
-        let content = tokio::fs::read_to_string(manifest_path).await?;
-        let mut pkg: serde_json::Value = serde_json::from_str(&content)?;
-
-        pkg["version"] = serde_json::Value::String(version.to_string());
-
-        // Preserve formatting by using pretty print with 2 spaces
-        let output = serde_json::to_string_pretty(&pkg)?;
-        tokio::fs::write(manifest_path, output).await?;
-        Ok(())
+    fn set_version(&self, path: &Path, version: &str) -> Result<()> {
+        // Read, update version field, write back preserving formatting
+        // ...
     }
 
-    async fn publish(&self, options: &PublishOptions) -> Result<PublishResult> {
-        let mut cmd = Command::new("npm");
-        cmd.arg("publish");
-        cmd.current_dir(&options.path);
-
-        if options.dry_run {
-            cmd.arg("--dry-run");
-        }
-
-        if let Some(ref registry) = options.registry {
-            cmd.arg("--registry").arg(registry);
-        }
-
-        if let Some(ref tag) = options.tag {
-            cmd.arg("--tag").arg(tag);
-        }
-
-        if let Some(access) = options.access {
-            cmd.arg("--access").arg(match access {
-                Access::Public => "public",
-                Access::Restricted => "restricted",
-            });
-        }
-
-        let output = cmd.output().await?;
-
-        Ok(PublishResult {
-            success: output.status.success(),
-            package_name: self.read_package_name(&options.path).await?,
-            version: options.version.clone(),
-            registry: options.registry.clone().unwrap_or_else(|| self.registry.clone()),
-            url: None,
-            error: if !output.status.success() {
-                Some(String::from_utf8_lossy(&output.stderr).to_string())
-            } else {
-                None
-            },
-        })
+    fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
+        // Execute npm publish with appropriate flags
+        // ...
     }
-
-    async fn validate_credentials(&self) -> Result<bool> {
-        // Check for NPM_TOKEN or npm whoami
-        if std::env::var("NPM_TOKEN").is_ok() {
-            return Ok(true);
-        }
-
-        let output = Command::new("npm")
-            .args(["whoami", "--registry", &self.registry])
-            .output()
-            .await?;
-
-        Ok(output.status.success())
-    }
+    // ... other methods
 }
 ```
 
@@ -249,104 +146,40 @@ impl PackageAdapter for NpmAdapter {
 - [x] Support crates.io authentication
 - [x] Handle publish restrictions
 
-**Cargo adapter:**
+**Cargo adapter (simplified):**
 ```rust
 // crates/canaveral-adapters/src/cargo/mod.rs
-use crate::traits::{PackageAdapter, PublishOptions, PublishResult};
-use async_trait::async_trait;
-use std::path::Path;
-use tokio::process::Command;
-use toml_edit::{Document, value};
-
 pub struct CargoAdapter;
 
-#[async_trait]
 impl PackageAdapter for CargoAdapter {
-    fn name(&self) -> &str { "cargo" }
-    fn ecosystem(&self) -> &str { "cargo" }
-    fn manifest_file(&self) -> &str { "Cargo.toml" }
+    fn name(&self) -> &'static str { "cargo" }
+    fn default_registry(&self) -> &'static str { "https://crates.io" }
+    fn manifest_names(&self) -> &[&str] { &["Cargo.toml"] }
 
-    async fn detect(&self, project_path: &Path) -> Result<bool> {
-        let cargo_toml = project_path.join("Cargo.toml");
-        if !cargo_toml.exists() {
-            return Ok(false);
-        }
-
-        // Check if it has a [package] section (not just workspace)
-        let content = tokio::fs::read_to_string(&cargo_toml).await?;
-        let doc: Document = content.parse()?;
-        Ok(doc.get("package").is_some())
+    fn detect(&self, path: &Path) -> bool {
+        let cargo_toml = path.join("Cargo.toml");
+        if !cargo_toml.exists() { return false; }
+        // Check for [package] section (not just workspace)
+        let content = std::fs::read_to_string(&cargo_toml).unwrap_or_default();
+        content.contains("[package]")
     }
 
-    async fn read_version(&self, manifest_path: &Path) -> Result<String> {
-        let content = tokio::fs::read_to_string(manifest_path).await?;
-        let doc: Document = content.parse()?;
-
-        doc.get("package")
-            .and_then(|p| p.get("version"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .ok_or_else(|| anyhow::anyhow!("No version found in Cargo.toml"))
+    fn get_version(&self, path: &Path) -> Result<String> {
+        let content = std::fs::read_to_string(path.join("Cargo.toml"))?;
+        // Parse TOML and extract [package].version
+        // ...
     }
 
-    async fn write_version(&self, manifest_path: &Path, version: &str) -> Result<()> {
-        let content = tokio::fs::read_to_string(manifest_path).await?;
-        let mut doc: Document = content.parse()?;
-
-        doc["package"]["version"] = value(version);
-
-        tokio::fs::write(manifest_path, doc.to_string()).await?;
-        Ok(())
+    fn set_version(&self, path: &Path, version: &str) -> Result<()> {
+        // Update [package].version using toml_edit to preserve formatting
+        // ...
     }
 
-    async fn publish(&self, options: &PublishOptions) -> Result<PublishResult> {
-        let mut cmd = Command::new("cargo");
-        cmd.arg("publish");
-        cmd.current_dir(&options.path);
-
-        if options.dry_run {
-            cmd.arg("--dry-run");
-        }
-
-        // Allow dirty for CI environments where git state may vary
-        cmd.arg("--allow-dirty");
-
-        let output = cmd.output().await?;
-
-        let package_name = self.read_package_name(&options.path).await?;
-
-        Ok(PublishResult {
-            success: output.status.success(),
-            package_name: package_name.clone(),
-            version: options.version.clone(),
-            registry: "crates.io".to_string(),
-            url: Some(format!("https://crates.io/crates/{}", package_name)),
-            error: if !output.status.success() {
-                Some(String::from_utf8_lossy(&output.stderr).to_string())
-            } else {
-                None
-            },
-        })
+    fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
+        // Execute cargo publish with appropriate flags
+        // ...
     }
-
-    async fn validate_credentials(&self) -> Result<bool> {
-        // Check for CARGO_REGISTRY_TOKEN
-        if std::env::var("CARGO_REGISTRY_TOKEN").is_ok() {
-            return Ok(true);
-        }
-
-        // Check credentials file
-        let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("No home directory"))?;
-        let creds = home.join(".cargo/credentials.toml");
-
-        if creds.exists() {
-            let content = tokio::fs::read_to_string(&creds).await?;
-            let doc: Document = content.parse()?;
-            return Ok(doc.get("registry").and_then(|r| r.get("token")).is_some());
-        }
-
-        Ok(false)
-    }
+    // ... other methods
 }
 ```
 
@@ -358,145 +191,35 @@ impl PackageAdapter for CargoAdapter {
 - [x] Publish via twine
 - [x] Support PyPI and custom indexes
 
-**Python adapter:**
+**Python adapter (simplified):**
 ```rust
 // crates/canaveral-adapters/src/python/mod.rs
-use crate::traits::{PackageAdapter, PublishOptions, PublishResult};
-use async_trait::async_trait;
-use std::path::Path;
-use tokio::process::Command;
+pub struct PythonAdapter;
 
-pub struct PythonAdapter {
-    registry: String,
-}
-
-#[async_trait]
 impl PackageAdapter for PythonAdapter {
-    fn name(&self) -> &str { "python" }
-    fn ecosystem(&self) -> &str { "python" }
-    fn manifest_file(&self) -> &str { "pyproject.toml" }
+    fn name(&self) -> &'static str { "python" }
+    fn default_registry(&self) -> &'static str { "https://upload.pypi.org/legacy/" }
+    fn manifest_names(&self) -> &[&str] { &["pyproject.toml", "setup.py"] }
 
-    async fn detect(&self, project_path: &Path) -> Result<bool> {
-        // Check for pyproject.toml first
-        if project_path.join("pyproject.toml").exists() {
-            return Ok(true);
-        }
-        // Fallback to setup.py
-        Ok(project_path.join("setup.py").exists())
+    fn detect(&self, path: &Path) -> bool {
+        path.join("pyproject.toml").exists() || path.join("setup.py").exists()
     }
 
-    async fn read_version(&self, manifest_path: &Path) -> Result<String> {
-        let content = tokio::fs::read_to_string(manifest_path).await?;
-        let doc: Document = content.parse()?;
-
-        // Try [project].version first (PEP 621)
-        if let Some(version) = doc.get("project")
-            .and_then(|p| p.get("version"))
-            .and_then(|v| v.as_str())
-        {
-            return Ok(version.to_string());
-        }
-
-        // Try [tool.poetry].version
-        if let Some(version) = doc.get("tool")
-            .and_then(|t| t.get("poetry"))
-            .and_then(|p| p.get("version"))
-            .and_then(|v| v.as_str())
-        {
-            return Ok(version.to_string());
-        }
-
-        Err(anyhow::anyhow!("No version found in pyproject.toml"))
+    fn get_version(&self, path: &Path) -> Result<String> {
+        // Try [project].version (PEP 621), then [tool.poetry].version
+        // ...
     }
 
-    async fn write_version(&self, manifest_path: &Path, version: &str) -> Result<()> {
-        let content = tokio::fs::read_to_string(manifest_path).await?;
-        let mut doc: Document = content.parse()?;
-
-        // Update [project].version if it exists
-        if doc.get("project").and_then(|p| p.get("version")).is_some() {
-            doc["project"]["version"] = value(version);
-        }
-        // Or [tool.poetry].version
-        else if doc.get("tool")
-            .and_then(|t| t.get("poetry"))
-            .and_then(|p| p.get("version"))
-            .is_some()
-        {
-            doc["tool"]["poetry"]["version"] = value(version);
-        }
-
-        tokio::fs::write(manifest_path, doc.to_string()).await?;
-        Ok(())
+    fn set_version(&self, path: &Path, version: &str) -> Result<()> {
+        // Update version in pyproject.toml using toml_edit
+        // ...
     }
 
-    async fn publish(&self, options: &PublishOptions) -> Result<PublishResult> {
-        // Build first
-        let build_output = Command::new("python")
-            .args(["-m", "build"])
-            .current_dir(&options.path)
-            .output()
-            .await?;
-
-        if !build_output.status.success() {
-            return Ok(PublishResult {
-                success: false,
-                package_name: String::new(),
-                version: options.version.clone(),
-                registry: self.registry.clone(),
-                url: None,
-                error: Some(String::from_utf8_lossy(&build_output.stderr).to_string()),
-            });
-        }
-
-        // Upload with twine
-        let mut cmd = Command::new("twine");
-        cmd.arg("upload");
-        cmd.arg("dist/*");
-        cmd.current_dir(&options.path);
-
-        if let Some(ref registry) = options.registry {
-            cmd.arg("--repository-url").arg(registry);
-        }
-
-        if options.dry_run {
-            // twine doesn't have dry-run, use check instead
-            cmd = Command::new("twine");
-            cmd.arg("check").arg("dist/*");
-            cmd.current_dir(&options.path);
-        }
-
-        let output = cmd.output().await?;
-
-        Ok(PublishResult {
-            success: output.status.success(),
-            package_name: self.read_package_name(&options.path).await?,
-            version: options.version.clone(),
-            registry: options.registry.clone().unwrap_or_else(|| self.registry.clone()),
-            url: None,
-            error: if !output.status.success() {
-                Some(String::from_utf8_lossy(&output.stderr).to_string())
-            } else {
-                None
-            },
-        })
+    fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
+        // Build with python -m build, upload with twine
+        // ...
     }
-
-    async fn validate_credentials(&self) -> Result<bool> {
-        // Check for TWINE_USERNAME/TWINE_PASSWORD or TWINE_TOKEN
-        if std::env::var("TWINE_TOKEN").is_ok() {
-            return Ok(true);
-        }
-        if std::env::var("TWINE_USERNAME").is_ok() && std::env::var("TWINE_PASSWORD").is_ok() {
-            return Ok(true);
-        }
-
-        // Check .pypirc
-        let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("No home directory"))?;
-        let pypirc = home.join(".pypirc");
-
-        Ok(pypirc.exists())
-    }
+    // ... other methods
 }
 ```
 
@@ -510,54 +233,22 @@ impl PackageAdapter for PythonAdapter {
 
 **Credentials module:**
 ```rust
-// crates/canaveral-core/src/credentials.rs
-use keyring::Entry;
-use anyhow::Result;
+// crates/canaveral-adapters/src/credentials.rs
 
-pub struct CredentialManager;
-
-impl CredentialManager {
-    /// Get credential from various sources (priority order)
-    pub fn get(&self, service: &str, key: &str) -> Result<Option<String>> {
-        // 1. Environment variable
-        let env_key = format!("{}_{}", service.to_uppercase(), key.to_uppercase());
-        if let Ok(value) = std::env::var(&env_key) {
-            return Ok(Some(value));
-        }
-
-        // 2. System keychain
-        if let Ok(entry) = Entry::new(service, key) {
-            if let Ok(password) = entry.get_password() {
-                return Ok(Some(password));
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Store credential in system keychain
-    pub fn store(&self, service: &str, key: &str, value: &str) -> Result<()> {
-        let entry = Entry::new(service, key)?;
-        entry.set_password(value)?;
-        Ok(())
-    }
-
-    /// Delete credential from system keychain
-    pub fn delete(&self, service: &str, key: &str) -> Result<()> {
-        let entry = Entry::new(service, key)?;
-        entry.delete_password()?;
-        Ok(())
-    }
+pub struct CredentialProvider {
+    // Manages credentials from multiple sources
 }
 
-/// Mask credential for logging
-pub fn mask_token(token: &str) -> String {
-    if token.len() <= 8 {
-        return "*".repeat(token.len());
+impl CredentialProvider {
+    /// Check if credentials exist for a given adapter
+    pub fn has_credentials(&self, adapter_name: &str) -> bool {
+        // Check environment variables, config files, etc.
+        // ...
     }
-    format!("{}...{}", &token[..4], &token[token.len()-4..])
 }
 ```
+
+Adapters check authentication via the `check_auth` method on the `PackageAdapter` trait.
 
 ### 2.6 Dry-Run Mode
 
@@ -652,7 +343,7 @@ pub struct ValidationResult {
     pub warnings: Vec<String>,
 }
 
-pub async fn validate_release(ctx: &ReleaseContext) -> ValidationResult {
+pub fn validate_release(ctx: &ReleaseContext) -> ValidationResult {
     let mut result = ValidationResult {
         valid: true,
         errors: vec![],
@@ -678,7 +369,7 @@ pub async fn validate_release(ctx: &ReleaseContext) -> ValidationResult {
 
     // Check credentials
     for adapter in &ctx.adapters {
-        if !adapter.validate_credentials().await.unwrap_or(false) {
+        if !adapter.check_auth(&mut ctx.credentials).unwrap_or(false) {
             result.errors.push(ValidationError::MissingCredentials {
                 registry: adapter.ecosystem().to_string(),
             });

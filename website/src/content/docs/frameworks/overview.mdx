@@ -63,11 +63,10 @@ To manually specify a framework:
 canaveral build --framework flutter --platform ios
 ```
 
-Or in `canaveral.toml`:
+Or specify the framework in the build command:
 
-```toml
-[project]
-framework = "flutter"
+```bash
+canaveral build --framework flutter --platform ios
 ```
 
 ## Capability Matrix
@@ -102,8 +101,6 @@ framework = "flutter"
 | App Store | ✓ | ✓ | ✓ | ✓ | - | - |
 | Play Store | ✓ | ✓ | ✓ | - | ✓ | - |
 | Firebase | ✓ | ✓ | ✓ | ✓ | ✓ | - |
-| OTA updates | ✓ | ✓ | ✓ | - | - | ✓ |
-
 ## Common Commands
 
 All frameworks share the same command interface:
@@ -113,14 +110,14 @@ All frameworks share the same command interface:
 canaveral build --platform <platform> --profile <profile>
 
 # Test
-canaveral test --type <unit|integration|e2e>
+canaveral test --platform <platform>
 
 # Version
-canaveral version --bump <patch|minor|major>
+canaveral version --release-type <patch|minor|major>
 
-# Upload
+# Distribute
 canaveral testflight upload <artifact>
-canaveral store upload android --artifact <artifact>
+canaveral publish google-play --artifact <artifact> --track internal
 ```
 
 <Aside type="tip">

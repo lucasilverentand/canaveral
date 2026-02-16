@@ -4,298 +4,235 @@ The plugin system provides extensibility through well-defined trait interfaces, 
 
 ## Plugin Architecture
 
-Canaveral supports two plugin mechanisms:
-
-1. **Native Plugins** - Rust shared libraries (.so, .dylib, .dll) for maximum performance
-2. **WASM Plugins** - WebAssembly modules for sandboxed, portable plugins
+Canaveral supports external subprocess plugins that communicate via JSON over stdin/stdout. Plugins are standalone executables that implement a simple request/response protocol.
 
 ## Plugin Types
 
-### 1. Version Strategies
+Three plugin types are supported:
 
-Custom version calculation logic beyond built-in SemVer/CalVer.
+| Type | Purpose |
+|------|---------|
+| `adapter` | Custom package manager adapters |
+| `strategy` | Custom version calculation strategies |
+| `formatter` | Custom changelog formatters |
+
+## Subprocess Protocol
+
+Plugins communicate with Canaveral via JSON messages over stdin/stdout:
+
+**Request (sent to plugin via stdin):**
+```json
+{
+  "action": "detect",
+  "input": {"path": "/path/to/project"},
+  "config": {"key": "value"}
+}
+```
+
+**Response (received from plugin via stdout):**
+```json
+{
+  "output": true,
+  "error": null
+}
+```
+
+Standard actions depend on plugin type:
+- **Adapter plugins:** `info`, `detect`, `get_version`, `set_version`, `publish`
+- **Strategy plugins:** `info`, `parse`, `format`, `bump`
+- **Formatter plugins:** `info`, `format`
+
+## Plugin Traits
+
+### Adapter Plugin Interface
 
 ```rust
-use canaveral_core::{Commit, VersionStrategy, VersionComponents, StrategyOptions};
-use async_trait::async_trait;
-
-#[async_trait]
-pub trait VersionStrategy: Send + Sync {
-    /// Strategy name for configuration
+pub trait AdapterPlugin {
+    /// Get adapter name
     fn name(&self) -> &str;
 
-    /// Calculate next version based on commits
-    async fn calculate(
-        &self,
-        current_version: &str,
-        commits: &[Commit],
-        options: &StrategyOptions,
-    ) -> anyhow::Result<String>;
+    /// Detect if this adapter applies to a path
+    fn detect(&self, path: &Path) -> bool;
 
-    /// Parse version string into components
-    fn parse(&self, version: &str) -> anyhow::Result<VersionComponents>;
+    /// Get package version
+    fn get_version(&self, path: &Path) -> Result<String>;
 
-    /// Compare two versions (-1, 0, 1)
-    fn compare(&self, a: &str, b: &str) -> std::cmp::Ordering;
+    /// Set package version
+    fn set_version(&self, path: &Path, version: &str) -> Result<()>;
 
-    /// Validate version string
-    fn validate(&self, version: &str) -> bool;
+    /// Publish package
+    fn publish(&self, path: &Path, options: &serde_json::Value) -> Result<()>;
 }
 ```
 
-### 2. Package Adapters
-
-Support for additional package managers and registries.
+### Strategy Plugin Interface
 
 ```rust
-use canaveral_core::{PublishOptions, PublishResult, Dependency, ValidationResult};
-use async_trait::async_trait;
-use std::path::Path;
-
-#[async_trait]
-pub trait PackageAdapter: Send + Sync {
-    /// Adapter name
+pub trait StrategyPlugin {
+    /// Get strategy name
     fn name(&self) -> &str;
 
-    /// Ecosystem identifier (npm, cargo, python, etc.)
-    fn ecosystem(&self) -> &str;
+    /// Parse a version string
+    fn parse(&self, version: &str) -> Result<serde_json::Value>;
 
-    /// Manifest filename (package.json, Cargo.toml, etc.)
-    fn manifest_file(&self) -> &str;
+    /// Format version components
+    fn format(&self, components: &serde_json::Value) -> Result<String>;
 
-    /// Detect if this adapter applies to the project
-    async fn detect(&self, project_path: &Path) -> anyhow::Result<bool>;
-
-    /// Read current version from manifest
-    async fn read_version(&self, manifest_path: &Path) -> anyhow::Result<String>;
-
-    /// Write new version to manifest
-    async fn write_version(&self, manifest_path: &Path, version: &str) -> anyhow::Result<()>;
-
-    /// Publish package to registry
-    async fn publish(&self, options: &PublishOptions) -> anyhow::Result<PublishResult>;
-
-    /// Unpublish a version (optional, not all registries support)
-    async fn unpublish(&self, _version: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("Unpublish not supported"))
-    }
-
-    /// Validate manifest file
-    async fn validate_manifest(&self, manifest_path: &Path) -> anyhow::Result<ValidationResult>;
-
-    /// Validate registry credentials
-    async fn validate_credentials(&self) -> anyhow::Result<bool>;
-
-    /// Read dependencies (for monorepo support)
-    async fn read_dependencies(&self, manifest_path: &Path) -> anyhow::Result<Vec<Dependency>> {
-        Ok(vec![])
-    }
-
-    /// Update dependency versions
-    async fn write_dependencies(
-        &self,
-        manifest_path: &Path,
-        deps: &[Dependency],
-    ) -> anyhow::Result<()> {
-        Ok(())
-    }
+    /// Calculate next version
+    fn bump(&self, current: &str, bump_type: &str) -> Result<String>;
 }
 ```
 
-### 3. Changelog Generators
+## Plugin Metadata
 
-Alternative changelog formats and output targets.
+Each plugin provides metadata via the `info` action:
 
 ```rust
-use canaveral_core::{Commit, ChangelogOptions};
-use async_trait::async_trait;
-
-#[async_trait]
-pub trait ChangelogGenerator: Send + Sync {
-    /// Generator name
-    fn name(&self) -> &str;
-
-    /// Generate changelog content from commits
-    async fn generate(
-        &self,
-        commits: &[Commit],
-        version: &str,
-        options: &ChangelogOptions,
-    ) -> anyhow::Result<String>;
-
-    /// Insert new entry into existing changelog
-    async fn prepend(
-        &self,
-        existing_content: &str,
-        new_entry: &str,
-    ) -> anyhow::Result<String>;
+pub struct PluginInfo {
+    pub name: String,
+    pub version: String,
+    pub plugin_type: PluginType,  // adapter, strategy, or formatter
+    pub description: Option<String>,
+    pub author: Option<String>,
+    pub capabilities: Vec<String>,
 }
 ```
 
-### 4. Commit Parsers
+## Plugin Configuration
 
-Custom commit message parsing beyond Conventional Commits.
+Plugins are configured in `canaveral.yaml`:
 
-```rust
-use canaveral_core::{ParsedCommit, ReleaseType};
+```yaml
+plugins:
+  - name: my-custom-adapter
+    plugin_type: adapter
+    command: /usr/local/bin/my-adapter-plugin
+    enabled: true
+    config:
+      registry_url: "https://custom-registry.example.com"
+      timeout: 30
 
-pub trait CommitParser: Send + Sync {
-    /// Parser name
-    fn name(&self) -> &str;
-
-    /// Parse commit message into structured data
-    fn parse(&self, message: &str) -> Option<ParsedCommit>;
-
-    /// Determine release type from commits
-    fn get_release_type(&self, commits: &[ParsedCommit]) -> ReleaseType;
-}
+  - name: my-strategy
+    plugin_type: strategy
+    path: ./plugins/my-strategy
+    config:
+      format: "YYYY.MM.BUILD"
 ```
 
-### 5. Lifecycle Hooks
+### Plugin Configuration Fields
 
-Custom actions at various stages of the release process.
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Plugin name |
+| `plugin_type` | string | Yes | `adapter`, `strategy`, or `formatter` |
+| `path` | string | No | Path to plugin executable |
+| `command` | string | No | Command to execute (alternative to path) |
+| `config` | map | No | Plugin-specific configuration (passed in JSON request) |
+| `enabled` | bool | `true` | Whether the plugin is active |
 
-```rust
-use canaveral_core::HookContext;
-use async_trait::async_trait;
+Either `path` or `command` must be specified.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HookStage {
-    PreVersion,
-    PostVersion,
-    PreChangelog,
-    PostChangelog,
-    PreCommit,
-    PostCommit,
-    PrePublish,
-    PostPublish,
-}
+## Creating a Plugin
 
-#[async_trait]
-pub trait LifecycleHook: Send + Sync {
-    /// Hook name
-    fn name(&self) -> &str;
+### Example: Custom Adapter (Python)
 
-    /// Stage this hook runs at
-    fn stage(&self) -> HookStage;
+```python
+#!/usr/bin/env python3
+import json
+import sys
 
-    /// Execute the hook
-    async fn execute(&self, context: &mut HookContext) -> anyhow::Result<()>;
-}
-```
+def handle_request(request):
+    action = request["action"]
+    input_data = request.get("input", {})
+    config = request.get("config", {})
 
-## Native Plugin Development
-
-### Creating a Plugin Crate
-
-```toml
-# Cargo.toml
-[package]
-name = "canaveral-plugin-example"
-version = "0.1.0"
-edition = "2021"
-
-[lib]
-crate-type = ["cdylib"]
-
-[dependencies]
-canaveral-core = "0.1"
-async-trait = "0.1"
-anyhow = "1"
-```
-
-```rust
-// src/lib.rs
-use canaveral_core::{VersionStrategy, VersionComponents, Commit, StrategyOptions};
-use async_trait::async_trait;
-
-pub struct GitFlowStrategy;
-
-#[async_trait]
-impl VersionStrategy for GitFlowStrategy {
-    fn name(&self) -> &str {
-        "git-flow"
-    }
-
-    async fn calculate(
-        &self,
-        current: &str,
-        commits: &[Commit],
-        options: &StrategyOptions,
-    ) -> anyhow::Result<String> {
-        let branch = &options.branch;
-
-        if branch == "main" || branch == "master" {
-            // Production release
-            self.bump_major_minor(current, commits)
-        } else if branch.starts_with("release/") {
-            // Release candidate
-            self.bump_rc(current)
-        } else if branch == "develop" {
-            // Development snapshot
-            Ok(format!("{}-SNAPSHOT", current))
-        } else {
-            Ok(current.to_string())
+    if action == "info":
+        return {
+            "output": {
+                "name": "my-adapter",
+                "version": "1.0.0",
+                "plugin_type": "adapter",
+                "description": "Custom adapter for my registry",
+                "capabilities": ["detect", "get_version", "set_version", "publish"]
+            }
         }
-    }
+    elif action == "detect":
+        path = input_data.get("path", "")
+        # Check if my-manifest.json exists
+        import os
+        exists = os.path.exists(os.path.join(path, "my-manifest.json"))
+        return {"output": exists}
+    elif action == "get_version":
+        path = input_data.get("path", "")
+        import os
+        manifest = json.load(open(os.path.join(path, "my-manifest.json")))
+        return {"output": manifest.get("version", "0.0.0")}
+    else:
+        return {"error": f"Unknown action: {action}"}
 
-    fn parse(&self, version: &str) -> anyhow::Result<VersionComponents> {
-        // Parse version string
-        todo!()
-    }
-
-    fn compare(&self, a: &str, b: &str) -> std::cmp::Ordering {
-        // Compare versions
-        todo!()
-    }
-
-    fn validate(&self, version: &str) -> bool {
-        // Validate version format
-        todo!()
-    }
-}
-
-// Export plugin entry point
-canaveral_core::export_plugin!(GitFlowStrategy);
+# Read request from stdin
+request = json.load(sys.stdin)
+response = handle_request(request)
+print(json.dumps(response))
 ```
 
-### Plugin Manifest
-
-Each plugin includes a manifest file:
-
-```toml
-# plugin.toml
-[plugin]
-name = "canaveral-plugin-example"
-version = "0.1.0"
-type = "strategy"  # strategy, adapter, changelog, hook
-description = "Git Flow versioning strategy"
-
-[plugin.config]
-# JSON Schema for plugin configuration
-schema = "schema.json"
-```
-
-## WASM Plugin Development
-
-For sandboxed plugins that run in a WebAssembly runtime:
+### Example: Custom Strategy (Rust)
 
 ```rust
-// Build with: cargo build --target wasm32-wasi
+use serde::{Deserialize, Serialize};
+use std::io::{self, Read};
 
-use canaveral_wasm::{VersionStrategy, Commit};
+#[derive(Deserialize)]
+struct PluginRequest {
+    action: String,
+    input: serde_json::Value,
+    config: serde_json::Map<String, serde_json::Value>,
+}
 
-#[canaveral_wasm::plugin]
-struct MyStrategy;
+#[derive(Serialize)]
+struct PluginResponse {
+    output: Option<serde_json::Value>,
+    error: Option<String>,
+}
 
-impl VersionStrategy for MyStrategy {
-    fn name(&self) -> &str {
-        "my-strategy"
-    }
+fn main() {
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input).unwrap();
 
-    fn calculate(&self, current: &str, commits: &[Commit]) -> String {
-        // WASM plugins have limited async support
-        format!("{}.1", current)
+    let request: PluginRequest = serde_json::from_str(&input).unwrap();
+    let response = handle_request(&request);
+
+    println!("{}", serde_json::to_string(&response).unwrap());
+}
+
+fn handle_request(request: &PluginRequest) -> PluginResponse {
+    match request.action.as_str() {
+        "info" => PluginResponse {
+            output: Some(serde_json::json!({
+                "name": "my-strategy",
+                "version": "1.0.0",
+                "plugin_type": "strategy",
+                "capabilities": ["parse", "format", "bump"]
+            })),
+            error: None,
+        },
+        "bump" => {
+            let current = request.input.get("current")
+                .and_then(|v| v.as_str())
+                .unwrap_or("0.0.0");
+            let bump_type = request.input.get("bump_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("patch");
+            // Custom bump logic here
+            PluginResponse {
+                output: Some(serde_json::json!(format!("{}.1", current))),
+                error: None,
+            }
+        }
+        _ => PluginResponse {
+            output: None,
+            error: Some(format!("Unknown action: {}", request.action)),
+        },
     }
 }
 ```
@@ -304,116 +241,43 @@ impl VersionStrategy for MyStrategy {
 
 Plugins are discovered through multiple mechanisms:
 
-### 1. Built-in Plugins
-Compiled into the binary, always available.
+### 1. Configuration
+Explicitly defined in `canaveral.yaml` (see above).
 
-### 2. Local Plugins
-Defined in project's `canaveral.yaml`:
+### 2. Search Paths
+The plugin registry can search directories for executable plugins:
+- Plugins matching `canaveral-plugin-*` in search paths
+- Executable files with `.so`, `.dylib`, `.dll`, or `.exe` extensions
 
-```yaml
-plugins:
-  - path: ./plugins/my-strategy.so
-  - path: ./plugins/custom-adapter.wasm
-```
-
-### 3. Installed Plugins
-Plugins installed to `~/.canaveral/plugins/`:
-
-```bash
-canaveral plugin install canaveral-plugin-slack
-```
-
-### 4. Convention-based
-Shared libraries in plugin directories matching `canaveral-plugin-*`.
-
-## Plugin Configuration
-
-Plugins receive configuration from `canaveral.yaml`:
-
-```yaml
-plugins:
-  - name: canaveral-plugin-slack
-    config:
-      webhook: ${SLACK_WEBHOOK_URL}
-      channel: '#releases'
-```
-
-Configuration is passed to the plugin during initialization:
-
-```rust
-#[async_trait]
-pub trait Plugin: Send + Sync {
-    /// Initialize plugin with configuration
-    async fn init(&mut self, config: serde_json::Value) -> anyhow::Result<()>;
-
-    /// Cleanup resources
-    async fn cleanup(&mut self) -> anyhow::Result<()> {
-        Ok(())
-    }
-}
-```
+### 3. Built-in Plugins
+All built-in adapters, strategies, and formatters are compiled into the binary and always available.
 
 ## Plugin Lifecycle
 
 ```
 ┌──────────┐     ┌──────────┐     ┌──────────┐
-│  Discover│────▶│  Load    │────▶│  Validate│
-│  Plugins │     │  Library │     │  Schema  │
+│  Load    │────>│  Query   │────>│ Register │
+│  Config  │     │  Info    │     │ in       │
+│          │     │ (stdin)  │     │ Registry │
 └──────────┘     └──────────┘     └──────────┘
                                        │
-     ┌─────────────────────────────────┘
-     ▼
-┌──────────┐     ┌──────────┐     ┌──────────┐
-│Initialize│────▶│  Register│────▶│  Execute │
-│  Config  │     │  Hooks   │     │ at Stage │
-└──────────┘     └──────────┘     └──────────┘
-                                       │
-                                       ▼
+                                       v
                                  ┌──────────┐
-                                 │  Cleanup │
-                                 │ Resources│
+                                 │ Execute  │
+                                 │ Actions  │
+                                 │(stdin/out)│
                                  └──────────┘
 ```
 
+1. Plugin configs are loaded from `canaveral.yaml`
+2. Each plugin is queried for its info via the `info` action
+3. Plugins are registered in the `PluginRegistry` by type and name
+4. During execution, plugins are invoked via their `execute` method
+
 ## Security Considerations
 
-### Native Plugins
-- Run with full system permissions
+- Plugins run as separate processes with the same permissions as the calling user
+- Plugin configuration can include arbitrary key-value pairs passed via JSON
 - Only install plugins from trusted sources
-- Review plugin code before use in CI/CD
-- Use lock files to pin plugin versions
-
-### WASM Plugins
-- Run in sandboxed environment
-- Limited system access (no filesystem, network by default)
-- Capabilities granted explicitly in configuration
-- Safer for untrusted plugins
-
-```yaml
-plugins:
-  - name: untrusted-plugin
-    path: ./plugin.wasm
-    sandbox: true
-    capabilities:
-      - network  # Allow HTTP requests
-      # - filesystem  # Deny filesystem access
-```
-
-## Plugin CLI Commands
-
-```bash
-# List installed plugins
-canaveral plugin list
-
-# Install a plugin
-canaveral plugin install canaveral-plugin-slack
-
-# Remove a plugin
-canaveral plugin remove canaveral-plugin-slack
-
-# Update plugins
-canaveral plugin update
-
-# Show plugin info
-canaveral plugin info canaveral-plugin-slack
-```
+- Review plugin code before use in CI/CD environments
+- Use lock files to pin plugin versions where possible

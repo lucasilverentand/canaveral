@@ -53,12 +53,12 @@ Version is read from multiple sources:
 canaveral version              # Shows version from package.json
 
 # Bump version (updates all sources)
-canaveral version --bump patch
-canaveral version --bump minor
-canaveral version --bump major
+canaveral version --release-type patch
+canaveral version --release-type minor
+canaveral version --release-type major
 
-# Set specific version
-canaveral version --set 2.0.0
+# Show current version
+canaveral version --current
 ```
 
 <Aside type="note">
@@ -77,57 +77,37 @@ Canaveral automatically manages the Metro bundler:
 ### Jest Tests
 
 ```bash
-canaveral test --type unit
+canaveral test
 ```
 
 Runs Jest tests configured in your project.
 
-### Detox E2E Tests
+### Platform Tests
 
 ```bash
-# iOS E2E tests
-canaveral test --type e2e --platform ios
+# iOS tests
+canaveral test --platform ios
 
-# Android E2E tests
-canaveral test --type e2e --platform android
+# Android tests
+canaveral test --platform android
 ```
 
-Requires Detox to be configured in your project.
-
-## Configuration
-
-React Native-specific options in `canaveral.toml`:
-
-```toml
-[react_native]
-# Path to the project (if not root)
-project_path = "."
-
-# Hermes engine (auto-detected)
-hermes_enabled = true
-
-# iOS scheme (auto-detected)
-ios_scheme = "MyApp"
-
-# Android flavor
-android_flavor = "production"
-```
-
-## OTA Updates
-
-### CodePush
+### With Filter
 
 ```bash
-# Release to CodePush
-canaveral ota publish --service codepush --deployment Production --description "Bug fixes"
+canaveral test --filter "login"
 ```
 
-Configure CodePush in `canaveral.toml`:
+## Build Configuration
 
-```toml
-[react_native.codepush]
-app_name = "MyOrg/MyApp"
-deployment_key = "${CODEPUSH_DEPLOYMENT_KEY}"
+Pass additional arguments to the underlying build tools using `--`:
+
+```bash
+# iOS with extra xcodebuild args
+canaveral build --platform ios --profile release -- -allowProvisioningUpdates
+
+# Android with extra Gradle args
+canaveral build --platform android --profile release --flavor production -- --stacktrace
 ```
 
 ## CI/CD Integration
@@ -215,8 +195,8 @@ Check Hermes configuration in `react-native.config.js` or `android/app/build.gra
 
 ### "Version mismatch"
 
-Sync all version files:
+Use the version command to recalculate and sync versions:
 
 ```bash
-canaveral version --set $(node -p "require('./package.json').version")
+canaveral version --current
 ```

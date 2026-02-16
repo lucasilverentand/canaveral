@@ -7,12 +7,12 @@ import { Card, CardGrid, Aside } from '@astrojs/starlight/components';
 
 # What is Canaveral?
 
-Canaveral is a **universal release management CLI** designed to replace the fragmented ecosystem of package-specific release tools (fastlane, release-please, semantic-release, etc.) with a single, extensible solution that works across multiple frameworks and platforms.
+Canaveral is a **unified launch system for software** -- a single Rust CLI that replaces the patchwork of turborepo, tuist, release-please, semantic-release, fastlane, goreleaser, and similar tools. It handles the full lifecycle: build orchestration, smart test selection, release management, publishing, app store distribution, and marketing material generation.
 
-Named after **Cape Canaveral**, NASA's historic launch site, Canaveral reflects the tool's mission to "launch" software releases to their target registries with precision and reliability.
+Named after **Cape Canaveral**, NASA's historic launch site -- we launch software.
 
 <Aside type="tip">
-  Unlike fastlane which focuses primarily on native iOS/Android, Canaveral is **framework-agnostic** and provides a unified interface for Flutter, Expo, React Native, native Swift/Kotlin, Tauri, and more.
+  Unlike fastlane which focuses primarily on native iOS/Android, Canaveral is **framework-agnostic** and provides a unified interface for Flutter, Expo, React Native, native iOS/Android, Tauri, Electron, Vite, Next.js, Astro, and more.
 </Aside>
 
 ## Key Features
@@ -61,7 +61,7 @@ canaveral build --platform android --profile release
 
 # One tool for all distribution targets
 canaveral testflight upload build/ios/App.ipa
-canaveral store upload android --artifact build/android/app.aab
+canaveral publish google-play --artifact build/android/app.aab --track internal
 
 # Unified certificate management
 canaveral match sync --profile-type appstore
@@ -73,24 +73,34 @@ canaveral match sync --profile-type appstore
 |---------|-----------|----------|---------|
 | Framework support | All major | Native focus | Step-based |
 | Language | Rust (fast) | Ruby | Go |
-| Configuration | TOML | Ruby DSL | YAML |
+| Configuration | YAML or TOML | Ruby DSL | YAML |
 | CI/CD output | JSON, structured | Text | JSON |
 | Certificate sync | Built-in | Via match | External |
+| Monorepo support | Built-in (task DAG, caching) | Limited | External |
 | Learning curve | Low | Medium | Low |
 
 ## Architecture
 
-Canaveral is built with a modular architecture:
+Canaveral is a Rust workspace with 10 focused crates:
 
 ```
-canaveral-cli        # Command-line interface
-├── canaveral-frameworks   # Build adapters for each framework
-├── canaveral-stores       # Store distribution (App Store, Play Store)
-├── canaveral-signing      # Certificate and profile management
-└── canaveral-core        # Shared utilities
+canaveral              # CLI binary (clap). Entry point, command routing, output formatting.
+├── canaveral-core          # Config loading (YAML/TOML), hook system, plugin registry,
+│                           # monorepo workspace detection, workflow orchestration, CI/CD templates.
+├── canaveral-git           # Git operations via git2. Commit parsing, tag management, remote ops.
+├── canaveral-changelog     # Conventional commit parsing, changelog generation, formatters.
+├── canaveral-strategies    # Version calculation. SemVer, CalVer, build numbers. Pluggable.
+├── canaveral-adapters      # Package manager integrations (npm, Cargo, Python, Go, Maven, Docker).
+├── canaveral-frameworks    # Build/test adapters (Flutter, React Native, Vite, Next.js, Astro,
+│                           # Tauri, Electron, native iOS, native Android).
+├── canaveral-signing       # Code signing providers (macOS, Windows, Android, GPG). Match-style sync.
+├── canaveral-stores        # Uploaders for app stores and registries (App Store Connect, Google Play,
+│                           # Microsoft Store, npm, crates.io).
+├── canaveral-metadata      # App store metadata management, validation, Fastlane-compatible layout.
+└── canaveral-tasks         # Task orchestration: pipeline DAG, parallel execution, caching.
 ```
 
-Each framework adapter implements a common interface, ensuring consistent behavior across all supported platforms.
+Each layer follows a trait-based adapter pattern, ensuring consistent behavior and easy extensibility.
 
 ## Next Steps
 

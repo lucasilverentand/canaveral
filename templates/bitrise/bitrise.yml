@@ -55,8 +55,7 @@ workflows:
                 # Build iOS
                 canaveral build \
                   --platform ios \
-                  --profile release \
-                  --output-format text
+                  --profile release
 
       - script@1:
           title: Build Android Release
@@ -71,8 +70,7 @@ workflows:
                 # Build Android
                 canaveral build \
                   --platform android \
-                  --profile release \
-                  --output-format text
+                  --profile release
 
       - script@1:
           title: Run Tests
@@ -80,7 +78,7 @@ workflows:
             - content: |
                 #!/bin/bash
                 set -ex
-                canaveral test --type unit --output-format junit
+                canaveral test --reporter junit --output test-results/results.xml
 
       - deploy-to-bitrise-io@2:
           inputs:
@@ -128,7 +126,7 @@ workflows:
             - content: |
                 #!/bin/bash
                 set -ex
-                canaveral test --type unit
+                canaveral test
 
       - deploy-to-bitrise-io@2:
           inputs:
@@ -174,7 +172,7 @@ workflows:
             - content: |
                 #!/bin/bash
                 set -ex
-                canaveral test --type unit --output-format junit
+                canaveral test --reporter junit --output test-results/results.xml
 
       - custom-test-results-export@1:
           inputs:
@@ -202,7 +200,7 @@ workflows:
                 echo "Release version: $VERSION"
 
                 # Set version in project
-                canaveral version --set $VERSION
+                canaveral version --current
 
                 envman add --key RELEASE_VERSION --value "$VERSION"
 
@@ -230,9 +228,9 @@ workflows:
             - content: |
                 #!/bin/bash
                 set -ex
-                canaveral test --type unit
+                canaveral test
                 # Integration tests run on simulators
-                canaveral test --type integration --platform ios || true
+                canaveral test --platform ios || true
 
       - deploy-to-bitrise-io@2:
           inputs:
@@ -293,7 +291,7 @@ workflows:
 
                 IPA_PATH=$(find build/ios -name "*.ipa" | head -1)
                 if [ -n "$IPA_PATH" ]; then
-                  canaveral testflight upload "$IPA_PATH" \
+                  canaveral test-flight upload "$IPA_PATH" \
                     --changelog "Build $BITRISE_BUILD_NUMBER from $BITRISE_GIT_BRANCH"
                 else
                   echo "No IPA found, skipping TestFlight upload"
@@ -311,8 +309,7 @@ workflows:
 
                 AAB_PATH=$(find build/android -name "*.aab" | head -1)
                 if [ -n "$AAB_PATH" ]; then
-                  canaveral store upload android \
-                    --artifact "$AAB_PATH" \
+                  canaveral publish google-play "$AAB_PATH" \
                     --track internal
                 else
                   echo "No AAB found, skipping Play Store upload"
@@ -334,7 +331,7 @@ workflows:
                 fi
 
                 # Generate changelog
-                CHANGELOG=$(canaveral changelog --unreleased --format markdown)
+                CHANGELOG=$(canaveral changelog)
 
                 # Create GitHub release using gh CLI or API
                 if command -v gh &> /dev/null; then
@@ -382,9 +379,8 @@ workflows:
                   for locale in "${LOCALES[@]}"; do
                     echo "Capturing: $device - $locale"
                     canaveral screenshots capture \
-                      --platform ios \
-                      --device "$device" \
-                      --locale "$locale" \
+                      --devices "$device" \
+                      --locales "$locale" \
                       --output "screenshots/ios/$device/$locale"
                   done
                 done
@@ -396,7 +392,7 @@ workflows:
                 #!/bin/bash
                 set -ex
                 canaveral screenshots frame \
-                  --input screenshots/ios \
+                  screenshots/ios \
                   --output screenshots/framed
 
       - deploy-to-bitrise-io@2:

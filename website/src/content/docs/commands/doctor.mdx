@@ -1,11 +1,11 @@
 ---
 title: doctor
-description: Check your development environment.
+description: Check your development environment for required tools and configurations.
 ---
 
 # canaveral doctor
 
-Check your development environment for issues.
+Check your development environment for required tools, configurations, and credentials. Optionally attempt automatic fixes.
 
 ## Synopsis
 
@@ -15,12 +15,43 @@ canaveral doctor [OPTIONS]
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--fix` | Show suggestions for fixing issues |
-| `--verbose` | Show detailed information |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--fix` | Attempt to automatically fix detected issues | `false` |
+| `--only <CATEGORIES>` | Only check specific categories (comma-delimited) | All |
+| `--skip <CATEGORIES>` | Skip specific categories (comma-delimited) | None |
+| `--framework <FRAMEWORK>` | Check for a specific framework | Auto-detected |
 
-## Example Output
+### Check Categories
+
+| Category | What it checks |
+|----------|---------------|
+| `rust` | Rust toolchain and Cargo |
+| `frameworks` | Framework CLIs (Flutter, Node.js, etc.) |
+| `platform` | Platform tools (Xcode, Android SDK, etc.) |
+| `signing` | Code signing setup and certificates |
+| `stores` | Store credentials (App Store Connect, Google Play) |
+| `git` | Git configuration and status |
+| `env` | Required environment variables |
+
+### Framework Options
+
+| Framework | What it checks |
+|-----------|---------------|
+| `flutter` | Flutter SDK, Dart, CocoaPods |
+| `expo` | Node.js, Expo CLI, EAS CLI |
+| `react-native` | Node.js, Watchman, React Native CLI |
+| `tauri` | Rust, Node.js, platform-specific dependencies |
+| `native-ios` | Xcode, Command Line Tools, CocoaPods |
+| `native-android` | Android SDK, Java, Gradle |
+
+## Examples
+
+### Full Check
+
+```bash
+canaveral doctor
+```
 
 ```
 Checking environment...
@@ -33,13 +64,33 @@ Checking environment...
   [OK] App Store Connect credentials configured
   [FAIL] Google Play service account not configured
 
-1 issue found. Run 'canaveral doctor --fix' for suggestions.
+1 issue found. Run 'canaveral doctor --fix' to attempt automatic fixes.
 ```
 
-## Checks
+### Check Specific Categories
 
-- Framework CLIs (Flutter, Node.js, etc.)
-- Platform tools (Xcode, Android SDK)
-- Code signing setup
-- Store credentials
-- Environment variables
+```bash
+# Only check platform tools and signing
+canaveral doctor --only platform,signing
+
+# Check everything except stores
+canaveral doctor --skip stores
+```
+
+### Check for a Specific Framework
+
+```bash
+canaveral doctor --framework flutter
+canaveral doctor --framework react-native
+```
+
+### Attempt Fixes
+
+```bash
+canaveral doctor --fix
+```
+
+## See Also
+
+- [build](/canaveral/commands/build/) - Build your app
+- [match](/canaveral/commands/match/) - Certificate management

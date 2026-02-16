@@ -173,7 +173,6 @@ stages:
                 canaveral build \
                   --platform ios \
                   --profile ${{ parameters.buildType }} \
-                  --output-format text
             env:
               CI: true
 
@@ -250,7 +249,6 @@ stages:
                 canaveral build \
                   --platform android \
                   --profile ${{ parameters.buildType }} \
-                  --output-format text
             env:
               CI: true
               ANDROID_KEYSTORE_PASSWORD: $(ANDROID_KEYSTORE_PASSWORD)
@@ -317,7 +315,7 @@ stages:
             inputs:
               targetType: inline
               script: |
-                canaveral test --type unit --output-format junit
+                canaveral test --reporter junit --output test-results/results.xml
 
           - task: PublishTestResults@2
             displayName: Publish Test Results
@@ -362,7 +360,7 @@ stages:
                     targetType: inline
                     script: |
                       IPA_PATH=$(find $(Pipeline.Workspace)/ios-release -name "*.ipa" | head -1)
-                      canaveral testflight upload "$IPA_PATH" \
+                      canaveral test-flight upload "$IPA_PATH" \
                         --changelog "Build $(Build.BuildNumber) from $(Build.SourceBranchName)"
                   env:
                     APP_STORE_CONNECT_API_KEY: $(APP_STORE_CONNECT_API_KEY)
@@ -393,8 +391,7 @@ stages:
                     targetType: inline
                     script: |
                       AAB_PATH=$(find $(Pipeline.Workspace)/android-release -name "*.aab" | head -1)
-                      canaveral store upload android \
-                        --artifact "$AAB_PATH" \
+                      canaveral publish google-play "$AAB_PATH" \
                         --track internal
                   env:
                     GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: $(GOOGLE_PLAY_SERVICE_ACCOUNT)
@@ -430,7 +427,7 @@ stages:
             inputs:
               targetType: inline
               script: |
-                canaveral changelog --unreleased --format markdown > $(Build.ArtifactStagingDirectory)/CHANGELOG.md
+                canaveral changelog --output $(Build.ArtifactStagingDirectory)/CHANGELOG.md
 
           - task: GitHubRelease@1
             displayName: Create GitHub Release

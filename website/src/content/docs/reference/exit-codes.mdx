@@ -5,15 +5,25 @@ description: Exit codes returned by Canaveral commands.
 
 # Exit Codes
 
+Canaveral uses standard Unix exit codes:
+
 | Code | Description |
 |------|-------------|
 | 0 | Success |
-| 1 | General error / Command failed |
-| 2 | Configuration error |
-| 3 | Missing dependencies |
-| 4 | Authentication error |
-| 5 | Network error |
-| 10 | Build failed |
-| 11 | Test failed |
-| 12 | Upload failed |
-| 20 | Signing error |
+| 1 | Error (command failed, tests failed, build failed, etc.) |
+
+All errors are reported through stderr with descriptive messages. Use `--verbose` for detailed error output, or `--format json` for machine-readable error information.
+
+## Common Error Scenarios
+
+| Scenario | Exit Code | Example Message |
+|----------|-----------|-----------------|
+| Build succeeded | 0 | - |
+| Tests passed | 0 | - |
+| Build failed | 1 | "Build failed: ..." |
+| Tests failed | 1 | "Tests failed: 3 passed, 1 failed, 0 skipped" |
+| Task execution failed | 1 | "2 tasks failed" |
+| PR validation failed | 1 | "PR validation failed" |
+| Configuration not found | 1 | "No workspace found in current directory" |
+| Missing path | 1 | "Path not found: ..." |
+| No packages found | 1 | "No packages found in workspace" |

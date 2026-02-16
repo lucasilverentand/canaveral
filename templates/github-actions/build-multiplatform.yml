@@ -121,7 +121,6 @@ jobs:
           canaveral build \
             --platform ios \
             --profile ${{ inputs.build_type || 'debug' }} \
-            --output-format github-actions
         env:
           CI: true
 
@@ -192,7 +191,6 @@ jobs:
           canaveral build \
             --platform android \
             --profile ${{ inputs.build_type || 'debug' }} \
-            --output-format github-actions
         env:
           CI: true
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}

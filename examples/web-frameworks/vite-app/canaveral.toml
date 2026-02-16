@@ -1,12 +1,28 @@
-[project]
 name = "vite-example"
-version = "1.0.0"
 
-[build]
-framework = "vite"
-output_dir = "dist"
+[versioning]
+strategy = "semver"
+tag_format = "v{version}"
 
-[metadata]
-identifier = "com.example.vite-app"
-version = "1.0.0"
-build_number = 1
+[changelog]
+enabled = true
+file = "CHANGELOG.md"
+
+[git]
+branch = "main"
+push_tags = true
+
+[[packages]]
+name = "vite-example"
+path = "."
+type = "npm"
+publish = false
+
+[tasks.pipeline.build]
+command = "npm run build"
+outputs = ["dist/**"]
+inputs = ["src/**", "index.html", "vite.config.js"]
+
+[tasks.pipeline.dev]
+command = "npm run dev"
+persistent = true

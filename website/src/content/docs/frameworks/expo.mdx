@@ -28,11 +28,11 @@ canaveral build --platform android --profile release
 
 ### EAS Build (Cloud)
 
-For cloud-based builds via EAS:
+For cloud-based builds via EAS, use the Expo framework adapter:
 
 ```bash
-canaveral build --platform ios --profile release --config eas=true
-canaveral build --platform android --profile release --config eas=true
+canaveral build --platform ios --profile release --framework expo
+canaveral build --platform android --profile release --framework expo
 ```
 
 <Aside type="tip">
@@ -58,49 +58,23 @@ Version is managed in `app.json` or `app.config.js`:
 ```
 
 ```bash
-# Show version
+# Calculate next version
 canaveral version
 
-# Bump version (updates all fields)
-canaveral version --bump patch
+# Specify release type
+canaveral version --release-type patch
 
-# Only bump build number
-canaveral version --build
+# Show current version
+canaveral version --current
 ```
 
-## OTA Updates
+## Build Configuration
 
-Push over-the-air updates via EAS Update:
+Pass additional arguments to the underlying build tools using `--`:
 
 ```bash
-# Publish update to production channel
-canaveral ota publish --channel production --message "Bug fixes"
-
-# Publish to specific branch
-canaveral ota publish --branch main --message "New feature"
-```
-
-<Aside type="note">
-  OTA updates require EAS Update to be configured in your project.
-</Aside>
-
-## Configuration
-
-Expo-specific options in `canaveral.toml`:
-
-```toml
-[expo]
-# Use EAS Build by default
-use_eas = false
-
-# EAS project ID (from app.json or app.config.js)
-project_id = "your-eas-project-id"
-
-# Build profiles
-[expo.profiles]
-development = { distribution = "internal" }
-preview = { distribution = "internal" }
-production = { distribution = "store" }
+# Pass extra args to expo/eas
+canaveral build --platform ios --profile release --framework expo -- --no-wait
 ```
 
 ## Testing
@@ -108,16 +82,16 @@ production = { distribution = "store" }
 ### Jest Tests
 
 ```bash
-canaveral test --type unit
+canaveral test
 ```
 
 Runs Jest tests configured in your project.
 
-### Detox E2E Tests
+### Platform Tests
 
 ```bash
-canaveral test --type e2e --platform ios
-canaveral test --type e2e --platform android
+canaveral test --platform ios
+canaveral test --platform android
 ```
 
 ## EAS Configuration
@@ -168,7 +142,7 @@ jobs:
         run: curl -fsSL https://get.canaveral.dev | sh
 
       - name: Build with EAS
-        run: canaveral build --platform ios --profile release --config eas=true
+        run: canaveral build --platform ios --profile release --framework expo
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 ```

@@ -68,7 +68,7 @@ Full feature set with extensibility.
 - [x] GitLab CI templates
 - [x] Migration tools (semantic-release, release-please)
 - [x] Cross-platform release automation
-- [x] 205 tests passing across 6 crates
+- [x] 530+ tests passing across 11 crates
 
 ---
 

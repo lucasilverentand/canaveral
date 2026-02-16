@@ -52,17 +52,17 @@ Tauri produces different bundle types per platform:
 | Windows | `.exe`, `.msi` |
 | Linux | `.deb`, `.rpm`, `.AppImage` |
 
-Specify bundle type:
+Specify bundle type via extra args:
 
 ```bash
 # macOS DMG only
-canaveral build --platform macos --config bundle=dmg
+canaveral build --platform macos -- --bundles dmg
 
 # Windows MSI only
-canaveral build --platform windows --config bundle=msi
+canaveral build --platform windows -- --bundles msi
 
 # Linux AppImage only
-canaveral build --platform linux --config bundle=appimage
+canaveral build --platform linux -- --bundles appimage
 ```
 
 ## Version Management
@@ -90,11 +90,11 @@ Version is read from `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`:
 # Show version
 canaveral version
 
-# Bump version (updates both files)
-canaveral version --bump patch
+# Calculate next version
+canaveral version --release-type patch
 
-# Set specific version
-canaveral version --set 2.0.0
+# Show current version
+canaveral version --current
 ```
 
 <Aside type="note">
@@ -112,25 +112,16 @@ Canaveral auto-detects and uses your project's package manager:
 | pnpm | `pnpm-lock.yaml` |
 | bun | `bun.lockb` |
 
-## Configuration
+## Build Configuration
 
-Tauri-specific options in `canaveral.toml`:
+Pass additional arguments to the Tauri build command using `--`:
 
-```toml
-[tauri]
-# Path to tauri directory (default: src-tauri)
-tauri_dir = "src-tauri"
+```bash
+# Build with specific features
+canaveral build --platform macos --profile release -- --features custom-protocol
 
-# Bundle targets
-bundles = ["dmg", "app"]  # macOS
-# bundles = ["msi", "nsis"]  # Windows
-# bundles = ["deb", "appimage"]  # Linux
-
-# Build features
-features = ["custom-protocol"]
-
-# CI mode (skip frontend dev server)
-ci = true
+# Build with specific bundles
+canaveral build --platform macos --profile release -- --bundles dmg,updater
 ```
 
 ## Auto-Updater
@@ -154,7 +145,7 @@ Configure the Tauri updater:
 Generate update files:
 
 ```bash
-canaveral build --platform macos --profile release --config updater=true
+canaveral build --platform macos --profile release -- --bundles dmg,updater
 ```
 
 This generates:
@@ -181,7 +172,7 @@ export APPLE_ID="your@email.com"
 export APPLE_PASSWORD="app-specific-password"
 export APPLE_TEAM_ID="TEAMID"
 
-canaveral build --platform macos --profile release --config notarize=true
+canaveral build --platform macos --profile release
 ```
 
 ### Windows

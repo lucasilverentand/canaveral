@@ -29,13 +29,13 @@ Output will be in the `dist/` directory.
 
 ```bash
 # Get current version
-canaveral version get
+canaveral version --current
 
-# Set new version
-canaveral version set 1.1.0
+# Calculate next version from commits
+canaveral version
 
-# Bump version
-canaveral version bump patch
+# Calculate next version with explicit release type
+canaveral version --release-type patch
 ```
 
 ## Publishing to NPM
@@ -89,6 +89,4 @@ jobs:
 
 ## Learn More
 
-- [Canaveral Documentation](https://canaveral.dev/docs)
 - [Vite Documentation](https://vitejs.dev)
-- [Web Framework Support](https://canaveral.dev/docs/frameworks/vite)

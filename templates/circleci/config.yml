@@ -93,7 +93,6 @@ commands:
             canaveral build \
               --platform ios \
               --profile << parameters.profile >> \
-              --output-format text
           no_output_timeout: 30m
 
   build-android:
@@ -110,23 +109,17 @@ commands:
             canaveral build \
               --platform android \
               --profile << parameters.profile >> \
-              --output-format text
           no_output_timeout: 20m
 
   run-tests:
     description: Run tests
-    parameters:
-      type:
-        type: enum
-        enum: [unit, integration, e2e]
-        default: unit
     steps:
       - run:
-          name: Run << parameters.type >> tests
+          name: Run tests
           command: |
             canaveral test \
-              --type << parameters.type >> \
-              --output-format junit
+              --reporter junit \
+              --output test-results/results.xml
       - store_test_results:
           path: test-results
 
@@ -137,7 +130,7 @@ commands:
           name: Upload to TestFlight
           command: |
             IPA_PATH=$(find build/ios -name "*.ipa" | head -1)
-            canaveral testflight upload "$IPA_PATH" \
+            canaveral test-flight upload "$IPA_PATH" \
               --changelog "Build #${CIRCLE_BUILD_NUM} from ${CIRCLE_BRANCH}"
 
   upload-play-store:
@@ -152,8 +145,7 @@ commands:
           name: Upload to Google Play
           command: |
             AAB_PATH=$(find build/android -name "*.aab" | head -1)
-            canaveral store upload android \
-              --artifact "$AAB_PATH" \
+            canaveral publish google-play "$AAB_PATH" \
               --track << parameters.track >>
 
 # ============================================
@@ -261,8 +253,7 @@ jobs:
       - checkout
       - install-canaveral
       - setup-flutter
-      - run-tests:
-          type: unit
+      - run-tests
 
   test-integration-ios:
     macos:
@@ -279,8 +270,15 @@ jobs:
           command: |
             xcrun simctl boot "iPhone 15 Pro" || true
             xcrun simctl bootstatus "iPhone 15 Pro" -b
-      - run-tests:
-          type: integration
+      - run:
+          name: Run integration tests
+          command: |
+            canaveral test \
+              --platform ios \
+              --reporter junit \
+              --output test-results/results.xml
+      - store_test_results:
+          path: test-results
 
   deploy-testflight:
     macos:
@@ -318,11 +316,11 @@ jobs:
             VERSION=${CIRCLE_TAG#v}
             canaveral release \
               --version $VERSION \
-              --tag $CIRCLE_TAG
+              --yes
       - run:
           name: Generate Changelog
           command: |
-            canaveral changelog --unreleased --format markdown > RELEASE_NOTES.md
+            canaveral changelog --output RELEASE_NOTES.md
       - store_artifacts:
           path: RELEASE_NOTES.md
 

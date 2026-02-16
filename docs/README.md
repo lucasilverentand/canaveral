@@ -2,7 +2,7 @@
 
 > Universal Release Management System
 
-**Status:** All core phases complete (205 tests passing across 6 crates)
+**Status:** All core phases complete (530+ tests passing across 11 crates)
 
 Canaveral is a unified release management CLI tool designed to replace the fragmented ecosystem of package-specific release tools (release-please, release-plz, semantic-release, etc.) with a single, extensible solution that works across multiple package managers and platforms.
 

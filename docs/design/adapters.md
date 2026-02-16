@@ -17,35 +17,58 @@ Package adapters handle the ecosystem-specific details of reading manifests, upd
 
 ## Adapter Interface
 
-All adapters implement this interface:
+All adapters implement the `PackageAdapter` trait (synchronous, from `canaveral-adapters/src/traits.rs`):
 
-```typescript
-interface PackageAdapter {
-  // Metadata
-  readonly name: string;
-  readonly ecosystem: string;
-  readonly manifestFile: string;
+```rust
+pub trait PackageAdapter: Send + Sync {
+    /// Get the adapter name (e.g., "npm", "cargo")
+    fn name(&self) -> &'static str;
 
-  // Detection
-  detect(projectPath: string): Promise<boolean>;
+    /// Get the default registry URL for this adapter
+    fn default_registry(&self) -> &'static str;
 
-  // Version management
-  readVersion(manifestPath: string): Promise<string>;
-  writeVersion(manifestPath: string, version: string): Promise<void>;
+    /// Check if this adapter applies to the given path
+    fn detect(&self, path: &Path) -> bool;
 
-  // Publishing
-  publish(options: PublishOptions): Promise<PublishResult>;
-  unpublish?(version: string): Promise<void>;
+    /// Get package information from manifest
+    fn get_info(&self, path: &Path) -> Result<PackageInfo>;
 
-  // Validation
-  validateManifest(manifestPath: string): Promise<ValidationResult>;
-  validateCredentials(): Promise<boolean>;
+    /// Get current version
+    fn get_version(&self, path: &Path) -> Result<String>;
 
-  // Dependencies (for monorepo)
-  readDependencies?(manifestPath: string): Promise<Dependency[]>;
-  writeDependencies?(manifestPath: string, deps: Dependency[]): Promise<void>;
+    /// Set version in manifest
+    fn set_version(&self, path: &Path, version: &str) -> Result<()>;
+
+    /// Publish package (simple version)
+    fn publish(&self, path: &Path, dry_run: bool) -> Result<()>;
+
+    /// Publish package with detailed options
+    fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()>;
+
+    /// Validate that the package can be published
+    fn validate_publishable(&self, path: &Path) -> Result<ValidationResult>;
+
+    /// Check if authentication is configured for publishing
+    fn check_auth(&self, credentials: &mut CredentialProvider) -> Result<bool>;
+
+    /// Get the manifest filename(s) this adapter handles
+    fn manifest_names(&self) -> &[&str];
+
+    /// Build the package (if applicable)
+    fn build(&self, path: &Path) -> Result<()>;
+
+    /// Run tests (if applicable)
+    fn test(&self, path: &Path) -> Result<()>;
+
+    /// Clean build artifacts (if applicable)
+    fn clean(&self, path: &Path) -> Result<()>;
+
+    /// Pack the package for publishing without actually publishing
+    fn pack(&self, path: &Path) -> Result<Option<PathBuf>>;
 }
 ```
+
+Note: The trait is synchronous (not async). Several methods like `build`, `test`, `clean`, and `pack` have default no-op implementations.
 
 ## npm Adapter
 
@@ -426,52 +449,46 @@ packages:
 
 ## Custom Adapters
 
-Create custom adapters via plugins:
+Custom adapters can be created via the external subprocess plugin system. Adapter plugins communicate with Canaveral via JSON over stdin/stdout.
 
-```typescript
-// my-adapter-plugin.ts
-import { PackageAdapter, PublishOptions, PublishResult } from 'canaveral';
+See the [Plugin System](../architecture/plugins.md) documentation for the full protocol specification.
 
-export default class MyAdapter implements PackageAdapter {
-  name = 'my-ecosystem';
-  ecosystem = 'my-ecosystem';
-  manifestFile = 'my-manifest.json';
+**Example: Custom adapter plugin (Python)**
 
-  async detect(projectPath: string): Promise<boolean> {
-    return fs.existsSync(path.join(projectPath, this.manifestFile));
-  }
+```python
+#!/usr/bin/env python3
+import json, sys, os
 
-  async readVersion(manifestPath: string): Promise<string> {
-    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
-    return manifest.version;
-  }
+def handle_request(request):
+    action = request["action"]
+    input_data = request.get("input", {})
 
-  async writeVersion(manifestPath: string, version: string): Promise<void> {
-    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
-    manifest.version = version;
-    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
-  }
+    if action == "info":
+        return {"output": {
+            "name": "my-adapter",
+            "version": "1.0.0",
+            "plugin_type": "adapter",
+            "capabilities": ["detect", "get_version", "set_version", "publish"]
+        }}
+    elif action == "detect":
+        path = input_data.get("path", "")
+        return {"output": os.path.exists(os.path.join(path, "my-manifest.json"))}
+    elif action == "get_version":
+        path = input_data.get("path", "")
+        manifest = json.load(open(os.path.join(path, "my-manifest.json")))
+        return {"output": manifest.get("version", "0.0.0")}
+    else:
+        return {"error": f"Unknown action: {action}"}
 
-  async publish(options: PublishOptions): Promise<PublishResult> {
-    // Implement publishing logic
-    return {
-      success: true,
-      packageName: 'my-package',
-      version: options.version,
-      registry: 'my-registry.com'
-    };
-  }
-
-  // ... other methods
-}
+request = json.load(sys.stdin)
+print(json.dumps(handle_request(request)))
 ```
 
-Register in config:
+**Register in config:**
 ```yaml
 plugins:
-  - ./plugins/my-adapter-plugin.ts
-
-packages:
-  - type: my-ecosystem
-    path: .
+  - name: my-custom-adapter
+    plugin_type: adapter
+    command: /usr/local/bin/my-adapter-plugin
+    enabled: true
 ```

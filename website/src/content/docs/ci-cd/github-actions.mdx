@@ -29,7 +29,7 @@ jobs:
           echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
 
       - name: Build iOS
-        run: canaveral build --platform ios --profile release --output-format github-actions
+        run: canaveral build --platform ios --profile release --format json
 
   build-android:
     runs-on: ubuntu-latest
@@ -42,7 +42,7 @@ jobs:
           echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
 
       - name: Build Android
-        run: canaveral build --platform android --profile release --output-format github-actions
+        run: canaveral build --platform android --profile release --format json
 ```
 
 ## Full CI/CD Pipeline
@@ -65,7 +65,7 @@ jobs:
       - name: Install Canaveral
         run: curl -fsSL https://get.canaveral.dev | sh
       - name: Run Tests
-        run: canaveral test --type unit --output-format junit
+        run: canaveral test --reporter junit --output test-results/results.xml
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
@@ -90,7 +90,7 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
 
       - name: Build iOS
-        run: canaveral build --platform ios --profile release --output-format github-actions
+        run: canaveral build --platform ios --profile release --format json
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -118,7 +118,7 @@ jobs:
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
 
       - name: Build Android
-        run: canaveral build --platform android --profile release --output-format github-actions
+        run: canaveral build --platform android --profile release --format json
         env:
           ANDROID_KEYSTORE_PATH: android/app/release.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -158,14 +158,14 @@ jobs:
       - name: Upload to TestFlight
         run: canaveral testflight upload build/ios/*.ipa
         env:
-          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
-          ASC_API_KEY_ISSUER: ${{ secrets.ASC_API_KEY_ISSUER }}
-          ASC_API_KEY_PATH: ${{ secrets.ASC_API_KEY_PATH }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_PATH: ${{ secrets.APP_STORE_CONNECT_API_KEY_PATH }}
 
       - name: Upload to Play Store
-        run: canaveral store upload android --artifact build/android/*.aab --track internal
+        run: canaveral publish google-play --artifact build/android/*.aab --track internal
         env:
-          GOOGLE_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY }}
 ```
 
 ## Required Secrets
@@ -177,9 +177,9 @@ Configure these secrets in your repository settings:
 | Secret | Description |
 |--------|-------------|
 | `MATCH_PASSWORD` | Encryption password for certificates |
-| `ASC_API_KEY_ID` | App Store Connect API key ID |
-| `ASC_API_KEY_ISSUER` | App Store Connect API key issuer |
-| `ASC_API_KEY_PATH` | Path to API key .p8 file |
+| `APP_STORE_CONNECT_API_KEY_ID` | App Store Connect API key ID |
+| `APP_STORE_CONNECT_ISSUER_ID` | App Store Connect issuer ID |
+| `APP_STORE_CONNECT_API_KEY_PATH` | Path to API key .p8 file |
 
 ### Android
 
@@ -199,7 +199,7 @@ Configure these secrets in your repository settings:
 
 ## Output Format
 
-Using `--output-format github-actions` automatically:
+Using `--format json` automatically:
 
 1. Sets environment variables for subsequent steps
 2. Creates step outputs for use in other jobs
@@ -209,7 +209,7 @@ Using `--output-format github-actions` automatically:
 ```yaml
 - name: Build
   id: build
-  run: canaveral build --platform ios --output-format github-actions
+  run: canaveral build --platform ios --format json
 
 - name: Use Output
   run: echo "Artifact path: ${{ steps.build.outputs.artifact_path }}"

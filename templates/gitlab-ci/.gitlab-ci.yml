@@ -127,7 +127,6 @@ build-ios:
       canaveral build \
         --platform ios \
         --profile $BUILD_TYPE \
-        --output-format gitlab-ci
   artifacts:
     paths:
       - build/ios/*.ipa
@@ -156,7 +155,6 @@ build-android:
       canaveral build \
         --platform android \
         --profile $BUILD_TYPE \
-        --output-format gitlab-ci
   artifacts:
     paths:
       - build/android/*.apk
@@ -177,7 +175,7 @@ test-unit:
   script:
     - *install_canaveral
     - *setup_flutter
-    - canaveral test --type unit --output-format junit
+    - canaveral test --reporter junit --output test-results/results.xml
   artifacts:
     reports:
       junit: test-results/*.xml
@@ -200,7 +198,7 @@ test-integration-ios:
     - |
       # Boot simulator
       xcrun simctl boot "iPhone 15 Pro" || true
-    - canaveral test --type integration --platform ios --output-format junit
+    - canaveral test --platform ios --reporter junit --output test-results/results.xml
   artifacts:
     reports:
       junit: test-results/*.xml
@@ -228,7 +226,7 @@ test-integration-android:
       # Wait for emulator
       adb connect $ANDROID_EMULATOR_HOST:5555
       adb wait-for-device
-    - canaveral test --type integration --platform android --output-format junit
+    - canaveral test --platform android --reporter junit --output test-results/results.xml
   artifacts:
     reports:
       junit: test-results/*.xml
@@ -252,7 +250,7 @@ deploy-testflight:
   script:
     - *install_canaveral
     - |
-      canaveral testflight upload build/ios/*.ipa \
+      canaveral test-flight upload build/ios/*.ipa \
         --changelog "Build from commit $CI_COMMIT_SHORT_SHA"
 
 deploy-play-internal:
@@ -268,8 +266,7 @@ deploy-play-internal:
   script:
     - *install_canaveral
     - |
-      canaveral store upload android \
-        --artifact build/android/*.aab \
+      canaveral publish google-play build/android/*.aab \
         --track internal
 
 # ============================================
@@ -296,7 +293,7 @@ create-release:
       VERSION=${CI_COMMIT_TAG#v}
       canaveral release \
         --version $VERSION \
-        --tag $CI_COMMIT_TAG
+        --yes
     - |
       # Create GitLab release
       curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
@@ -304,7 +301,7 @@ create-release:
            --data "{
              \"name\": \"Release $VERSION\",
              \"tag_name\": \"$CI_COMMIT_TAG\",
-             \"description\": \"$(canaveral changelog --unreleased --format markdown)\"
+             \"description\": \"$(canaveral changelog --write)\"
            }" \
            "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases"
 
@@ -326,15 +323,15 @@ release-beta:
     - *install_canaveral
     - |
       # Calculate next version
-      VERSION=$(canaveral version --bump minor --prerelease beta --format json | jq -r '.next')
+      VERSION=$(canaveral version --release-type minor --format json | jq -r '.next')
 
       # Build both platforms
       canaveral build --platform ios --profile release
       canaveral build --platform android --profile release
 
       # Upload to beta channels
-      canaveral testflight upload build/ios/*.ipa
-      canaveral store upload android --artifact build/android/*.aab --track beta
+      canaveral test-flight upload build/ios/*.ipa
+      canaveral publish google-play build/android/*.aab --track beta
 
 release-production:
   extends: .manual-release
@@ -346,4 +343,4 @@ release-production:
       # This should only promote existing beta builds
       # Actual production release requires additional approval
       echo "Production release requires manual approval in App Store Connect and Google Play Console"
-      echo "Use 'canaveral store promote' after builds are approved"
+      echo "Use 'canaveral publish' after builds are approved"

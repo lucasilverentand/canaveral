@@ -161,11 +161,11 @@ Checking environment...
   [OK] App Store Connect credentials configured
   [FAIL] Google Play service account not configured
 
-1 issue found. Run 'canaveral doctor --fix' for suggestions.
+1 issue found. Run 'canaveral doctor --fix' to attempt automatic fixes.
 ```
 
 <Aside type="tip">
-  Run `canaveral doctor --fix` for suggestions on how to resolve any issues.
+  Run `canaveral doctor --fix` to attempt automatic fixes for detected issues. Use `canaveral doctor --only rust,platform` to check specific categories, or `canaveral doctor --framework flutter` to check for a specific framework.
 </Aside>
 
 ## Shell Completions
@@ -199,7 +199,7 @@ Update to the latest version:
 <Tabs>
   <TabItem label="Quick Install">
     ```bash
-    canaveral self-update
+    curl -fsSL https://get.canaveral.dev | sh
     ```
   </TabItem>
   <TabItem label="Homebrew">

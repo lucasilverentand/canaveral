@@ -15,33 +15,86 @@ export FIREBASE_TOKEN="your-firebase-token"
 
 # Or using service account
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+export FIREBASE_SERVICE_ACCOUNT="/path/to/service-account.json"
 ```
 
 ## Upload
 
 ```bash
-# Upload iOS
-canaveral firebase upload build/ios/MyApp.ipa --app 1:123456789:ios:abcdef
+# Upload iOS build
+canaveral firebase upload build/ios/MyApp.ipa \
+  --project-id my-project \
+  --app-id 1:123456789:ios:abcdef
 
-# Upload Android
-canaveral firebase upload build/android/app.apk --app 1:123456789:android:abcdef
+# Upload Android build
+canaveral firebase upload build/android/app.apk \
+  --project-id my-project \
+  --app-id 1:123456789:android:abcdef
 
 # With tester groups
-canaveral firebase upload build/android/app.apk --app APP_ID --groups "qa,testers"
+canaveral firebase upload build/android/app.apk \
+  --project-id my-project \
+  --app-id APP_ID \
+  --groups "qa,testers"
 
 # With release notes
-canaveral firebase upload build/android/app.apk --app APP_ID --notes "Bug fixes"
+canaveral firebase upload build/android/app.apk \
+  --project-id my-project \
+  --app-id APP_ID \
+  --notes "Bug fixes and improvements"
+
+# With notes from file
+canaveral firebase upload build/android/app.apk \
+  --project-id my-project \
+  --app-id APP_ID \
+  --notes-file CHANGELOG.md
+
+# Dry run
+canaveral firebase upload build/android/app.apk \
+  --project-id my-project \
+  --app-id APP_ID \
+  --dry-run
+```
+
+## Manage Releases
+
+```bash
+# List releases
+canaveral firebase releases list
+
+# Get release details
+canaveral firebase releases get RELEASE_ID
+```
+
+## Manage Groups
+
+```bash
+# List groups
+canaveral firebase groups list
+
+# Create a group
+canaveral firebase groups create "QA Team"
+
+# Delete a group
+canaveral firebase groups delete "QA Team"
 ```
 
 ## Manage Testers
 
 ```bash
-# List testers
-canaveral firebase testers list --app APP_ID
-
 # Add testers
-canaveral firebase testers add user@example.com --app APP_ID
+canaveral firebase testers add user@example.com
 
-# Add to group
-canaveral firebase testers add user@example.com --app APP_ID --group qa
+# Remove testers
+canaveral firebase testers remove user@example.com
 ```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `FIREBASE_PROJECT_ID` | Firebase project ID |
+| `FIREBASE_APP_ID` | Firebase app ID |
+| `FIREBASE_TOKEN` | Firebase CLI token |
+| `FIREBASE_SERVICE_ACCOUNT` | Path to service account JSON |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Google Cloud credentials path |

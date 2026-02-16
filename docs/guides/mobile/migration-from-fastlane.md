@@ -22,10 +22,6 @@ This guide helps you migrate from fastlane to Canaveral for mobile app CI/CD. Ca
 ## Step 1: Install Canaveral
 
 ```bash
-# macOS/Linux
-curl -fsSL https://get.canaveral.dev | sh
-
-# Or with cargo
 cargo install canaveral
 ```
 
@@ -210,7 +206,7 @@ canaveral test --type unit --output-format junit
 **Canaveral:**
 ```yaml
 - name: Install Canaveral
-  run: curl -fsSL https://get.canaveral.dev | sh
+  run: cargo install canaveral
 
 - name: Build iOS
   run: canaveral build --platform ios --output-format github-actions
@@ -231,7 +227,7 @@ build:
 ```yaml
 build:
   script:
-    - curl -fsSL https://get.canaveral.dev | sh
+    - cargo install canaveral
     - canaveral build --platform android --output-format gitlab-ci
 ```
 

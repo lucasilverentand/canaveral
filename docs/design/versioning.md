@@ -115,64 +115,46 @@ hybrid:
 
 ## Strategy Interface
 
-Custom strategies implement this interface:
+All version strategies implement the `VersionStrategy` trait (synchronous, from `canaveral-strategies/src/traits.rs`):
 
-```typescript
-interface VersionStrategy {
-  name: string;
+```rust
+pub trait VersionStrategy: Send + Sync {
+    /// Get the name of this strategy
+    fn name(&self) -> &'static str;
 
-  /**
-   * Calculate the next version based on commits
-   */
-  calculate(
-    currentVersion: string,
-    commits: Commit[],
-    options: StrategyOptions
-  ): Promise<string>;
+    /// Parse a version string into components
+    fn parse(&self, version: &str) -> Result<VersionComponents>;
 
-  /**
-   * Parse a version string into components
-   */
-  parse(version: string): VersionComponents;
+    /// Format version components into a string
+    fn format(&self, components: &VersionComponents) -> String;
 
-  /**
-   * Compare two versions (-1, 0, 1)
-   */
-  compare(a: string, b: string): number;
+    /// Bump the version according to the bump type
+    fn bump(&self, current: &VersionComponents, bump_type: BumpType) -> Result<VersionComponents>;
 
-  /**
-   * Validate a version string
-   */
-  validate(version: string): boolean;
+    /// Determine the bump type from commit metadata
+    fn determine_bump_type(&self, is_breaking: bool, is_feature: bool, is_fix: bool) -> BumpType;
 
-  /**
-   * Format components into a version string
-   */
-  format(components: VersionComponents): string;
-}
+    /// Check if a version string is valid for this strategy
+    fn is_valid(&self, version: &str) -> bool;
 
-interface VersionComponents {
-  // Common
-  raw: string;
-
-  // SemVer
-  major?: number;
-  minor?: number;
-  patch?: number;
-  prerelease?: string[];
-  build?: string[];
-
-  // CalVer
-  year?: number;
-  month?: number;
-  day?: number;
-  week?: number;
-  micro?: number;
-
-  // Build number
-  buildNumber?: number;
+    /// Compare two versions
+    fn compare(&self, a: &str, b: &str) -> Result<std::cmp::Ordering>;
 }
 ```
+
+The `BumpType` enum defines possible version increments:
+
+```rust
+pub enum BumpType {
+    Major,
+    Minor,
+    Patch,
+    Prerelease,
+    None,
+}
+```
+
+Custom strategies can be added via the external subprocess plugin system. See [Plugin System](../architecture/plugins.md) for details.
 
 ## Version Sources
 

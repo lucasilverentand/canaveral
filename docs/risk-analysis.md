@@ -49,22 +49,11 @@
 **Impact:** Medium - Breaks for some users
 
 **Mitigation:**
-- CI testing on all platforms
-- Use cross-platform libraries (simple-git, Bun)
+- CI testing on all platforms (Linux, macOS, Windows)
+- Use cross-platform Rust libraries (git2, tokio, walkdir)
+- Single binary distribution eliminates runtime dependencies
 - Document platform-specific requirements
 - Community testing before releases
-
-### 5. Bun Runtime Stability
-
-**Risk:** Bun is newer than Node.js, potential compatibility issues or bugs.
-
-**Impact:** Medium - Runtime errors
-
-**Mitigation:**
-- Test against Bun stable releases
-- Fallback instructions for Node.js if needed
-- Report issues upstream
-- Pin Bun version in CI
 
 ## Adoption Risks
 
@@ -168,7 +157,7 @@
 | Ecosystem lock-in | High | High | P1 | Addressing |
 | Git edge cases | Medium | Medium | P2 | Testing |
 | Learning curve | Medium | Medium | P2 | Addressing |
-| Bun stability | Low | Medium | P3 | Monitoring |
+| Cross-platform issues | Low | Medium | P3 | Testing |
 | Publish failures | Low | Medium | P3 | Mitigated |
 
 ## Monitoring and Response

@@ -21,25 +21,12 @@ inputs:
     description: 'Explicit version to set (overrides bump)'
     required: false
 
-  preid:
-    description: 'Pre-release identifier (alpha, beta, rc)'
-    required: false
-
   # Package inputs
   package:
     description: 'Package name for monorepo (releases specific package)'
     required: false
 
-  package-type:
-    description: 'Package type: npm, cargo, python, go, maven, docker'
-    required: false
-
   # Git inputs
-  tag-prefix:
-    description: 'Tag prefix (default: v)'
-    required: false
-    default: 'v'
-
   git-user-name:
     description: 'Git user name for commits'
     required: false
@@ -49,11 +36,6 @@ inputs:
     description: 'Git user email for commits'
     required: false
     default: 'github-actions[bot]@users.noreply.github.com'
-
-  push:
-    description: 'Push commits and tags to remote'
-    required: false
-    default: 'true'
 
   # Behavior inputs
   dry-run:
@@ -79,11 +61,6 @@ inputs:
   # Registry inputs
   registry-token:
     description: 'Token for package registry (npm, crates.io, PyPI, etc.)'
-    required: false
-
-  # Advanced inputs
-  config:
-    description: 'Path to canaveral.yaml config file'
     required: false
 
   working-directory:
@@ -162,9 +139,9 @@ runs:
         ARCHIVE="${{ steps.platform.outputs.archive }}"
 
         if [[ "$VERSION" == "latest" ]]; then
-          DOWNLOAD_URL="https://github.com/YOUR_ORG/canaveral/releases/latest/download/canaveral-${TARGET}.${ARCHIVE}"
+          DOWNLOAD_URL="https://github.com/canaveral-dev/canaveral/releases/latest/download/canaveral-${TARGET}.${ARCHIVE}"
         else
-          DOWNLOAD_URL="https://github.com/YOUR_ORG/canaveral/releases/download/v${VERSION}/canaveral-${TARGET}.${ARCHIVE}"
+          DOWNLOAD_URL="https://github.com/canaveral-dev/canaveral/releases/download/v${VERSION}/canaveral-${TARGET}.${ARCHIVE}"
         fi
 
         echo "Downloading Canaveral from: $DOWNLOAD_URL"
@@ -206,16 +183,6 @@ runs:
         # Build command arguments
         ARGS=""
 
-        # Add config file if specified
-        if [[ -n "${{ inputs.config }}" ]]; then
-          ARGS="$ARGS --config ${{ inputs.config }}"
-        fi
-
-        # Add tag prefix
-        if [[ -n "${{ inputs.tag-prefix }}" ]]; then
-          ARGS="$ARGS --tag-prefix ${{ inputs.tag-prefix }}"
-        fi
-
         # Add package for monorepo
         if [[ -n "${{ inputs.package }}" ]]; then
           ARGS="$ARGS --package ${{ inputs.package }}"
@@ -238,10 +205,6 @@ runs:
           ARGS="$ARGS --no-git"
         fi
 
-        if [[ "${{ inputs.push }}" != "true" ]]; then
-          ARGS="$ARGS --no-push"
-        fi
-
         # Handle different commands
         case "${{ inputs.command }}" in
           release)
@@ -249,16 +212,13 @@ runs:
             if [[ -n "${{ inputs.version }}" ]]; then
               ARGS="$ARGS --version ${{ inputs.version }}"
             elif [[ "${{ inputs.bump }}" != "auto" ]]; then
-              ARGS="$ARGS --${{ inputs.bump }}"
+              ARGS="$ARGS --release-type ${{ inputs.bump }}"
             fi
 
-            # Add preid if specified
-            if [[ -n "${{ inputs.preid }}" ]]; then
-              ARGS="$ARGS --preid ${{ inputs.preid }}"
-            fi
+            ARGS="$ARGS --yes"
 
             echo "Running: canaveral release $ARGS"
-            OUTPUT=$(canaveral release $ARGS --json 2>&1) || true
+            OUTPUT=$(canaveral --format json release $ARGS 2>&1) || true
 
             # Parse JSON output
             if echo "$OUTPUT" | jq -e '.version' > /dev/null 2>&1; then
@@ -287,14 +247,12 @@ runs:
             ;;
 
           version)
-            if [[ -n "${{ inputs.version }}" ]]; then
-              ARGS="$ARGS --set ${{ inputs.version }}"
-            elif [[ "${{ inputs.bump }}" != "auto" ]]; then
-              ARGS="$ARGS --${{ inputs.bump }}"
+            if [[ "${{ inputs.bump }}" != "auto" ]]; then
+              ARGS="$ARGS --release-type ${{ inputs.bump }}"
             fi
 
             echo "Running: canaveral version $ARGS"
-            VERSION=$(canaveral version $ARGS --print)
+            VERSION=$(canaveral --quiet version $ARGS)
             echo "version=$VERSION" >> $GITHUB_OUTPUT
             echo "released=false" >> $GITHUB_OUTPUT
             echo "skipped=false" >> $GITHUB_OUTPUT
@@ -308,13 +266,8 @@ runs:
             ;;
 
           init)
-            INIT_ARGS=""
-            if [[ -n "${{ inputs.package-type }}" ]]; then
-              INIT_ARGS="$INIT_ARGS --type ${{ inputs.package-type }}"
-            fi
-
-            echo "Running: canaveral init $INIT_ARGS"
-            canaveral init $INIT_ARGS
+            echo "Running: canaveral init --yes"
+            canaveral init --yes
             echo "released=false" >> $GITHUB_OUTPUT
             echo "skipped=false" >> $GITHUB_OUTPUT
             ;;

@@ -137,15 +137,15 @@ Templates support automatic version bumping:
 
 ```bash
 # Get current version
+canaveral version --current
+
+# Calculate next version based on commits
 canaveral version
 
-# Bump version
-canaveral version --bump patch
-canaveral version --bump minor
-canaveral version --bump major
-
-# Set specific version
-canaveral version --set 2.0.0
+# Calculate next version with explicit release type
+canaveral version --release-type patch
+canaveral version --release-type minor
+canaveral version --release-type major
 ```
 
 ## Customization
@@ -157,9 +157,6 @@ All templates use Canaveral's build command which detects your framework automat
 ```yaml
 # Basic build
 canaveral build --platform ios --profile release
-
-# With custom output format
-canaveral build --platform android --profile release --output-format github-actions
 
 # For specific framework (usually auto-detected)
 canaveral build --platform ios --framework flutter
@@ -248,7 +245,7 @@ jobs:
           echo "$HOME/.canaveral/bin" >> $GITHUB_PATH
       - run: canaveral match sync --profile-type appstore --readonly
       - run: canaveral build --platform ios --profile release
-      - run: canaveral testflight upload build/ios/*.ipa
+      - run: canaveral test-flight upload build/ios/*.ipa
     env:
       MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL }}
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}

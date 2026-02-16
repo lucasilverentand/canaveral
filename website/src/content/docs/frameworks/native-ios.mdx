@@ -25,11 +25,11 @@ Canaveral detects native iOS projects by the presence of:
 # Auto-detects scheme from workspace/project
 canaveral build --platform ios --profile release
 
-# Specify scheme
-canaveral build --platform ios --profile release --config scheme=MyAppRelease
+# Specify signing identity
+canaveral build --platform ios --profile release --signing-identity "Apple Distribution: My Company"
 
-# Build for simulator
-canaveral build --platform ios --profile debug --config destination=simulator
+# With team ID
+canaveral build --platform ios --profile release --team-id TEAMID123
 ```
 
 ### macOS Build
@@ -63,14 +63,11 @@ Version is read from `Info.plist`:
 # Show version
 canaveral version
 
-# Bump version (updates both keys)
-canaveral version --bump patch
+# Calculate next version
+canaveral version --release-type patch
 
-# Set specific version
-canaveral version --set 2.0.0
-
-# Only bump build number
-canaveral version --build
+# Show current version
+canaveral version --current
 ```
 
 ## Code Signing
@@ -87,49 +84,31 @@ canaveral build --platform ios --profile release
 
 ### Manual Signing
 
-Configure in `canaveral.toml`:
-
-```toml
-[ios.signing]
-identity = "Apple Distribution: Your Company (TEAMID)"
-provisioning_profile = "path/to/profile.mobileprovision"
-```
-
-Or use environment variables:
+Specify signing options directly via the build command:
 
 ```bash
-export CODE_SIGN_IDENTITY="Apple Distribution: Your Company (TEAMID)"
-export PROVISIONING_PROFILE_SPECIFIER="Your App Store Profile"
+canaveral build --platform ios --profile release \
+  --signing-identity "Apple Distribution: Your Company (TEAMID)" \
+  --provisioning-profile "Your App Store Profile" \
+  --team-id TEAMID123
 ```
 
-## Configuration
+Or configure in `canaveral.yaml`:
 
-Native iOS-specific options in `canaveral.toml`:
+```yaml
+signing:
+  enabled: true
+  provider: macos
+  identity: "Apple Distribution: Your Company (TEAMID)"
+```
 
-```toml
-[ios]
-bundle_id = "com.example.myapp"
-team_id = "TEAMID123"
+## Build Configuration
 
-# Xcode project/workspace (auto-detected)
-workspace = "MyApp.xcworkspace"
-# or
-project = "MyApp.xcodeproj"
+Pass additional arguments to xcodebuild using `--`:
 
-# Build scheme (auto-detected)
-scheme = "MyApp"
-
-# Build configuration
-configuration = "Release"
-
-# Export options
-export_method = "app-store"  # app-store, ad-hoc, development, enterprise
-
-# Destination
-destination = "generic/platform=iOS"
-
-# Additional xcodebuild args
-xcodebuild_args = ["-allowProvisioningUpdates"]
+```bash
+# Pass extra xcodebuild args
+canaveral build --platform ios --profile release -- -allowProvisioningUpdates -scheme MyAppRelease
 ```
 
 ## Testing
@@ -137,40 +116,14 @@ xcodebuild_args = ["-allowProvisioningUpdates"]
 ### XCTest
 
 ```bash
-# Run unit tests
-canaveral test --type unit --platform ios
+# Run tests
+canaveral test --platform ios
 
-# Run UI tests
-canaveral test --type integration --platform ios
+# Run with filter
+canaveral test --platform ios --filter "LoginTests"
 
-# Run on specific simulator
-canaveral test --type unit --platform ios --config destination="platform=iOS Simulator,name=iPhone 15 Pro"
-```
-
-## Archives and Exports
-
-### Create Archive
-
-```bash
-canaveral build --platform ios --profile release --config archive=true
-```
-
-### Export Options
-
-Control the export with export options plist:
-
-```toml title="canaveral.toml"
-[ios.export]
-method = "app-store"
-upload_bitcode = true
-compile_bitcode = true
-upload_symbols = true
-```
-
-Or provide a custom export options plist:
-
-```bash
-canaveral build --platform ios --profile release --config export_options=ExportOptions.plist
+# JUnit output for CI
+canaveral test --platform ios --reporter junit --output test-results/results.xml
 ```
 
 ## CI/CD Integration
@@ -209,9 +162,9 @@ jobs:
       - name: Upload to TestFlight
         run: canaveral testflight upload build/ios/*.ipa
         env:
-          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
-          ASC_API_KEY_ISSUER: ${{ secrets.ASC_API_KEY_ISSUER }}
-          ASC_API_KEY_PATH: ${{ secrets.ASC_API_KEY_PATH }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_PATH: ${{ secrets.APP_STORE_CONNECT_API_KEY_PATH }}
 ```
 
 ## Troubleshooting
@@ -227,7 +180,7 @@ xcodebuild -list -workspace MyApp.xcworkspace
 Then specify the scheme:
 
 ```bash
-canaveral build --platform ios --config scheme=MyScheme
+canaveral build --platform ios -- -scheme MyScheme
 ```
 
 ### "Signing failed"

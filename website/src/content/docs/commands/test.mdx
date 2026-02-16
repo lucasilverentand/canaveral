@@ -1,88 +1,147 @@
 ---
 title: test
-description: Run tests for your mobile app.
+description: Run tests for your project.
 ---
 
 # canaveral test
 
-Run tests for your mobile app. Supports unit tests, widget tests (Flutter), integration tests, and E2E tests.
+Run tests for your project. Supports multiple frameworks, test reporters, coverage collection, smart test selection, and monorepo-aware affected package detection.
 
 ## Synopsis
 
 ```bash
-canaveral test [OPTIONS]
+canaveral test [PATH] [OPTIONS]
 ```
 
 ## Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--type <TYPE>` | Test type: `unit`, `widget`, `integration`, `e2e` | `unit` |
-| `--platform <PLATFORM>` | Platform for device tests: `ios`, `android` | Auto |
-| `--coverage` | Generate coverage report | `false` |
-| `--output-format <FORMAT>` | Output format: `text`, `junit`, `json` | `text` |
-| `--device <ID>` | Device/simulator ID for E2E tests | Auto |
-| `--verbose` | Enable verbose output | `false` |
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `[PATH]` | | Path to the project | `.` (current directory) |
+| `--platform <PLATFORM>` | `-p` | Target platform: `ios`, `android`, `macos`, `windows`, `linux`, `web` | Auto |
+| `--framework <FRAMEWORK>` | `-f` | Override framework detection | Auto-detected |
+| `--filter <PATTERN>` | | Test filter/pattern | - |
+| `--coverage` | | Collect code coverage | `false` |
+| `--reporter <FORMAT>` | | Reporter format: `pretty`, `json`, `junit`, `github-actions` | `pretty` |
+| `--output <FILE>` | | Output file for test results (e.g., `junit.xml`) | - |
+| `--fail-fast` | | Stop on first failure | `false` |
+| `--retry <COUNT>` | | Retry failed tests | `0` |
+| `--timeout <SECONDS>` | | Test timeout in seconds | - |
+| `--jobs <N>` | `-j` | Number of parallel test jobs | Auto |
+| `--dry-run` | | Validate without running tests | `false` |
+| `--smart` | | Smart test selection (only tests covering changed code) | `false` |
+| `--affected` | | Only test affected packages (monorepo) | `false` |
+| `--base <REF>` | | Base ref for affected/smart detection | `main` |
+
+### Global Options
+
+| Option | Description |
+|--------|-------------|
+| `--format json` | Output test results as JSON |
+| `--verbose` | Show detailed test output |
+| `--quiet` | Suppress output except errors |
 
 ## Examples
 
-### Unit Tests
+### Basic Tests
 
 ```bash
-# Run unit tests
-canaveral test --type unit
+# Run tests (auto-detects framework)
+canaveral test
 
-# With coverage
-canaveral test --type unit --coverage
+# Run tests for a specific path
+canaveral test packages/my-lib
 
-# JUnit output for CI
-canaveral test --type unit --output-format junit
+# Run tests on a specific platform
+canaveral test --platform ios
 ```
 
-### Widget Tests (Flutter)
+### Filtering
 
 ```bash
-canaveral test --type widget
+# Run tests matching a pattern
+canaveral test --filter "login"
+
+# Specify framework explicitly
+canaveral test --framework flutter
 ```
 
-### Integration Tests
+### Coverage
 
 ```bash
-# Run integration tests
-canaveral test --type integration
+# Generate coverage report
+canaveral test --coverage
 
-# On specific platform
-canaveral test --type integration --platform ios
+# Coverage report is included in the output
 ```
 
-### E2E Tests
+### CI/CD Output
 
 ```bash
-# iOS E2E
-canaveral test --type e2e --platform ios
+# JUnit XML output for CI
+canaveral test --reporter junit --output test-results/results.xml
 
-# Android E2E
-canaveral test --type e2e --platform android
+# JSON output
+canaveral test --format json
 
-# Specific device
-canaveral test --type e2e --platform ios --device "iPhone 15 Pro"
+# GitHub Actions annotations
+canaveral test --reporter github-actions
 ```
 
-## Coverage Reports
+### Smart Test Selection
 
 ```bash
-# Generate coverage
-canaveral test --type unit --coverage
+# Only run tests covering changed code since main
+canaveral test --smart --base main
 
-# Coverage report is saved to:
-# - coverage/lcov.info (LCOV format)
-# - coverage/html/ (HTML report)
+# Only test affected packages in a monorepo
+canaveral test --affected --base main
 ```
 
-## Exit Codes
+### Reliability Options
 
-| Code | Description |
-|------|-------------|
-| 0 | All tests passed |
-| 1 | Some tests failed |
-| 2 | Configuration error |
+```bash
+# Stop on first failure
+canaveral test --fail-fast
+
+# Retry failed tests up to 3 times
+canaveral test --retry 3
+
+# Set test timeout to 120 seconds
+canaveral test --timeout 120
+```
+
+## Output
+
+### Pretty Format (Default)
+
+```
+Running tests...
+  Path: /path/to/project
+
+======================================================================
+  TEST RESULTS
+======================================================================
+
+  ✓ LoginTests (4 tests, 234ms)
+      ✓ test_valid_login (45ms)
+      ✓ test_invalid_password (12ms)
+      ✓ test_empty_email (8ms)
+      ✓ test_network_error (169ms)
+
+  ✗ PaymentTests (3 tests, 156ms)
+      ✓ test_valid_card (23ms)
+      ✗ test_expired_card (89ms)
+          Expected: error
+          Got: success
+      ✓ test_refund (44ms)
+
+======================================================================
+  4 passed, 1 failed, 0 skipped (390ms)
+======================================================================
+```
+
+## See Also
+
+- [build](/canaveral/commands/build/) - Build your app
+- [doctor](/canaveral/commands/doctor/) - Check environment

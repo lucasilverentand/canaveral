@@ -22,20 +22,23 @@ Get your first app built with Canaveral in under 5 minutes.
    canaveral init
    ```
 
-   This creates a `canaveral.toml` configuration file with auto-detected settings.
+   This creates a `canaveral.yaml` (or `canaveral.toml`) configuration file with auto-detected settings. Use `--force` to overwrite an existing config, or `--yes` to skip interactive prompts.
 
 3. Review the generated configuration:
-   ```toml title="canaveral.toml"
-   [project]
-   name = "MyApp"
-   # Framework is auto-detected
+   ```yaml title="canaveral.yaml"
+   name: MyApp
 
-   [ios]
-   bundle_id = "com.example.myapp"
-   team_id = "YOUR_TEAM_ID"
+   versioning:
+     strategy: semver
+     tag_format: "v{version}"
 
-   [android]
-   package_name = "com.example.myapp"
+   git:
+     branch: main
+     require_clean: true
+
+   changelog:
+     enabled: true
+     file: CHANGELOG.md
    ```
 </Steps>
 
@@ -65,42 +68,47 @@ canaveral build --platform android --profile debug
 canaveral build --platform android --profile release
 ```
 
-### Build Both Platforms
-
-```bash
-# Release builds for both platforms
-canaveral build --profile release
-```
-
 ## Run Tests
 
 ```bash
-# Unit tests
-canaveral test --type unit
+# Run tests (auto-detects framework)
+canaveral test
 
-# Integration tests
-canaveral test --type integration
+# Run tests for a specific platform
+canaveral test --platform ios
 
 # With coverage report
-canaveral test --type unit --coverage
+canaveral test --coverage
+
+# With a test filter
+canaveral test --filter "login"
+
+# With JUnit output for CI
+canaveral test --reporter junit --output test-results/results.xml
+
+# Smart test selection (only tests covering changed code)
+canaveral test --smart --base main
+
+# Only test affected packages in a monorepo
+canaveral test --affected --base main
 ```
 
 ## Version Management
 
 ```bash
-# Show current version
+# Calculate the next version based on commits since last tag
 canaveral version
 
-# Bump version
-canaveral version --bump patch  # 1.0.0 -> 1.0.1
-canaveral version --bump minor  # 1.0.0 -> 1.1.0
-canaveral version --bump major  # 1.0.0 -> 2.0.0
+# Specify release type
+canaveral version --release-type patch  # 1.0.0 -> 1.0.1
+canaveral version --release-type minor  # 1.0.0 -> 1.1.0
+canaveral version --release-type major  # 1.0.0 -> 2.0.0
 
-# Set specific version
-canaveral version --set 2.0.0
+# Show current version
+canaveral version --current
 
-# Also bump build number
-canaveral version --bump patch --build
+# Version a specific package in a monorepo
+canaveral version --package my-lib
 ```
 
 ## Distribution
@@ -134,7 +142,7 @@ canaveral version --bump patch --build
 
 2. Upload to internal track:
    ```bash
-   canaveral store upload android --artifact build/android/app.aab --track internal
+   canaveral publish google-play --artifact build/android/app.aab --track internal
    ```
 </Steps>
 
@@ -192,18 +200,18 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
 
       - name: Build iOS
-        run: canaveral build --platform ios --profile release --output-format github-actions
+        run: canaveral build --platform ios --profile release
 
       - name: Upload to TestFlight
         run: canaveral testflight upload build/ios/*.ipa
         env:
-          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
-          ASC_API_KEY_ISSUER: ${{ secrets.ASC_API_KEY_ISSUER }}
-          ASC_API_KEY_PATH: ${{ secrets.ASC_API_KEY_PATH }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_PATH: ${{ secrets.APP_STORE_CONNECT_API_KEY_PATH }}
 ```
 
 <Aside type="note">
-  The `--output-format github-actions` flag sets output variables and annotations automatically for GitHub Actions.
+  Use the global `--format json` flag for machine-readable output in CI pipelines.
 </Aside>
 
 ## Troubleshooting
