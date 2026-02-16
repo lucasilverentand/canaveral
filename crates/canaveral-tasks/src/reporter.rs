@@ -1,5 +1,6 @@
 //! Task execution reporting
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::task::TaskId;
@@ -128,6 +129,46 @@ impl TaskReporter for CollectingReporter {
     }
 }
 
+/// Registry of task reporters
+pub struct TaskReporterRegistry {
+    reporters: Vec<Arc<dyn TaskReporter>>,
+}
+
+impl TaskReporterRegistry {
+    pub fn new() -> Self {
+        Self {
+            reporters: vec![Arc::new(TracingReporter)],
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            reporters: Vec::new(),
+        }
+    }
+
+    pub fn register<R: TaskReporter + 'static>(&mut self, reporter: R) {
+        self.reporters.push(Arc::new(reporter));
+    }
+
+    pub fn all(&self) -> &[Arc<dyn TaskReporter>] {
+        &self.reporters
+    }
+
+    /// Broadcast an event to all registered reporters
+    pub fn broadcast(&self, event: &TaskEvent) {
+        for reporter in &self.reporters {
+            reporter.report(event);
+        }
+    }
+}
+
+impl Default for TaskReporterRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,5 +208,38 @@ mod tests {
             duration: Duration::from_secs(1),
             cached: true,
         });
+    }
+
+    #[test]
+    fn test_empty_registry() {
+        let registry = TaskReporterRegistry::empty();
+        assert!(registry.all().is_empty());
+    }
+
+    #[test]
+    fn test_broadcast() {
+        let collecting = Arc::new(CollectingReporter::default());
+        let mut registry = TaskReporterRegistry::empty();
+        registry.reporters.push(collecting.clone());
+
+        let id = TaskId::new("core", "build");
+        registry.broadcast(&TaskEvent::Started {
+            id,
+            command: "cargo build".to_string(),
+        });
+
+        assert_eq!(collecting.events().len(), 1);
+    }
+
+    #[test]
+    fn test_register() {
+        let mut registry = TaskReporterRegistry::empty();
+        assert!(registry.all().is_empty());
+
+        registry.register(TracingReporter);
+        assert_eq!(registry.all().len(), 1);
+
+        registry.register(CollectingReporter::default());
+        assert_eq!(registry.all().len(), 2);
     }
 }
