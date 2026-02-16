@@ -73,13 +73,13 @@ const benefits = [
 
 			<div class="terminal-demo">
 				<Terminal title="Canaveral CLI" theme="accent">
-					<div class="demo-line"><span class="prompt">$</span> <span class="command">canaveral build ios --release</span></div>
+					<div class="demo-line"><span class="prompt">$</span> <span class="command">canaveral build --platform ios --profile release</span></div>
 					<div class="demo-line"><span class="output">Detecting framework... Flutter</span></div>
-					<div class="demo-line"><span class="output">Loading config from canaveral.toml</span></div>
+					<div class="demo-line"><span class="output">Loading config from canaveral.yaml</span></div>
 					<div class="demo-line"><span class="output">Building for iOS (release)...</span></div>
 					<div class="demo-line"><span class="success">Build complete: MyApp.ipa (42.3 MB)</span></div>
 					<div class="demo-line"></div>
-					<div class="demo-line"><span class="prompt">$</span> <span class="command">canaveral upload testflight</span></div>
+					<div class="demo-line"><span class="prompt">$</span> <span class="command">canaveral testflight upload build/ios/*.ipa</span></div>
 					<div class="demo-line"><span class="output">Uploading to App Store Connect...</span></div>
 					<div class="demo-line"><span class="success">Success! Build 1.2.3 (42) submitted</span></div>
 				</Terminal>

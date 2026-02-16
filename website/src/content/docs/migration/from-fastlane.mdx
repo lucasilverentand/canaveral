@@ -13,12 +13,12 @@ This guide helps you migrate from fastlane to Canaveral for mobile app CI/CD. Ca
 
 | Fastlane | Canaveral | Notes |
 |----------|-----------|-------|
-| `Fastfile` (Ruby DSL) | `canaveral.toml` | Declarative config instead of Ruby |
+| `Fastfile` (Ruby DSL) | `canaveral.yaml` | Declarative config instead of Ruby |
 | `gym` | `canaveral build --platform ios` | Auto-detects framework |
 | `gradle` | `canaveral build --platform android` | Works with any Android framework |
 | `pilot` | `canaveral testflight upload` | TestFlight uploads |
-| `deliver` | `canaveral upload ios` | App Store submission |
-| `supply` | `canaveral upload android` | Google Play submission |
+| `deliver` | `canaveral publish apple` | App Store submission |
+| `supply` | `canaveral publish google-play` | Google Play submission |
 | `match` | `canaveral match` | Certificate sync |
 | `snapshot` | `canaveral screenshots capture` | Screenshot automation |
 | `scan` | `canaveral test` | Test running |
@@ -38,35 +38,24 @@ cargo install canaveral
 
 ## Step 2: Create Configuration
 
-Create `canaveral.toml` in your project root:
+Create `canaveral.yaml` in your project root:
 
-```toml title="canaveral.toml"
-[project]
-name = "MyApp"
-# Framework is auto-detected, but you can specify it
-# framework = "flutter"
+```yaml title="canaveral.yaml"
+name: MyApp
 
-[ios]
-bundle_id = "com.example.myapp"
-team_id = "TEAMID123"
+signing:
+  enabled: true
+  provider: macos
+  match:
+    storage: git
+    git_url: "git@github.com:org/certs.git"
+    team_id: "TEAMID123"
 
-[android]
-package_name = "com.example.myapp"
-
-[build]
-output_format = "text"  # text, json, github-actions, gitlab-ci
-
-[signing]
-storage = "git"
-git_url = "git@github.com:org/certs.git"
-
-[testflight]
-api_key_id = "${ASC_API_KEY_ID}"
-api_key_issuer = "${ASC_API_KEY_ISSUER}"
-api_key_path = "${ASC_API_KEY_PATH}"
-
-[play_store]
-service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
+stores:
+  apple:
+    bundle_id: "com.example.myapp"
+  google_play:
+    package_name: "com.example.myapp"
 ```
 
 ## Step 3: Migrate Common Lanes
@@ -153,7 +142,7 @@ service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
   <TabItem label="Canaveral">
     ```bash
     canaveral build --platform android --profile release
-    canaveral store upload android --artifact build/android/*.aab --track internal
+    canaveral publish google-play --artifact build/android/*.aab --track internal
     ```
   </TabItem>
 </Tabs>
@@ -175,7 +164,7 @@ service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
   <TabItem label="Canaveral">
     ```bash
     # Initialize (first time)
-    canaveral match init --storage git --git-url git@github.com:org/certs.git
+    canaveral match init --storage git --git-url git@github.com:org/certs.git --team-id TEAMID
 
     # Sync certificates
     canaveral match sync --profile-type appstore --readonly
@@ -197,7 +186,7 @@ service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
   <TabItem label="Canaveral">
     ```bash
     canaveral screenshots capture --config screenshots.yaml
-    canaveral screenshots frame --template white
+    canaveral screenshots frame --template minimal
     ```
   </TabItem>
 </Tabs>
@@ -217,7 +206,7 @@ service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
   </TabItem>
   <TabItem label="Canaveral">
     ```bash
-    canaveral test --type unit --output-format junit
+    canaveral test --reporter junit --output test-results/results.xml
     ```
   </TabItem>
 </Tabs>
@@ -238,12 +227,12 @@ service_account_path = "${GOOGLE_PLAY_SERVICE_ACCOUNT}"
       run: curl -fsSL https://get.canaveral.dev | sh
 
     - name: Build iOS
-      run: canaveral build --platform ios --output-format github-actions
+      run: canaveral build --platform ios --profile release --format json
     ```
   </TabItem>
 </Tabs>
 
-Canaveral's `github-actions` output format automatically sets environment variables and outputs for downstream steps.
+Using `--format json` automatically sets environment variables and outputs for downstream steps.
 
 ### GitLab CI
 
@@ -260,7 +249,7 @@ Canaveral's `github-actions` output format automatically sets environment variab
     build:
       script:
         - curl -fsSL https://get.canaveral.dev | sh
-        - canaveral build --platform android --output-format gitlab-ci
+        - canaveral build --platform android --profile release --format json
     ```
   </TabItem>
 </Tabs>
@@ -275,25 +264,23 @@ Canaveral's `github-actions` output format automatically sets environment variab
 | `MATCH_GIT_URL` | `MATCH_GIT_URL` (same) |
 | `FASTLANE_USER` | Not needed (uses API keys) |
 | `FASTLANE_PASSWORD` | Not needed (uses API keys) |
-| `APP_STORE_CONNECT_API_KEY_*` | `ASC_API_KEY_*` |
-| `SUPPLY_JSON_KEY` | `GOOGLE_PLAY_SERVICE_ACCOUNT` |
+| `APP_STORE_CONNECT_API_KEY_*` | `APP_STORE_CONNECT_API_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_PATH` |
+| `SUPPLY_JSON_KEY` | `GOOGLE_PLAY_SERVICE_ACCOUNT_KEY` |
 
 ### App Store Connect API Key
 
 Canaveral uses App Store Connect API keys exclusively (no password-based auth):
 
 ```bash
-export ASC_API_KEY_ID="XXXXXXXXXX"
-export ASC_API_KEY_ISSUER="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-export ASC_API_KEY_PATH="/path/to/AuthKey_XXXXXXXXXX.p8"
+export APP_STORE_CONNECT_API_KEY_ID="XXXXXXXXXX"
+export APP_STORE_CONNECT_ISSUER_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+export APP_STORE_CONNECT_API_KEY_PATH="/path/to/AuthKey_XXXXXXXXXX.p8"
 ```
 
 ### Google Play Service Account
 
 ```bash
-export GOOGLE_PLAY_SERVICE_ACCOUNT="/path/to/service-account.json"
-# Or base64 encoded for CI
-export GOOGLE_PLAY_SERVICE_ACCOUNT_JSON="$(base64 -i service-account.json)"
+export GOOGLE_PLAY_SERVICE_ACCOUNT_KEY="/path/to/service-account.json"
 ```
 
 ## Step 6: Delete Fastlane

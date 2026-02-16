@@ -4,7 +4,7 @@ import SectionHeader from './shared/SectionHeader.astro';
 import Terminal from './shared/Terminal.astro';
 
 const comparisons = [
-	{ feature: 'Configuration', fastlane: 'Ruby DSL (Fastfile)', canaveral: 'TOML (canaveral.toml)' },
+	{ feature: 'Configuration', fastlane: 'Ruby DSL (Fastfile)', canaveral: 'YAML/TOML (canaveral.yaml)' },
 	{ feature: 'Learning Curve', fastlane: 'Ruby knowledge required', canaveral: 'Zero Ruby, declarative' },
 	{ feature: 'Framework Support', fastlane: 'Plugins per framework', canaveral: 'Universal, auto-detect' },
 	{ feature: 'Code Signing', fastlane: 'match (separate setup)', canaveral: 'Built-in, same config' },
@@ -81,20 +81,18 @@ const comparisons = [
 
 				<div class="code-block new-code">
 					<div class="code-header">
-						<span class="code-label new">After: canaveral.toml</span>
+						<span class="code-label new">After: canaveral.yaml</span>
 					</div>
-					<Terminal title="canaveral.toml" theme="accent">
+					<Terminal title="canaveral.yaml" theme="accent">
 						<pre><code><span class="muted"># Clean, declarative config</span>
-<span class="section">[app]</span>
-<span class="key">name</span> = <span class="string">"MyApp"</span>
-<span class="key">bundle_id</span> = <span class="string">"com.example.myapp"</span>
+<span class="key">name</span>: <span class="string">"MyApp"</span>
 
-<span class="section">[signing.ios]</span>
-<span class="key">type</span> = <span class="string">"appstore"</span>
-<span class="key">match_repo</span> = <span class="string">"git@github.com:org/certs"</span>
-
-<span class="section">[distribution.testflight]</span>
-<span class="key">skip_waiting</span> = <span class="boolean">true</span></code></pre>
+<span class="section">signing</span>:
+  <span class="key">enabled</span>: <span class="boolean">true</span>
+  <span class="key">provider</span>: <span class="string">"macos"</span>
+  <span class="section">match</span>:
+    <span class="key">storage</span>: <span class="string">"git"</span>
+    <span class="key">git_url</span>: <span class="string">"git@github.com:org/certs"</span></code></pre>
 					</Terminal>
 				</div>
 			</div>

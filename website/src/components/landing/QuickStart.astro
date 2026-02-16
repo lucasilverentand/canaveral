@@ -6,8 +6,8 @@ import Terminal from './shared/Terminal.astro';
 const steps = [
 	{ step: 1, label: 'Install', command: 'curl -fsSL https://get.canaveral.dev | sh', status: 'complete' },
 	{ step: 2, label: 'Init', command: 'canaveral init', status: 'complete' },
-	{ step: 3, label: 'Build', command: 'canaveral build ios --release', status: 'complete' },
-	{ step: 4, label: 'Ship', command: 'canaveral upload testflight', status: 'active' }
+	{ step: 3, label: 'Build', command: 'canaveral build --platform ios --profile release', status: 'complete' },
+	{ step: 4, label: 'Ship', command: 'canaveral testflight upload build/ios/*.ipa', status: 'active' }
 ];
 ---
 
@@ -55,12 +55,12 @@ const steps = [
 							<span class="command">canaveral init</span>
 						</div>
 						<div class="line output">Detected: Flutter project</div>
-						<div class="line output">Created: canaveral.toml</div>
+						<div class="line output">Created: canaveral.yaml</div>
 						<div class="line success">Project initialized!</div>
 						<div class="line"></div>
 						<div class="line">
 							<span class="prompt">$</span>
-							<span class="command">canaveral build ios --release</span>
+							<span class="command">canaveral build --platform ios --profile release</span>
 						</div>
 						<div class="line output">Building Flutter iOS (release)...</div>
 						<div class="line output">Running: flutter build ipa</div>
@@ -69,7 +69,7 @@ const steps = [
 						<div class="line"></div>
 						<div class="line">
 							<span class="prompt">$</span>
-							<span class="command typing">canaveral upload testflight</span>
+							<span class="command typing">canaveral testflight upload build/ios/*.ipa</span>
 							<span class="cursor">|</span>
 						</div>
 					</div>
@@ -88,11 +88,11 @@ const steps = [
 						<pre><code><span class="key">- name:</span> <span class="string">Build and Deploy</span>
   <span class="key">run:</span> |
     curl -fsSL https://get.canaveral.dev | sh
-    canaveral build ios --release
-    canaveral upload testflight
+    canaveral build --platform ios --profile release
+    canaveral testflight upload build/ios/*.ipa
   <span class="key">env:</span>
     <span class="key">MATCH_PASSWORD:</span> <span class="var">${"${{ secrets.MATCH_PASSWORD }}"}</span>
-    <span class="key">APP_STORE_CONNECT_API_KEY:</span> <span class="var">${"${{ secrets.ASC_API_KEY }}"}</span></code></pre>
+    <span class="key">APP_STORE_CONNECT_API_KEY_ID:</span> <span class="var">${"${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}"}</span></code></pre>
 					</Terminal>
 				</div>
 			</div>

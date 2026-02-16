@@ -23,7 +23,7 @@ build-ios:
     - curl -fsSL https://get.canaveral.dev | sh
     - export PATH="$HOME/.canaveral/bin:$PATH"
     - canaveral match sync --profile-type appstore --readonly
-    - canaveral build --platform ios --profile release --output-format gitlab-ci
+    - canaveral build --platform ios --profile release --format json
   artifacts:
     paths:
       - build/ios/*.ipa
@@ -34,7 +34,7 @@ build-android:
   script:
     - curl -fsSL https://get.canaveral.dev | sh
     - export PATH="$HOME/.canaveral/bin:$PATH"
-    - canaveral build --platform android --profile release --output-format gitlab-ci
+    - canaveral build --platform android --profile release --format json
   artifacts:
     paths:
       - build/android/*.aab
@@ -44,7 +44,7 @@ deploy:
   needs: [build-ios, build-android]
   script:
     - canaveral testflight upload build/ios/*.ipa
-    - canaveral store upload android --artifact build/android/*.aab --track internal
+    - canaveral publish google-play --artifact build/android/*.aab --track internal
   only:
     - main
 ```
@@ -55,6 +55,7 @@ Configure CI/CD variables in GitLab:
 
 - `MATCH_GIT_URL`
 - `MATCH_PASSWORD`
-- `ASC_API_KEY_ID`
-- `ASC_API_KEY_ISSUER`
-- `GOOGLE_PLAY_SERVICE_ACCOUNT`
+- `APP_STORE_CONNECT_API_KEY_ID`
+- `APP_STORE_CONNECT_ISSUER_ID`
+- `APP_STORE_CONNECT_API_KEY_PATH`
+- `GOOGLE_PLAY_SERVICE_ACCOUNT_KEY`
