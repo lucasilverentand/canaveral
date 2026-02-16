@@ -410,6 +410,7 @@ dependencies = [
  "canaveral-signing",
  "canaveral-stores",
  "canaveral-strategies",
+ "canaveral-tasks",
  "chrono",
  "clap",
  "clap_complete",
@@ -607,6 +608,24 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
+]
+
+[[package]]
+name = "canaveral-tasks"
+version = "0.1.0"
+dependencies = [
+ "canaveral-core",
+ "chrono",
+ "glob",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "walkdir",
 ]
 
 [[package]]

@@ -11,6 +11,7 @@ members = [
     "crates/canaveral-stores",
     "crates/canaveral-metadata",
     "crates/canaveral-frameworks",
+    "crates/canaveral-tasks",
 ]
 
 [workspace.package]
@@ -31,6 +32,7 @@ canaveral-signing = { path = "crates/canaveral-signing" }
 canaveral-stores = { path = "crates/canaveral-stores" }
 canaveral-metadata = { path = "crates/canaveral-metadata" }
 canaveral-frameworks = { path = "crates/canaveral-frameworks" }
+canaveral-tasks = { path = "crates/canaveral-tasks" }
 
 # CLI
 clap = { version = "4", features = ["derive", "env"] }
@@ -73,6 +75,7 @@ tempfile = "3"
 url = "2"
 dirs = "5"
 which = "7"
+sha2 = "0.10"
 
 [profile.release]
 lto = true
