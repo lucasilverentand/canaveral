@@ -150,8 +150,7 @@ pub trait MetadataStorage: Send + Sync {
     /// * `platform` - The target platform
     /// * `app_id` - The app identifier (bundle_id or package_name)
     /// * `locale` - The locale to remove
-    async fn remove_locale(&self, platform: Platform, app_id: &str, locale: &Locale)
-        -> Result<()>;
+    async fn remove_locale(&self, platform: Platform, app_id: &str, locale: &Locale) -> Result<()>;
 }
 
 /// Storage format type.

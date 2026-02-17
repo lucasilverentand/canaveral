@@ -17,6 +17,7 @@ pub mod versioning;
 pub mod workspace;
 
 pub use changes::{ChangeDetector, ChangeFilter, ChangeReason, ChangedPackage};
+pub use detector::{WorkspaceDetector, WorkspaceDetectorRegistry};
 pub use discovery::{DiscoveredPackage, PackageDiscovery};
 pub use graph::{DependencyGraph, PackageNode};
 pub use publishing::{
@@ -25,5 +26,4 @@ pub use publishing::{
     SkippedPackage,
 };
 pub use versioning::{VersionBump, VersioningMode, VersioningStrategy};
-pub use detector::{WorkspaceDetector, WorkspaceDetectorRegistry};
 pub use workspace::{Workspace, WorkspaceType};

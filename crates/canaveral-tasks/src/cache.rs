@@ -18,11 +18,7 @@ pub struct CacheKey(pub String);
 
 impl CacheKey {
     /// Compute a cache key from task inputs
-    pub fn compute(
-        id: &TaskId,
-        definition: &TaskDefinition,
-        root_dir: &Path,
-    ) -> Self {
+    pub fn compute(id: &TaskId, definition: &TaskDefinition, root_dir: &Path) -> Self {
         let mut hasher = Sha256::new();
 
         // Hash task identity
@@ -145,8 +141,7 @@ impl TaskCache {
         let mut contents = String::new();
         file.read_to_string(&mut contents).map_err(CacheError::Io)?;
 
-        let entry: CacheEntry =
-            serde_json::from_str(&contents).map_err(CacheError::Json)?;
+        let entry: CacheEntry = serde_json::from_str(&contents).map_err(CacheError::Json)?;
 
         // Verify output archive exists in cache if outputs were stored
         let outputs_path = entry_dir.join("outputs.tar.gz");
@@ -234,7 +229,9 @@ impl TaskCache {
             let metadata_path = path.join("metadata.json");
             if let Ok(contents) = fs::read_to_string(&metadata_path) {
                 if let Ok(cache_entry) = serde_json::from_str::<CacheEntry>(&contents) {
-                    if let Ok(created) = chrono::DateTime::parse_from_rfc3339(&cache_entry.created_at) {
+                    if let Ok(created) =
+                        chrono::DateTime::parse_from_rfc3339(&cache_entry.created_at)
+                    {
                         if created < cutoff {
                             if fs::remove_dir_all(&path).is_ok() {
                                 stats.removed += 1;
@@ -248,7 +245,12 @@ impl TaskCache {
             stats.kept += 1;
         }
 
-        info!(total = stats.total, removed = stats.removed, kept = stats.kept, "cache prune complete");
+        info!(
+            total = stats.total,
+            removed = stats.removed,
+            kept = stats.kept,
+            "cache prune complete"
+        );
         Ok(stats)
     }
 
@@ -342,8 +344,8 @@ pub enum CacheError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use crate::task::TaskDefinition;
+    use tempfile::TempDir;
 
     #[test]
     fn test_cache_key_deterministic() {
@@ -381,9 +383,7 @@ mod tests {
             .with_command("echo hello")
             .with_outputs(vec!["dist/**".to_string()]);
 
-        let key = cache
-            .store(&id, &def, temp.path(), "hello\n", "")
-            .unwrap();
+        let key = cache.store(&id, &def, temp.path(), "hello\n", "").unwrap();
 
         let entry = cache.lookup(&id, &def, temp.path()).unwrap();
         assert!(entry.is_some());

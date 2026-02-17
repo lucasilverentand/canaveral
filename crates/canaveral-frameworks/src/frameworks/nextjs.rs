@@ -76,11 +76,7 @@ impl NextJsAdapter {
         }
     }
 
-    fn run_package_manager(
-        &self,
-        args: &[&str],
-        path: &Path,
-    ) -> Result<std::process::Output> {
+    fn run_package_manager(&self, args: &[&str], path: &Path) -> Result<std::process::Output> {
         let pm = self.detect_package_manager(path);
         let mut full_args = pm.run_args();
         full_args.extend_from_slice(args);
@@ -101,30 +97,26 @@ impl NextJsAdapter {
 
     fn parse_package_json(&self, path: &Path) -> Result<PackageJson> {
         let package_json_path = path.join("package.json");
-        let content = std::fs::read_to_string(&package_json_path).map_err(|e| {
-            FrameworkError::Context {
+        let content =
+            std::fs::read_to_string(&package_json_path).map_err(|e| FrameworkError::Context {
                 context: "reading package.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
-        let pkg: PackageJson = serde_json::from_str(&content).map_err(|e| {
-            FrameworkError::Context {
+        let pkg: PackageJson =
+            serde_json::from_str(&content).map_err(|e| FrameworkError::Context {
                 context: "parsing package.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         Ok(pkg)
     }
 
     fn write_package_json(&self, path: &Path, pkg: &PackageJson) -> Result<()> {
         let package_json_path = path.join("package.json");
-        let content = serde_json::to_string_pretty(pkg).map_err(|e| {
-            FrameworkError::Context {
-                context: "serializing package.json".to_string(),
-                message: e.to_string(),
-            }
+        let content = serde_json::to_string_pretty(pkg).map_err(|e| FrameworkError::Context {
+            context: "serializing package.json".to_string(),
+            message: e.to_string(),
         })?;
 
         std::fs::write(&package_json_path, content).map_err(|e| FrameworkError::Context {
@@ -224,10 +216,7 @@ impl BuildAdapter for NextJsAdapter {
                 status = status.with_tool(ToolStatus::found("npm", Some(version)));
             }
             _ => {
-                status = status.with_tool(ToolStatus::missing(
-                    "npm",
-                    "npm comes with Node.js",
-                ));
+                status = status.with_tool(ToolStatus::missing("npm", "npm comes with Node.js"));
             }
         }
 
@@ -247,7 +236,7 @@ impl BuildAdapter for NextJsAdapter {
 
         // Determine build command based on profile
         let build_cmd = match ctx.profile {
-            BuildProfile::Debug => "build",      // Next.js doesn't have separate debug build
+            BuildProfile::Debug => "build", // Next.js doesn't have separate debug build
             BuildProfile::Release => "build",
             BuildProfile::Profile => "build",
         };
@@ -270,7 +259,8 @@ impl BuildAdapter for NextJsAdapter {
         if !build_dir.exists() {
             return Err(FrameworkError::BuildFailed {
                 platform: "web".to_string(),
-                message: "Build output directory (.next/ or out/) not found after build".to_string(),
+                message: "Build output directory (.next/ or out/) not found after build"
+                    .to_string(),
                 source: None,
             });
         }

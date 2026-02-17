@@ -57,24 +57,19 @@ impl MacOSProvider {
             SigningIdentityType::AppleDeveloper
         } else if name.contains("Developer ID Installer") {
             SigningIdentityType::AppleInstaller
-        } else if name.contains("Apple Distribution") || name.contains("iPhone Distribution") {
-            SigningIdentityType::AppleDistribution
-        } else if name.contains("Mac App Store") {
+        } else if name.contains("Apple Distribution")
+            || name.contains("iPhone Distribution")
+            || name.contains("Mac App Store")
+        {
             SigningIdentityType::AppleDistribution
         } else {
             SigningIdentityType::Generic
         };
 
         // Extract team ID if present (usually in parentheses at end of name)
-        let team_id = if let Some(start) = name.rfind('(') {
-            if let Some(end) = name.rfind(')') {
-                Some(name[start + 1..end].to_string())
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+        let team_id = name
+            .rfind('(')
+            .and_then(|start| name.rfind(')').map(|end| name[start + 1..end].to_string()));
 
         let mut identity = SigningIdentity::new(fingerprint.clone(), name, identity_type);
         identity.fingerprint = Some(fingerprint);
@@ -225,7 +220,11 @@ impl SigningProvider for MacOSProvider {
             .into_iter()
             .filter(|id| {
                 id.name.contains(query)
-                    || id.fingerprint.as_ref().map(|f| f.contains(query)).unwrap_or(false)
+                    || id
+                        .fingerprint
+                        .as_ref()
+                        .map(|f| f.contains(query))
+                        .unwrap_or(false)
                     || id.team_id.as_ref().map(|t| t == query).unwrap_or(false)
             })
             .collect();
@@ -416,7 +415,15 @@ impl SigningProvider for MacOSProvider {
 
     fn supported_extensions(&self) -> &[&str] {
         &[
-            "app", "framework", "dylib", "bundle", "kext", "xpc", "pkg", "dmg", "",
+            "app",
+            "framework",
+            "dylib",
+            "bundle",
+            "kext",
+            "xpc",
+            "pkg",
+            "dmg",
+            "",
         ]
     }
 }

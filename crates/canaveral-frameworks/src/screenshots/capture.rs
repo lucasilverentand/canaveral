@@ -126,11 +126,10 @@ impl ScreenshotConfig {
 
     /// Save to YAML file
     pub fn to_yaml(&self, path: &Path) -> Result<()> {
-        let content =
-            serde_yaml::to_string(self).map_err(|e| FrameworkError::Context {
-                context: "serialize screenshot config".to_string(),
-                message: e.to_string(),
-            })?;
+        let content = serde_yaml::to_string(self).map_err(|e| FrameworkError::Context {
+            context: "serialize screenshot config".to_string(),
+            message: e.to_string(),
+        })?;
 
         std::fs::write(path, content).map_err(|e| FrameworkError::Context {
             context: "write screenshot config".to_string(),
@@ -537,12 +536,8 @@ mod tests {
         );
         assert!(success.success);
 
-        let failure = ScreenshotResult::failure(
-            "home_screen",
-            "iPhone 14 Pro",
-            "en_US",
-            "Device not booted",
-        );
+        let failure =
+            ScreenshotResult::failure("home_screen", "iPhone 14 Pro", "en_US", "Device not booted");
         assert!(!failure.success);
     }
 
@@ -562,7 +557,9 @@ mod tests {
             "en",
             PathBuf::from("2.png"),
         ));
-        batch.add(ScreenshotResult::failure("screen3", "device1", "en", "Failed"));
+        batch.add(ScreenshotResult::failure(
+            "screen3", "device1", "en", "Failed",
+        ));
 
         assert_eq!(batch.completed, 2);
         assert_eq!(batch.failed, 1);

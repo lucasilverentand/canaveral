@@ -22,10 +22,7 @@ fn validate_versioning(config: &Config) -> Result<()> {
     if !valid_strategies.contains(&config.versioning.strategy.as_str()) {
         return Err(ConfigError::InvalidValue {
             field: "versioning.strategy".to_string(),
-            message: format!(
-                "must be one of: {}",
-                valid_strategies.join(", ")
-            ),
+            message: format!("must be one of: {}", valid_strategies.join(", ")),
         }
         .into());
     }

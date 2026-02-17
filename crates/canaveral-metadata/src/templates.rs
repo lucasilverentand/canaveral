@@ -285,7 +285,10 @@ pub fn validate_template(template: &str, vars: &TemplateVariables) -> Result<()>
 /// assert_eq!(en.description, "Welcome to MyApp by Acme Inc.!");
 /// ```
 pub fn apply_templates_to_apple_metadata(metadata: &mut AppleMetadata, vars: &TemplateVariables) {
-    debug!(locale_count = metadata.localizations.len(), "applying templates to Apple metadata");
+    debug!(
+        locale_count = metadata.localizations.len(),
+        "applying templates to Apple metadata"
+    );
     // Process each localization
     for localized in metadata.localizations.values_mut() {
         apply_templates_to_apple_localized(localized, vars);
@@ -370,7 +373,10 @@ pub fn apply_templates_to_google_play_metadata(
     metadata: &mut GooglePlayMetadata,
     vars: &TemplateVariables,
 ) {
-    debug!(locale_count = metadata.localizations.len(), "applying templates to Google Play metadata");
+    debug!(
+        locale_count = metadata.localizations.len(),
+        "applying templates to Google Play metadata"
+    );
     // Process each localization
     for localized in metadata.localizations.values_mut() {
         apply_templates_to_google_play_localized(localized, vars);

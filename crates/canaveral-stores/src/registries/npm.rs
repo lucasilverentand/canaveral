@@ -279,13 +279,10 @@ impl StoreAdapter for NpmRegistry {
             .unwrap_or("")
             .to_lowercase();
 
-        if ext != "tgz" && path.to_string_lossy().ends_with(".tar.gz") == false {
+        if ext != "tgz" && !path.to_string_lossy().ends_with(".tar.gz") {
             errors.push(ValidationError {
                 code: "INVALID_EXTENSION".to_string(),
-                message: format!(
-                    "Invalid file extension '{}'. Expected .tgz or .tar.gz",
-                    ext
-                ),
+                message: format!("Invalid file extension '{}'. Expected .tgz or .tar.gz", ext),
                 severity: ValidationSeverity::Error,
             });
             return Ok(ValidationResult::failure(errors));
@@ -469,7 +466,10 @@ impl TagSupport for NpmRegistry {
             });
         }
 
-        info!("Successfully added tag '{}' to {}@{}", tag, package, version);
+        info!(
+            "Successfully added tag '{}' to {}@{}",
+            tag, package, version
+        );
         Ok(())
     }
 
@@ -531,10 +531,7 @@ impl TagSupport for NpmRegistry {
 
         let package_info: PackageInfo = response.json().await?;
 
-        let tags: Vec<(String, String)> = package_info
-            .dist_tags
-            .into_iter()
-            .collect();
+        let tags: Vec<(String, String)> = package_info.dist_tags.into_iter().collect();
 
         Ok(tags)
     }

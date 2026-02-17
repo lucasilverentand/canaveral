@@ -159,7 +159,7 @@ pub fn locales_equivalent(a: &str, b: &str) -> bool {
 /// assert_eq!(get_language_code("zh-Hans"), "zh");
 /// ```
 pub fn get_language_code(locale: &str) -> &str {
-    if let Some(pos) = locale.find(|c| c == '-' || c == '_') {
+    if let Some(pos) = locale.find(['-', '_']) {
         &locale[..pos]
     } else {
         locale
@@ -181,7 +181,7 @@ pub fn get_language_code(locale: &str) -> &str {
 /// assert_eq!(get_region_code("zh-Hans"), Some("Hans"));
 /// ```
 pub fn get_region_code(locale: &str) -> Option<&str> {
-    if let Some(pos) = locale.find(|c| c == '-' || c == '_') {
+    if let Some(pos) = locale.find(['-', '_']) {
         Some(&locale[pos + 1..])
     } else {
         None
@@ -424,11 +424,7 @@ mod tests {
 
     #[test]
     fn test_format_keywords() {
-        let keywords = vec![
-            "app".to_string(),
-            "utility".to_string(),
-            "tool".to_string(),
-        ];
+        let keywords = vec!["app".to_string(), "utility".to_string(), "tool".to_string()];
         assert_eq!(format_keywords(&keywords), "app,utility,tool");
 
         let empty: Vec<String> = vec![];

@@ -287,9 +287,7 @@ impl FastlaneStorage {
             .await?
             .unwrap_or_default();
 
-        let video_url = self
-            .read_text_file(&locale_path.join("video.txt"))
-            .await?;
+        let video_url = self.read_text_file(&locale_path.join("video.txt")).await?;
 
         // Load changelogs
         let changelogs = self.load_changelogs(&locale_path).await?;
@@ -364,8 +362,11 @@ impl FastlaneStorage {
         // Write changelogs
         let changelogs_path = locale_path.join("changelogs");
         for (version_code, changelog) in &metadata.changelogs {
-            self.write_text_file(&changelogs_path.join(format!("{}.txt", version_code)), changelog)
-                .await?;
+            self.write_text_file(
+                &changelogs_path.join(format!("{}.txt", version_code)),
+                changelog,
+            )
+            .await?;
         }
 
         Ok(())
@@ -826,11 +827,7 @@ impl MetadataStorage for FastlaneStorage {
             }
             Platform::GooglePlay => {
                 let path = self.google_play_path(app_id);
-                let files = vec![
-                    "title.txt",
-                    "short_description.txt",
-                    "full_description.txt",
-                ];
+                let files = vec!["title.txt", "short_description.txt", "full_description.txt"];
                 let screenshot_subdirs = vec!["phone", "tablet", "tv", "wear"];
                 (path, files, screenshot_subdirs)
             }
@@ -923,12 +920,7 @@ impl MetadataStorage for FastlaneStorage {
         Ok(())
     }
 
-    async fn remove_locale(
-        &self,
-        platform: Platform,
-        app_id: &str,
-        locale: &Locale,
-    ) -> Result<()> {
+    async fn remove_locale(&self, platform: Platform, app_id: &str, locale: &Locale) -> Result<()> {
         let app_path = match platform {
             Platform::Apple => self.apple_path(app_id),
             Platform::GooglePlay => self.google_play_path(app_id),
@@ -1110,7 +1102,10 @@ mod tests {
         let loc = loaded.get_localization("en-US").unwrap();
         assert_eq!(loc.title, "My App");
         assert_eq!(loc.short_description, "A short description");
-        assert_eq!(loc.changelogs.get("100"), Some(&"Initial release".to_string()));
+        assert_eq!(
+            loc.changelogs.get("100"),
+            Some(&"Initial release".to_string())
+        );
         assert_eq!(
             loc.changelogs.get("101"),
             Some(&"Bug fixes and improvements".to_string())
@@ -1121,10 +1116,7 @@ mod tests {
     async fn test_exists_returns_false_for_missing() {
         let (storage, _temp) = setup_test_storage().await;
 
-        assert!(!storage
-            .exists_apple("com.nonexistent.app")
-            .await
-            .unwrap());
+        assert!(!storage.exists_apple("com.nonexistent.app").await.unwrap());
         assert!(!storage
             .exists_google_play("com.nonexistent.app")
             .await

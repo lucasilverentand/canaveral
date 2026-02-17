@@ -68,23 +68,24 @@ impl Firebase {
     pub fn from_env() -> Result<Self> {
         let project_id = std::env::var("FIREBASE_PROJECT_ID")
             .or_else(|_| std::env::var("GOOGLE_CLOUD_PROJECT"))
-            .map_err(|_| StoreError::ConfigurationError(
-                "FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT not set".to_string()
-            ))?;
+            .map_err(|_| {
+                StoreError::ConfigurationError(
+                    "FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT not set".to_string(),
+                )
+            })?;
 
         let app_id = std::env::var("FIREBASE_APP_ID")
-            .map_err(|_| StoreError::ConfigurationError(
-                "FIREBASE_APP_ID not set".to_string()
-            ))?;
+            .map_err(|_| StoreError::ConfigurationError("FIREBASE_APP_ID not set".to_string()))?;
 
-        let service_account = std::env::var("GOOGLE_APPLICATION_CREDENTIALS").ok()
+        let service_account = std::env::var("GOOGLE_APPLICATION_CREDENTIALS")
+            .ok()
             .or_else(|| std::env::var("FIREBASE_SERVICE_ACCOUNT").ok());
 
         let cli_token = std::env::var("FIREBASE_TOKEN").ok();
 
         if service_account.is_none() && cli_token.is_none() {
             return Err(StoreError::ConfigurationError(
-                "Either GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_TOKEN must be set".to_string()
+                "Either GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_TOKEN must be set".to_string(),
             ));
         }
 
@@ -120,7 +121,7 @@ impl Firebase {
         }
 
         Err(StoreError::InvalidCredentials(
-            "No valid authentication method available".to_string()
+            "No valid authentication method available".to_string(),
         ))
     }
 
@@ -128,10 +129,12 @@ impl Firebase {
     async fn get_service_account_token(&mut self, sa_path: &str) -> Result<String> {
         // Read service account JSON
         let sa_content = if Path::new(sa_path).exists() {
-            std::fs::read_to_string(sa_path)
-                .map_err(|e| StoreError::ConfigurationError(
-                    format!("Failed to read service account file: {}", e)
-                ))?
+            std::fs::read_to_string(sa_path).map_err(|e| {
+                StoreError::ConfigurationError(format!(
+                    "Failed to read service account file: {}",
+                    e
+                ))
+            })?
         } else {
             // Assume it's the JSON content directly
             sa_path.to_string()
@@ -144,10 +147,9 @@ impl Firebase {
             token_uri: String,
         }
 
-        let sa: ServiceAccount = serde_json::from_str(&sa_content)
-            .map_err(|e| StoreError::ConfigurationError(
-                format!("Invalid service account JSON: {}", e)
-            ))?;
+        let sa: ServiceAccount = serde_json::from_str(&sa_content).map_err(|e| {
+            StoreError::ConfigurationError(format!("Invalid service account JSON: {}", e))
+        })?;
 
         // Create JWT
         use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
@@ -172,15 +174,12 @@ impl Firebase {
             exp: exp.timestamp(),
         };
 
-        let encoding_key = EncodingKey::from_rsa_pem(sa.private_key.as_bytes())
-            .map_err(|e| StoreError::InvalidCredentials(
-                format!("Invalid service account private key: {}", e)
-            ))?;
+        let encoding_key = EncodingKey::from_rsa_pem(sa.private_key.as_bytes()).map_err(|e| {
+            StoreError::InvalidCredentials(format!("Invalid service account private key: {}", e))
+        })?;
 
         let jwt = encode(&Header::new(Algorithm::RS256), &claims, &encoding_key)
-            .map_err(|e| StoreError::InvalidCredentials(
-                format!("Failed to create JWT: {}", e)
-            ))?;
+            .map_err(|e| StoreError::InvalidCredentials(format!("Failed to create JWT: {}", e)))?;
 
         // Exchange JWT for access token
         #[derive(Deserialize)]
@@ -189,7 +188,8 @@ impl Firebase {
             expires_in: i64,
         }
 
-        let response = self.client
+        let response = self
+            .client
             .post(&sa.token_uri)
             .form(&[
                 ("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
@@ -225,7 +225,8 @@ impl Firebase {
 
         debug!("Firebase API request: {} {}", method, url);
 
-        let mut request = self.client
+        let mut request = self
+            .client
             .request(method, url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json");
@@ -262,21 +263,24 @@ impl Firebase {
     ) -> Result<FirebaseRelease> {
         // Validate file exists
         if !path.exists() {
-            return Err(StoreError::InvalidArtifact(
-                format!("File not found: {}", path.display())
-            ));
+            return Err(StoreError::InvalidArtifact(format!(
+                "File not found: {}",
+                path.display()
+            )));
         }
 
         // Validate file type
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_lowercase();
 
         if !matches!(ext.as_str(), "apk" | "aab" | "ipa") {
-            return Err(StoreError::InvalidArtifact(
-                format!("Unsupported file type: {}. Expected APK, AAB, or IPA.", ext)
-            ));
+            return Err(StoreError::InvalidArtifact(format!(
+                "Unsupported file type: {}. Expected APK, AAB, or IPA.",
+                ext
+            )));
         }
 
         if options.dry_run {
@@ -296,16 +300,14 @@ impl Firebase {
         // Step 1: Upload the binary
         let upload_url = format!(
             "{}/projects/{}/apps/{}/releases:upload",
-            FIREBASE_UPLOAD_BASE,
-            self.config.project_id,
-            self.config.app_id
+            FIREBASE_UPLOAD_BASE, self.config.project_id, self.config.app_id
         );
 
         let token = self.get_access_token().await?;
-        let file_content = tokio::fs::read(path).await
-            .map_err(|e| StoreError::Io(e))?;
+        let file_content = tokio::fs::read(path).await.map_err(StoreError::Io)?;
 
-        let file_name = path.file_name()
+        let file_name = path
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("app")
             .to_string();
@@ -322,7 +324,8 @@ impl Firebase {
 
         let form = Form::new().part("file", part);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&upload_url)
             .header("Authorization", format!("Bearer {}", token))
             .header("X-Goog-Upload-Protocol", "multipart")
@@ -371,10 +374,14 @@ impl Firebase {
             if let Some(ref release) = result.release {
                 release.name.clone()
             } else {
-                upload_response.name.unwrap_or_else(|| "unknown".to_string())
+                upload_response
+                    .name
+                    .unwrap_or_else(|| "unknown".to_string())
             }
         } else {
-            upload_response.name.unwrap_or_else(|| "unknown".to_string())
+            upload_response
+                .name
+                .unwrap_or_else(|| "unknown".to_string())
         };
 
         info!("Upload complete, release: {}", release_name);
@@ -386,11 +393,8 @@ impl Firebase {
 
         // Step 3: Distribute to groups/testers if specified
         if !options.groups.is_empty() || !options.testers.is_empty() {
-            self.distribute_release(
-                &release_name,
-                &options.groups,
-                &options.testers,
-            ).await?;
+            self.distribute_release(&release_name, &options.groups, &options.testers)
+                .await?;
         }
 
         // Get final release info
@@ -411,7 +415,8 @@ impl Firebase {
 
         let token = self.get_access_token().await?;
 
-        let response = self.client
+        let response = self
+            .client
             .patch(&url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json")
@@ -449,7 +454,8 @@ impl Firebase {
 
         let token = self.get_access_token().await?;
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json")
@@ -501,7 +507,8 @@ impl Firebase {
             display_version: response.display_version.unwrap_or_default(),
             build_version: response.build_version.unwrap_or_default(),
             release_notes: response.release_notes.and_then(|rn| rn.text),
-            create_time: response.create_time
+            create_time: response
+                .create_time
                 .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
                 .map(|d| d.with_timezone(&Utc))
                 .unwrap_or_else(Utc::now),
@@ -540,28 +547,27 @@ impl Firebase {
         let limit = limit.unwrap_or(25);
         let url = format!(
             "{}/projects/{}/apps/{}/releases?pageSize={}",
-            FIREBASE_API_BASE,
-            self.config.project_id,
-            self.config.app_id,
-            limit
+            FIREBASE_API_BASE, self.config.project_id, self.config.app_id, limit
         );
 
         let response: ReleasesResponse = self.api_request(reqwest::Method::GET, &url, None).await?;
 
         let releases = response.releases.unwrap_or_default();
-        Ok(releases.into_iter().map(|r| {
-            FirebaseRelease {
+        Ok(releases
+            .into_iter()
+            .map(|r| FirebaseRelease {
                 name: r.name,
                 display_version: r.display_version.unwrap_or_default(),
                 build_version: r.build_version.unwrap_or_default(),
                 release_notes: r.release_notes.and_then(|rn| rn.text),
-                create_time: r.create_time
+                create_time: r
+                    .create_time
                     .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
                     .map(|d| d.with_timezone(&Utc))
                     .unwrap_or_else(Utc::now),
                 firebase_console_uri: r.firebase_console_uri,
-            }
-        }).collect())
+            })
+            .collect())
     }
 
     // -------------------------------------------------------------------------
@@ -585,27 +591,33 @@ impl Firebase {
 
         let url = format!(
             "{}/projects/{}/groups",
-            FIREBASE_API_BASE,
-            self.config.project_id
+            FIREBASE_API_BASE, self.config.project_id
         );
 
         let response: GroupsResponse = self.api_request(reqwest::Method::GET, &url, None).await?;
 
         let groups = response.groups.unwrap_or_default();
-        Ok(groups.into_iter().map(|g| {
-            // Extract alias from name (e.g., "projects/xxx/groups/alias")
-            let alias = g.name.rsplit('/').next().unwrap_or(&g.name).to_string();
-            TesterGroup {
-                name: g.name,
-                alias,
-                display_name: g.display_name,
-                tester_count: g.tester_count.unwrap_or(0) as u32,
-            }
-        }).collect())
+        Ok(groups
+            .into_iter()
+            .map(|g| {
+                // Extract alias from name (e.g., "projects/xxx/groups/alias")
+                let alias = g.name.rsplit('/').next().unwrap_or(&g.name).to_string();
+                TesterGroup {
+                    name: g.name,
+                    alias,
+                    display_name: g.display_name,
+                    tester_count: g.tester_count.unwrap_or(0) as u32,
+                }
+            })
+            .collect())
     }
 
     /// Create a tester group
-    pub async fn create_group(&mut self, alias: &str, display_name: Option<&str>) -> Result<TesterGroup> {
+    pub async fn create_group(
+        &mut self,
+        alias: &str,
+        display_name: Option<&str>,
+    ) -> Result<TesterGroup> {
         #[derive(Deserialize)]
         #[serde(rename_all = "camelCase")]
         struct GroupResponse {
@@ -615,16 +627,16 @@ impl Firebase {
 
         let url = format!(
             "{}/projects/{}/groups?groupId={}",
-            FIREBASE_API_BASE,
-            self.config.project_id,
-            alias
+            FIREBASE_API_BASE, self.config.project_id, alias
         );
 
         let body = serde_json::json!({
             "displayName": display_name.unwrap_or(alias)
         });
 
-        let response: GroupResponse = self.api_request(reqwest::Method::POST, &url, Some(body)).await?;
+        let response: GroupResponse = self
+            .api_request(reqwest::Method::POST, &url, Some(body))
+            .await?;
 
         Ok(TesterGroup {
             name: response.name,
@@ -638,14 +650,13 @@ impl Firebase {
     pub async fn delete_group(&mut self, group_alias: &str) -> Result<()> {
         let url = format!(
             "{}/projects/{}/groups/{}",
-            FIREBASE_API_BASE,
-            self.config.project_id,
-            group_alias
+            FIREBASE_API_BASE, self.config.project_id, group_alias
         );
 
         let token = self.get_access_token().await?;
 
-        let response = self.client
+        let response = self
+            .client
             .delete(&url)
             .header("Authorization", format!("Bearer {}", token))
             .send()
@@ -664,16 +675,10 @@ impl Firebase {
     }
 
     /// Add testers to a group
-    pub async fn add_testers_to_group(
-        &mut self,
-        group_alias: &str,
-        emails: &[&str],
-    ) -> Result<()> {
+    pub async fn add_testers_to_group(&mut self, group_alias: &str, emails: &[&str]) -> Result<()> {
         let url = format!(
             "{}/projects/{}/groups/{}:batchJoin",
-            FIREBASE_API_BASE,
-            self.config.project_id,
-            group_alias
+            FIREBASE_API_BASE, self.config.project_id, group_alias
         );
 
         let body = serde_json::json!({
@@ -682,7 +687,8 @@ impl Firebase {
 
         let token = self.get_access_token().await?;
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json")
@@ -699,7 +705,11 @@ impl Firebase {
             });
         }
 
-        info!("Added {} tester(s) to group '{}'", emails.len(), group_alias);
+        info!(
+            "Added {} tester(s) to group '{}'",
+            emails.len(),
+            group_alias
+        );
         Ok(())
     }
 
@@ -711,9 +721,7 @@ impl Firebase {
     ) -> Result<()> {
         let url = format!(
             "{}/projects/{}/groups/{}:batchLeave",
-            FIREBASE_API_BASE,
-            self.config.project_id,
-            group_alias
+            FIREBASE_API_BASE, self.config.project_id, group_alias
         );
 
         let body = serde_json::json!({
@@ -722,7 +730,8 @@ impl Firebase {
 
         let token = self.get_access_token().await?;
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json")
@@ -739,7 +748,11 @@ impl Firebase {
             });
         }
 
-        info!("Removed {} tester(s) from group '{}'", emails.len(), group_alias);
+        info!(
+            "Removed {} tester(s) from group '{}'",
+            emails.len(),
+            group_alias
+        );
         Ok(())
     }
 }

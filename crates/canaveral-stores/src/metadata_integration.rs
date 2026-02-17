@@ -45,12 +45,12 @@ pub use integration::*;
 
 #[cfg(feature = "metadata")]
 mod integration {
-    use std::path::Path;
     use crate::{error::Result, StoreError, UploadOptions};
     use canaveral_metadata::{
         AppleValidator, FastlaneStorage, GooglePlayValidator, MetadataStorage,
         ValidationResult as MetadataValidationResult,
     };
+    use std::path::Path;
     use tracing::{debug, info, instrument, warn};
 
     /// Platform identifier for metadata validation.
@@ -166,10 +166,7 @@ mod integration {
 
         // Print errors
         for issue in result.errors() {
-            eprintln!(
-                "  [ERROR] {}: {}",
-                issue.field, issue.message
-            );
+            eprintln!("  [ERROR] {}: {}", issue.field, issue.message);
             if let Some(ref suggestion) = issue.suggestion {
                 eprintln!("          Suggestion: {}", suggestion);
             }
@@ -177,10 +174,7 @@ mod integration {
 
         // Print warnings
         for issue in result.warnings() {
-            warn!(
-                "[WARNING] {}: {}",
-                issue.field, issue.message
-            );
+            warn!("[WARNING] {}: {}", issue.field, issue.message);
             if let Some(ref suggestion) = issue.suggestion {
                 eprintln!("          Suggestion: {}", suggestion);
             }
@@ -283,10 +277,7 @@ mod integration {
 
         let metadata_path = options.metadata_path.as_ref().unwrap();
 
-        info!(
-            "Validating {} metadata before upload...",
-            platform
-        );
+        info!("Validating {} metadata before upload...", platform);
 
         let result = validate_metadata_for_upload(platform, app_id, metadata_path, strict).await?;
 

@@ -256,7 +256,8 @@ impl PublishCallback for PublishCallbackRegistry {
 }
 
 /// Publisher function type
-pub type PublishFn = Box<dyn Fn(&Path, &str, &PublishOptions) -> Result<Option<String>> + Send + Sync>;
+pub type PublishFn =
+    Box<dyn Fn(&Path, &str, &PublishOptions) -> Result<Option<String>> + Send + Sync>;
 
 /// Coordinator for publishing packages in a monorepo
 pub struct PublishCoordinator {
@@ -288,7 +289,11 @@ impl PublishCoordinator {
         bumps: &[VersionBump],
         graph: &DependencyGraph,
     ) -> Result<PublishPlan> {
-        debug!(packages = packages.len(), bumps = bumps.len(), "creating publish plan");
+        debug!(
+            packages = packages.len(),
+            bumps = bumps.len(),
+            "creating publish plan"
+        );
         let bump_map: HashMap<&str, &VersionBump> =
             bumps.iter().map(|b| (b.package.as_str(), b)).collect();
 
@@ -375,7 +380,11 @@ impl PublishCoordinator {
         plan: &PublishPlan,
         callback: &dyn PublishCallback,
     ) -> Result<PublishResult> {
-        info!(packages = plan.packages.len(), dry_run = self.options.dry_run, "executing publish plan");
+        info!(
+            packages = plan.packages.len(),
+            dry_run = self.options.dry_run,
+            "executing publish plan"
+        );
         let start = Instant::now();
         let mut results = Vec::new();
         let mut failed_packages: HashSet<String> = HashSet::new();
@@ -393,18 +402,12 @@ impl PublishCoordinator {
                     FailureStrategy::StopOnFailure => {
                         // Already stopped by previous iteration
                         skipped_packages.push(planned.name.clone());
-                        callback.on_skip(
-                            &planned.name,
-                            &SkipReason::DependencyFailed(dep.clone()),
-                        );
+                        callback.on_skip(&planned.name, &SkipReason::DependencyFailed(dep.clone()));
                         continue;
                     }
                     FailureStrategy::SkipDependents => {
                         skipped_packages.push(planned.name.clone());
-                        callback.on_skip(
-                            &planned.name,
-                            &SkipReason::DependencyFailed(dep.clone()),
-                        );
+                        callback.on_skip(&planned.name, &SkipReason::DependencyFailed(dep.clone()));
                         continue;
                     }
                     FailureStrategy::ContinueAll => {
@@ -728,7 +731,11 @@ mod tests {
         assert!(plan.packages[0].dependencies.is_empty());
 
         // utils should come after core
-        let utils_idx = plan.packages.iter().position(|p| p.name == "utils").unwrap();
+        let utils_idx = plan
+            .packages
+            .iter()
+            .position(|p| p.name == "utils")
+            .unwrap();
         let core_idx = plan.packages.iter().position(|p| p.name == "core").unwrap();
         assert!(utils_idx > core_idx);
 
@@ -743,8 +750,10 @@ mod tests {
         let bumps = create_bumps();
         let graph = DependencyGraph::build(&packages).unwrap();
 
-        let mut options = PublishOptions::default();
-        options.dry_run = true;
+        let options = PublishOptions {
+            dry_run: true,
+            ..Default::default()
+        };
 
         let coordinator = PublishCoordinator::new(options);
         let plan = coordinator.create_plan(&packages, &bumps, &graph).unwrap();
@@ -799,9 +808,6 @@ mod tests {
         let call_count = Arc::new(AtomicUsize::new(0));
         let call_count_clone = call_count.clone();
 
-        let mut options = PublishOptions::default();
-        options.failure_strategy = FailureStrategy::StopOnFailure;
-
         let coordinator = PublishCoordinatorBuilder::new()
             .failure_strategy(FailureStrategy::StopOnFailure)
             .publisher(Box::new(move |_path, _version, _opts| {
@@ -836,9 +842,15 @@ mod tests {
             .build();
 
         assert!(coordinator.options.dry_run);
-        assert_eq!(coordinator.options.failure_strategy, FailureStrategy::SkipDependents);
+        assert_eq!(
+            coordinator.options.failure_strategy,
+            FailureStrategy::SkipDependents
+        );
         assert!(coordinator.options.exclude.contains("test"));
-        assert_eq!(coordinator.options.registry, Some("https://custom.registry".to_string()));
+        assert_eq!(
+            coordinator.options.registry,
+            Some("https://custom.registry".to_string())
+        );
         assert_eq!(coordinator.options.retry_count, 3);
     }
 

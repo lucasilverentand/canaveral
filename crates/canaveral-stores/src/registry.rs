@@ -17,9 +17,7 @@ impl StoreRegistry {
     /// Unlike AdapterRegistry, stores require configuration so none are
     /// registered by default.
     pub fn new() -> Self {
-        Self {
-            stores: Vec::new(),
-        }
+        Self { stores: Vec::new() }
     }
 
     /// Register a store adapter
@@ -35,13 +33,18 @@ impl StoreRegistry {
     /// Get store adapter by name
     pub fn get(&self, name: &str) -> Option<Arc<dyn StoreAdapter>> {
         let result = self.stores.iter().find(|s| s.name() == name).cloned();
-        debug!(store = name, found = result.is_some(), "Looking up store adapter");
+        debug!(
+            store = name,
+            found = result.is_some(),
+            "Looking up store adapter"
+        );
         result
     }
 
     /// Get all store adapters matching a given store type
     pub fn get_by_type(&self, store_type: StoreType) -> Vec<Arc<dyn StoreAdapter>> {
-        let results: Vec<_> = self.stores
+        let results: Vec<_> = self
+            .stores
             .iter()
             .filter(|s| s.store_type() == store_type)
             .cloned()
@@ -62,7 +65,8 @@ impl StoreRegistry {
 
     /// Get only store adapters that are currently available
     pub fn available(&self) -> Vec<Arc<dyn StoreAdapter>> {
-        let available: Vec<_> = self.stores
+        let available: Vec<_> = self
+            .stores
             .iter()
             .filter(|s| s.is_available())
             .cloned()

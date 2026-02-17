@@ -84,13 +84,15 @@ pub fn encrypt_data(data: &[u8], recipients: &[String]) -> Result<String, Encryp
         .collect::<Result<Vec<_>, _>>()?;
 
     // Create encryptor
-    let encryptor = age::Encryptor::with_recipients(parsed_recipients)
-        .ok_or_else(|| EncryptionError::EncryptionFailed("Failed to create encryptor".to_string()))?;
+    let encryptor = age::Encryptor::with_recipients(parsed_recipients).ok_or_else(|| {
+        EncryptionError::EncryptionFailed("Failed to create encryptor".to_string())
+    })?;
 
     // Encrypt to armored output
     let mut output = Vec::new();
-    let armor_writer = age::armor::ArmoredWriter::wrap_output(&mut output, age::armor::Format::AsciiArmor)
-        .map_err(|e| EncryptionError::EncryptionFailed(e.to_string()))?;
+    let armor_writer =
+        age::armor::ArmoredWriter::wrap_output(&mut output, age::armor::Format::AsciiArmor)
+            .map_err(|e| EncryptionError::EncryptionFailed(e.to_string()))?;
 
     let mut writer = encryptor
         .wrap_output(armor_writer)
@@ -105,8 +107,7 @@ pub fn encrypt_data(data: &[u8], recipients: &[String]) -> Result<String, Encryp
         .finish()
         .map_err(|e| EncryptionError::EncryptionFailed(e.to_string()))?;
 
-    String::from_utf8(output)
-        .map_err(|e| EncryptionError::EncryptionFailed(e.to_string()))
+    String::from_utf8(output).map_err(|e| EncryptionError::EncryptionFailed(e.to_string()))
 }
 
 /// Decrypt data using a private key
@@ -121,7 +122,7 @@ pub fn decrypt_data(encrypted: &str, private_key: &str) -> Result<Vec<u8>, Encry
     // Parse the private key
     let identity: age::x25519::Identity = private_key
         .parse()
-        .map_err(|e| EncryptionError::InvalidPrivateKey(format!("{}", e)))?;
+        .map_err(|e: &str| EncryptionError::InvalidPrivateKey(e.to_string()))?;
 
     // Create decryptor from armored input
     let armor_reader = age::armor::ArmoredReader::new(encrypted.as_bytes());
@@ -177,7 +178,7 @@ mod tests {
         let keypair = generate_keypair();
         let data = b"Hello, World!";
 
-        let encrypted = encrypt_data(data, &[keypair.public_key.clone()]).unwrap();
+        let encrypted = encrypt_data(data, std::slice::from_ref(&keypair.public_key)).unwrap();
         assert!(encrypted.contains("-----BEGIN AGE ENCRYPTED FILE-----"));
 
         let decrypted = decrypt_data(&encrypted, &keypair.private_key).unwrap();
@@ -210,7 +211,7 @@ mod tests {
         let keypair2 = generate_keypair();
         let data = b"Secret";
 
-        let encrypted = encrypt_data(data, &[keypair1.public_key.clone()]).unwrap();
+        let encrypted = encrypt_data(data, std::slice::from_ref(&keypair1.public_key)).unwrap();
 
         // Wrong key should fail
         let result = decrypt_data(&encrypted, &keypair2.private_key);
@@ -224,13 +225,13 @@ mod tests {
         let data = b"Reencrypt me";
 
         // Encrypt for keypair1
-        let encrypted = encrypt_data(data, &[keypair1.public_key.clone()]).unwrap();
+        let encrypted = encrypt_data(data, std::slice::from_ref(&keypair1.public_key)).unwrap();
 
         // Reencrypt for keypair2
         let reencrypted = reencrypt_data(
             &encrypted,
             &keypair1.private_key,
-            &[keypair2.public_key.clone()],
+            std::slice::from_ref(&keypair2.public_key),
         )
         .unwrap();
 

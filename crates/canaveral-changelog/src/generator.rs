@@ -42,7 +42,11 @@ impl ChangelogGenerator {
     /// Generate a changelog entry from commits
     #[instrument(skip(self, commits), fields(commit_count = commits.len()))]
     pub fn generate(&self, version: &str, commits: &[CommitInfo]) -> ChangelogEntry {
-        info!(version, commit_count = commits.len(), "generating changelog entry");
+        info!(
+            version,
+            commit_count = commits.len(),
+            "generating changelog entry"
+        );
         let mut entry = ChangelogEntry::new(version);
 
         // Parse commits

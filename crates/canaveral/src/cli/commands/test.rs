@@ -346,10 +346,18 @@ impl TestCommand {
 
         if report.success() {
             println!();
-            println!("  {} {}", style("✓").green().bold(), style("All tests passed!").green());
+            println!(
+                "  {} {}",
+                style("✓").green().bold(),
+                style("All tests passed!").green()
+            );
         } else {
             println!();
-            println!("  {} {}", style("✗").red().bold(), style("Some tests failed.").red());
+            println!(
+                "  {} {}",
+                style("✗").red().bold(),
+                style("Some tests failed.").red()
+            );
         }
 
         println!();

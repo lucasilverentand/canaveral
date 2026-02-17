@@ -9,10 +9,7 @@ use crate::task::TaskId;
 #[derive(Debug, Clone)]
 pub enum TaskEvent {
     /// A task is starting execution
-    Started {
-        id: TaskId,
-        command: String,
-    },
+    Started { id: TaskId, command: String },
     /// A task produced output
     Output {
         id: TaskId,
@@ -32,15 +29,9 @@ pub enum TaskEvent {
         error: String,
     },
     /// A task was skipped (e.g., cache hit with replay)
-    Skipped {
-        id: TaskId,
-        reason: String,
-    },
+    Skipped { id: TaskId, reason: String },
     /// An execution wave is starting
-    WaveStarted {
-        wave: usize,
-        task_count: usize,
-    },
+    WaveStarted { wave: usize, task_count: usize },
     /// All tasks completed
     AllCompleted {
         total: usize,
@@ -67,22 +58,43 @@ impl TaskReporter for TracingReporter {
             TaskEvent::Started { id, command } => {
                 tracing::info!("Starting {}: {}", id, command);
             }
-            TaskEvent::Output { id, line, is_stderr } => {
+            TaskEvent::Output {
+                id,
+                line,
+                is_stderr,
+            } => {
                 if *is_stderr {
                     tracing::warn!("[{}] {}", id, line);
                 } else {
                     tracing::debug!("[{}] {}", id, line);
                 }
             }
-            TaskEvent::Completed { id, duration, cached } => {
+            TaskEvent::Completed {
+                id,
+                duration,
+                cached,
+            } => {
                 if *cached {
-                    tracing::info!("{} completed (cached) in {:.1}s", id, duration.as_secs_f64());
+                    tracing::info!(
+                        "{} completed (cached) in {:.1}s",
+                        id,
+                        duration.as_secs_f64()
+                    );
                 } else {
                     tracing::info!("{} completed in {:.1}s", id, duration.as_secs_f64());
                 }
             }
-            TaskEvent::Failed { id, duration, error } => {
-                tracing::error!("{} failed after {:.1}s: {}", id, duration.as_secs_f64(), error);
+            TaskEvent::Failed {
+                id,
+                duration,
+                error,
+            } => {
+                tracing::error!(
+                    "{} failed after {:.1}s: {}",
+                    id,
+                    duration.as_secs_f64(),
+                    error
+                );
             }
             TaskEvent::Skipped { id, reason } => {
                 tracing::info!("{} skipped: {}", id, reason);

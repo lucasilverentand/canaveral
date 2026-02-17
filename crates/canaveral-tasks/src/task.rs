@@ -185,6 +185,9 @@ mod tests {
     #[test]
     fn test_effective_command_framework() {
         let def = TaskDefinition::new("build");
-        assert!(matches!(def.effective_command(), TaskCommand::FrameworkAdapter));
+        assert!(matches!(
+            def.effective_command(),
+            TaskCommand::FrameworkAdapter
+        ));
     }
 }

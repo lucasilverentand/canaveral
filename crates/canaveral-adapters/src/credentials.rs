@@ -42,14 +42,14 @@ impl CredentialProvider {
         }
 
         // Try environment variables
-        if let Some(cred) = self.from_env(registry)? {
+        if let Some(cred) = self.read_env(registry)? {
             debug!(registry, source = "environment", "credentials found");
             self.cache.insert(registry.to_string(), cred.clone());
             return Ok(Some(cred));
         }
 
         // Try registry-specific config files
-        if let Some(cred) = self.from_registry_config(registry)? {
+        if let Some(cred) = self.read_registry_config(registry)? {
             debug!(registry, source = "config_file", "credentials found");
             self.cache.insert(registry.to_string(), cred.clone());
             return Ok(Some(cred));
@@ -60,7 +60,7 @@ impl CredentialProvider {
     }
 
     /// Get credentials from environment variables
-    fn from_env(&self, registry: &str) -> Result<Option<Credential>> {
+    fn read_env(&self, registry: &str) -> Result<Option<Credential>> {
         let registry_upper = registry.to_uppercase().replace(['.', '-', '/'], "_");
 
         // Try TOKEN first (most common)
@@ -89,8 +89,12 @@ impl CredentialProvider {
             }
             "pypi" | "python" => {
                 if let Ok(token) = env::var("TWINE_PASSWORD") {
-                    let username = env::var("TWINE_USERNAME").unwrap_or_else(|_| "__token__".to_string());
-                    return Ok(Some(Credential::UsernamePassword { username, password: token }));
+                    let username =
+                        env::var("TWINE_USERNAME").unwrap_or_else(|_| "__token__".to_string());
+                    return Ok(Some(Credential::UsernamePassword {
+                        username,
+                        password: token,
+                    }));
                 }
                 if let Ok(token) = env::var("PYPI_TOKEN") {
                     return Ok(Some(Credential::Token(token)));
@@ -111,22 +115,20 @@ impl CredentialProvider {
     }
 
     /// Get credentials from registry-specific config files
-    fn from_registry_config(&self, registry: &str) -> Result<Option<Credential>> {
+    fn read_registry_config(&self, registry: &str) -> Result<Option<Credential>> {
         match registry {
-            "npm" | "npmjs" => self.from_npmrc(),
-            "cargo" | "crates.io" => self.from_cargo_credentials(),
-            "pypi" | "python" => self.from_pypirc(),
+            "npm" | "npmjs" => self.read_npmrc(),
+            "cargo" | "crates.io" => self.read_cargo_credentials(),
+            "pypi" | "python" => self.read_pypirc(),
             _ => Ok(None),
         }
     }
 
     /// Read npm credentials from .npmrc
-    fn from_npmrc(&self) -> Result<Option<Credential>> {
-        let home = dirs::home_dir().ok_or_else(|| {
-            AdapterError::AuthenticationFailed {
-                registry: "npm".to_string(),
-                reason: "Could not determine home directory".to_string(),
-            }
+    fn read_npmrc(&self) -> Result<Option<Credential>> {
+        let home = dirs::home_dir().ok_or_else(|| AdapterError::AuthenticationFailed {
+            registry: "npm".to_string(),
+            reason: "Could not determine home directory".to_string(),
         })?;
 
         let npmrc_path = home.join(".npmrc");
@@ -148,8 +150,9 @@ impl CredentialProvider {
                 if let Some(token) = line.split(":_authToken=").nth(1) {
                     let token = token.trim();
                     // Handle ${ENV_VAR} syntax
-                    if token.starts_with("${") && token.ends_with('}') {
-                        let var_name = &token[2..token.len() - 1];
+                    if let Some(var_name) =
+                        token.strip_prefix("${").and_then(|s| s.strip_suffix('}'))
+                    {
                         if let Ok(value) = env::var(var_name) {
                             return Ok(Some(Credential::Token(value)));
                         }
@@ -164,7 +167,7 @@ impl CredentialProvider {
     }
 
     /// Read Cargo credentials from credentials.toml
-    fn from_cargo_credentials(&self) -> Result<Option<Credential>> {
+    fn read_cargo_credentials(&self) -> Result<Option<Credential>> {
         let cargo_home = env::var("CARGO_HOME")
             .map(PathBuf::from)
             .ok()
@@ -188,12 +191,11 @@ impl CredentialProvider {
     }
 
     fn parse_cargo_credentials(&self, path: &PathBuf) -> Result<Option<Credential>> {
-        let content = std::fs::read_to_string(path).map_err(|e| {
-            AdapterError::AuthenticationFailed {
+        let content =
+            std::fs::read_to_string(path).map_err(|e| AdapterError::AuthenticationFailed {
                 registry: "cargo".to_string(),
                 reason: format!("Failed to read credentials: {}", e),
-            }
-        })?;
+            })?;
 
         #[derive(Deserialize)]
         struct CargoCredentials {
@@ -205,12 +207,11 @@ impl CredentialProvider {
             token: Option<String>,
         }
 
-        let creds: CargoCredentials = toml::from_str(&content).map_err(|e| {
-            AdapterError::AuthenticationFailed {
+        let creds: CargoCredentials =
+            toml::from_str(&content).map_err(|e| AdapterError::AuthenticationFailed {
                 registry: "cargo".to_string(),
                 reason: format!("Failed to parse credentials: {}", e),
-            }
-        })?;
+            })?;
 
         if let Some(registry) = creds.registry {
             if let Some(token) = registry.token {
@@ -222,12 +223,10 @@ impl CredentialProvider {
     }
 
     /// Read PyPI credentials from .pypirc
-    fn from_pypirc(&self) -> Result<Option<Credential>> {
-        let home = dirs::home_dir().ok_or_else(|| {
-            AdapterError::AuthenticationFailed {
-                registry: "pypi".to_string(),
-                reason: "Could not determine home directory".to_string(),
-            }
+    fn read_pypirc(&self) -> Result<Option<Credential>> {
+        let home = dirs::home_dir().ok_or_else(|| AdapterError::AuthenticationFailed {
+            registry: "pypi".to_string(),
+            reason: "Could not determine home directory".to_string(),
         })?;
 
         let pypirc_path = home.join(".pypirc");
@@ -300,10 +299,7 @@ pub enum Credential {
     /// Bearer/API token
     Token(String),
     /// Username and password
-    UsernamePassword {
-        username: String,
-        password: String,
-    },
+    UsernamePassword { username: String, password: String },
 }
 
 impl Credential {

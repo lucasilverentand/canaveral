@@ -63,6 +63,6 @@ pub use screenshots::{
 };
 pub use testing::{ReportGenerator, TestRunner, TestRunnerConfig};
 pub use traits::{
-    BuildAdapter, DistributeAdapter, OtaAdapter, ScreenshotAdapter, TestAdapter, TestReport,
-    TestCase, TestStatus, TestSuite, VersionAdapter,
+    BuildAdapter, DistributeAdapter, OtaAdapter, ScreenshotAdapter, TestAdapter, TestCase,
+    TestReport, TestStatus, TestSuite, VersionAdapter,
 };

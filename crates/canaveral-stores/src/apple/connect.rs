@@ -84,8 +84,9 @@ impl AppStoreConnect {
 
         // Read the private key
         let key_content = if Path::new(&self.config.api_key).exists() {
-            std::fs::read_to_string(&self.config.api_key)
-                .map_err(|e| StoreError::ConfigurationError(format!("Failed to read API key: {}", e)))?
+            std::fs::read_to_string(&self.config.api_key).map_err(|e| {
+                StoreError::ConfigurationError(format!("Failed to read API key: {}", e))
+            })?
         } else {
             self.config.api_key.clone()
         };
@@ -115,7 +116,8 @@ impl AppStoreConnect {
         let token = self.generate_jwt()?;
         let url = format!("{}{}", API_BASE_URL, endpoint);
 
-        let mut request = self.client
+        let mut request = self
+            .client
             .request(method, &url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json");
@@ -161,9 +163,13 @@ impl AppStoreConnect {
         }
 
         let endpoint = format!("/apps?filter[bundleId]={}", bundle_id);
-        let response: AppsResponse = self.api_request(reqwest::Method::GET, &endpoint, None).await?;
+        let response: AppsResponse = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
-        let app = response.data.first()
+        let app = response
+            .data
+            .first()
             .ok_or_else(|| StoreError::AppNotFound(bundle_id.to_string()))?;
 
         Ok(AppInfo {
@@ -309,10 +315,12 @@ impl StoreAdapter for AppStoreConnect {
         let validation = self.validate_artifact(path).await?;
         if !validation.valid {
             return Err(StoreError::ValidationFailed(
-                validation.errors.iter()
+                validation
+                    .errors
+                    .iter()
                     .map(|e| e.message.clone())
                     .collect::<Vec<_>>()
-                    .join("; ")
+                    .join("; "),
             ));
         }
 
@@ -375,14 +383,16 @@ impl StoreAdapter for AppStoreConnect {
 #[async_trait::async_trait]
 impl NotarizationSupport for AppStoreConnect {
     async fn submit_for_notarization(&self, path: &Path) -> Result<String> {
-        let notarizer = self.notarizer.as_ref()
-            .ok_or_else(|| StoreError::ConfigurationError("Notarization not configured".to_string()))?;
+        let notarizer = self.notarizer.as_ref().ok_or_else(|| {
+            StoreError::ConfigurationError("Notarization not configured".to_string())
+        })?;
         notarizer.submit(path).await
     }
 
     async fn check_notarization_status(&self, submission_id: &str) -> Result<NotarizationResult> {
-        let notarizer = self.notarizer.as_ref()
-            .ok_or_else(|| StoreError::ConfigurationError("Notarization not configured".to_string()))?;
+        let notarizer = self.notarizer.as_ref().ok_or_else(|| {
+            StoreError::ConfigurationError("Notarization not configured".to_string())
+        })?;
         notarizer.status(submission_id).await
     }
 
@@ -391,14 +401,16 @@ impl NotarizationSupport for AppStoreConnect {
         submission_id: &str,
         timeout_secs: Option<u64>,
     ) -> Result<NotarizationResult> {
-        let notarizer = self.notarizer.as_ref()
-            .ok_or_else(|| StoreError::ConfigurationError("Notarization not configured".to_string()))?;
+        let notarizer = self.notarizer.as_ref().ok_or_else(|| {
+            StoreError::ConfigurationError("Notarization not configured".to_string())
+        })?;
         notarizer.wait(submission_id, timeout_secs).await
     }
 
     async fn staple(&self, path: &Path) -> Result<()> {
-        let notarizer = self.notarizer.as_ref()
-            .ok_or_else(|| StoreError::ConfigurationError("Notarization not configured".to_string()))?;
+        let notarizer = self.notarizer.as_ref().ok_or_else(|| {
+            StoreError::ConfigurationError("Notarization not configured".to_string())
+        })?;
         notarizer.staple(path).await
     }
 }

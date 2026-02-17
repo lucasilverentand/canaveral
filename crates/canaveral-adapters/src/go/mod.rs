@@ -147,7 +147,10 @@ impl PackageAdapter for GoAdapter {
             .get_latest_tag(path, &gomod.module)?
             .map(|t| {
                 // Strip prefix if present
-                if let Some(v) = t.strip_prefix(&format!("{}/", gomod.module.rsplit('/').next().unwrap_or(""))) {
+                if let Some(v) = t.strip_prefix(&format!(
+                    "{}/",
+                    gomod.module.rsplit('/').next().unwrap_or("")
+                )) {
                     v.strip_prefix('v').unwrap_or(v).to_string()
                 } else {
                     t.strip_prefix('v').unwrap_or(&t).to_string()
@@ -232,9 +235,7 @@ impl PackageAdapter for GoAdapter {
             let url = format!("{}/{}/@v/{}.info", goproxy, info.name, tag);
 
             // Make a request to warm the proxy cache
-            let _ = Command::new("curl")
-                .args(["-s", &url])
-                .output();
+            let _ = Command::new("curl").args(["-s", &url]).output();
         }
 
         Ok(())
@@ -323,6 +324,71 @@ impl PackageAdapter for GoAdapter {
         Ok(output.map(|o| o.status.success()).unwrap_or(false))
     }
 
+    fn fmt(&self, path: &Path, check: bool) -> Result<()> {
+        if check {
+            // gofmt -l lists files that differ from gofmt's formatting
+            let output = Command::new("gofmt")
+                .args(["-l", "."])
+                .current_dir(path)
+                .output()
+                .map_err(|e| AdapterError::CommandFailed {
+                    command: "gofmt -l".to_string(),
+                    reason: e.to_string(),
+                })?;
+
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if !stdout.trim().is_empty() {
+                return Err(AdapterError::CommandFailed {
+                    command: "gofmt -l".to_string(),
+                    reason: format!("Files need formatting:\n{}", stdout),
+                }
+                .into());
+            }
+        } else {
+            let output = Command::new("gofmt")
+                .args(["-w", "."])
+                .current_dir(path)
+                .output()
+                .map_err(|e| AdapterError::CommandFailed {
+                    command: "gofmt -w".to_string(),
+                    reason: e.to_string(),
+                })?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(AdapterError::CommandFailed {
+                    command: "gofmt -w".to_string(),
+                    reason: stderr.to_string(),
+                }
+                .into());
+            }
+        }
+
+        Ok(())
+    }
+
+    fn lint(&self, path: &Path) -> Result<()> {
+        let output = Command::new("go")
+            .args(["vet", "./..."])
+            .current_dir(path)
+            .output()
+            .map_err(|e| AdapterError::CommandFailed {
+                command: "go vet".to_string(),
+                reason: e.to_string(),
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AdapterError::CommandFailed {
+                command: "go vet".to_string(),
+                reason: stderr.to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
+    }
+
     fn build(&self, path: &Path) -> Result<()> {
         let output = Command::new("go")
             .args(["build", "./..."])
@@ -402,7 +468,11 @@ mod tests {
         let temp = TempDir::new().unwrap();
         assert!(!adapter.detect(temp.path()));
 
-        std::fs::write(temp.path().join("go.mod"), "module example.com/test\n\ngo 1.21\n").unwrap();
+        std::fs::write(
+            temp.path().join("go.mod"),
+            "module example.com/test\n\ngo 1.21\n",
+        )
+        .unwrap();
         assert!(adapter.detect(temp.path()));
     }
 

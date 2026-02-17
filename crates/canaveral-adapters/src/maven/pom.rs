@@ -87,57 +87,67 @@ impl PomXml {
 
     /// Parse pom.xml content
     pub fn parse(content: &str) -> Result<Self> {
-        let mut pom = PomXml::default();
-
         // Simple XML parsing without a full XML library
         // This handles the most common cases
-
-        pom.group_id = Self::extract_element(content, "groupId");
-        pom.artifact_id = Self::extract_element(content, "artifactId");
-        pom.version = Self::extract_element(content, "version");
-        pom.packaging = Self::extract_element(content, "packaging");
-        pom.name = Self::extract_element(content, "name");
-        pom.description = Self::extract_element(content, "description");
-        pom.url = Self::extract_element(content, "url");
+        let mut group_id = Self::extract_element(content, "groupId");
+        let artifact_id = Self::extract_element(content, "artifactId");
+        let mut version = Self::extract_element(content, "version");
+        let packaging = Self::extract_element(content, "packaging");
+        let name = Self::extract_element(content, "name");
+        let description = Self::extract_element(content, "description");
+        let url = Self::extract_element(content, "url");
 
         // Parse parent if present
-        if let Some(parent_block) = Self::extract_block(content, "parent") {
-            pom.parent = Some(Parent {
+        let parent = if let Some(parent_block) = Self::extract_block(content, "parent") {
+            let parent = Parent {
                 group_id: Self::extract_element(&parent_block, "groupId").unwrap_or_default(),
                 artifact_id: Self::extract_element(&parent_block, "artifactId").unwrap_or_default(),
                 version: Self::extract_element(&parent_block, "version").unwrap_or_default(),
-            });
+            };
 
             // Inherit groupId and version from parent if not specified
-            if pom.group_id.is_none() {
-                pom.group_id = Some(pom.parent.as_ref().unwrap().group_id.clone());
+            if group_id.is_none() {
+                group_id = Some(parent.group_id.clone());
             }
-            if pom.version.is_none() {
-                pom.version = Some(pom.parent.as_ref().unwrap().version.clone());
+            if version.is_none() {
+                version = Some(parent.version.clone());
             }
-        }
+            Some(parent)
+        } else {
+            None
+        };
 
         // Parse licenses
-        if let Some(licenses_block) = Self::extract_block(content, "licenses") {
-            pom.licenses = Self::parse_licenses(&licenses_block);
-        }
+        let licenses = Self::extract_block(content, "licenses")
+            .map(|b| Self::parse_licenses(&b))
+            .unwrap_or_default();
 
         // Parse developers
-        if let Some(developers_block) = Self::extract_block(content, "developers") {
-            pom.developers = Self::parse_developers(&developers_block);
-        }
+        let developers = Self::extract_block(content, "developers")
+            .map(|b| Self::parse_developers(&b))
+            .unwrap_or_default();
 
         // Parse SCM
-        if let Some(scm_block) = Self::extract_block(content, "scm") {
-            pom.scm = Some(Scm {
-                connection: Self::extract_element(&scm_block, "connection"),
-                developer_connection: Self::extract_element(&scm_block, "developerConnection"),
-                url: Self::extract_element(&scm_block, "url"),
-                tag: Self::extract_element(&scm_block, "tag"),
-            });
-        }
+        let scm = Self::extract_block(content, "scm").map(|scm_block| Scm {
+            connection: Self::extract_element(&scm_block, "connection"),
+            developer_connection: Self::extract_element(&scm_block, "developerConnection"),
+            url: Self::extract_element(&scm_block, "url"),
+            tag: Self::extract_element(&scm_block, "tag"),
+        });
 
-        Ok(pom)
+        Ok(PomXml {
+            group_id,
+            artifact_id,
+            version,
+            packaging,
+            name,
+            description,
+            url,
+            licenses,
+            developers,
+            scm,
+            parent,
+        })
     }
 
     /// Extract a simple element value

@@ -6,7 +6,9 @@ use tracing::{debug, info, warn};
 
 use crate::error::{CanaveralError, Result};
 
-use super::{MigrationResult, MigrationSource, Migrator, ReleasePleaseMigrator, SemanticReleaseMigrator};
+use super::{
+    MigrationResult, MigrationSource, Migrator, ReleasePleaseMigrator, SemanticReleaseMigrator,
+};
 
 /// Central registry of migration providers.
 ///
@@ -45,7 +47,8 @@ impl MigratorRegistry {
     /// Returns the first migrator whose [`Migrator::can_migrate`] returns `true`.
     pub fn detect(&self, path: &Path) -> Option<&dyn Migrator> {
         debug!(path = %path.display(), migrators = self.migrators.len(), "detecting migration source");
-        let result = self.migrators
+        let result = self
+            .migrators
             .iter()
             .find(|m| m.can_migrate(path))
             .map(|m| m.as_ref());

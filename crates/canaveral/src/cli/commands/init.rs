@@ -7,7 +7,7 @@ use console::style;
 use dialoguer::Confirm;
 use tracing::info;
 
-use canaveral_core::config::defaults::{DEFAULT_CONFIG_TOML, DEFAULT_CONFIG_TEMPLATE};
+use canaveral_core::config::defaults::{DEFAULT_CONFIG_TEMPLATE, DEFAULT_CONFIG_TOML};
 
 use crate::cli::Cli;
 
@@ -99,9 +99,18 @@ impl InitCommand {
             );
             println!();
             println!("Next steps:");
-            println!("  1. Edit {} to customize your release workflow", config_path.display());
-            println!("  2. Run {} to verify your setup", style("canaveral validate").cyan());
-            println!("  3. Run {} to create your first release", style("canaveral release").cyan());
+            println!(
+                "  1. Edit {} to customize your release workflow",
+                config_path.display()
+            );
+            println!(
+                "  2. Run {} to verify your setup",
+                style("canaveral validate").cyan()
+            );
+            println!(
+                "  3. Run {} to create your first release",
+                style("canaveral release").cyan()
+            );
         }
 
         Ok(())

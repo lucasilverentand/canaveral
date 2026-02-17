@@ -185,10 +185,7 @@ impl CITemplate for GitHubActionsTemplate {
     }
 
     fn generate(&self, options: &TemplateOptions) -> Result<String> {
-        let _project_name = options
-            .project_name
-            .as_deref()
-            .unwrap_or("project");
+        let _project_name = options.project_name.as_deref().unwrap_or("project");
         let default_branch = &options.default_branch;
 
         let setup_step = self.generate_setup_step(options);

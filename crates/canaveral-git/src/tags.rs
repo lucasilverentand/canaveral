@@ -119,8 +119,7 @@ impl GitRepo {
         if let Some(msg) = message {
             // Create annotated tag
             let sig = self.repo.signature()?;
-            self.repo
-                .tag(name, head.as_object(), &sig, msg, false)?;
+            self.repo.tag(name, head.as_object(), &sig, msg, false)?;
         } else {
             // Create lightweight tag
             self.repo.tag_lightweight(name, head.as_object(), false)?;

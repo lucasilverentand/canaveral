@@ -5,8 +5,8 @@
 
 use super::{MetadataChange, MetadataDiff, MetadataSync, PushResult};
 use crate::{
-    AppleLocalizedMetadata, AppleMetadata, FastlaneStorage, Locale, MetadataError,
-    MetadataStorage, Result,
+    AppleLocalizedMetadata, AppleMetadata, FastlaneStorage, Locale, MetadataError, MetadataStorage,
+    Result,
 };
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
@@ -115,7 +115,9 @@ impl AppleMetadataSync {
         let client = Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()
-            .map_err(|e| MetadataError::SyncError(format!("Failed to create HTTP client: {}", e)))?;
+            .map_err(|e| {
+                MetadataError::SyncError(format!("Failed to create HTTP client: {}", e))
+            })?;
 
         Ok(Self {
             config,
@@ -195,9 +197,10 @@ impl AppleMetadataSync {
                 request = request.json(body);
             }
 
-            let response = request.send().await.map_err(|e| {
-                MetadataError::SyncError(format!("API request failed: {}", e))
-            })?;
+            let response = request
+                .send()
+                .await
+                .map_err(|e| MetadataError::SyncError(format!("API request failed: {}", e)))?;
 
             let status = response.status();
 
@@ -245,11 +248,7 @@ impl AppleMetadataSync {
     }
 
     /// Make a PATCH request to update a resource.
-    async fn api_patch(
-        &self,
-        endpoint: &str,
-        body: serde_json::Value,
-    ) -> Result<()> {
+    async fn api_patch(&self, endpoint: &str, body: serde_json::Value) -> Result<()> {
         let token = self.generate_jwt()?;
         let url = format!("{}{}", API_BASE_URL, endpoint);
 
@@ -316,11 +315,7 @@ impl AppleMetadataSync {
         let versions = self.get_app_store_versions(app_id).await?;
 
         // Find the version that's in an editable state
-        let editable_states = [
-            "PREPARE_FOR_SUBMISSION",
-            "DEVELOPER_REJECTED",
-            "REJECTED",
-        ];
+        let editable_states = ["PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED"];
 
         versions
             .into_iter()
@@ -353,9 +348,10 @@ impl AppleMetadataSync {
         let endpoint = format!("/apps/{}/appInfos", app_id);
         let response: AppInfosResponse = self.api_request(Method::GET, &endpoint, None).await?;
 
-        let app_info = response.data.first().ok_or_else(|| {
-            MetadataError::SyncError("No app info found".to_string())
-        })?;
+        let app_info = response
+            .data
+            .first()
+            .ok_or_else(|| MetadataError::SyncError("No app info found".to_string()))?;
 
         // Then get localizations for that app info
         let endpoint = format!("/appInfos/{}/appInfoLocalizations", app_info.id);
@@ -431,10 +427,16 @@ impl AppleMetadataSync {
 
         let mut attributes = serde_json::Map::new();
         if let Some(name) = name {
-            attributes.insert("name".to_string(), serde_json::Value::String(name.to_string()));
+            attributes.insert(
+                "name".to_string(),
+                serde_json::Value::String(name.to_string()),
+            );
         }
         if let Some(subtitle) = subtitle {
-            attributes.insert("subtitle".to_string(), serde_json::Value::String(subtitle.to_string()));
+            attributes.insert(
+                "subtitle".to_string(),
+                serde_json::Value::String(subtitle.to_string()),
+            );
         }
 
         let body = serde_json::json!({
@@ -498,9 +500,9 @@ impl MetadataSync for AppleMetadataSync {
 
         // Get the current/editable version
         let versions = self.get_app_store_versions(&asc_app_id).await?;
-        let version = versions.first().ok_or_else(|| {
-            MetadataError::SyncError("No App Store versions found".to_string())
-        })?;
+        let version = versions
+            .first()
+            .ok_or_else(|| MetadataError::SyncError("No App Store versions found".to_string()))?;
 
         // Get version localizations
         let version_locs = self.get_version_localizations(&version.id).await?;
@@ -532,7 +534,9 @@ impl MetadataSync for AppleMetadataSync {
             let app_info_loc = app_info_map.get(locale_str).copied();
             let local_metadata = self.convert_to_local_metadata(version_loc, app_info_loc);
 
-            metadata.localizations.insert(locale_str.clone(), local_metadata);
+            metadata
+                .localizations
+                .insert(locale_str.clone(), local_metadata);
 
             debug!("Pulled metadata for locale: {}", locale_str);
         }
@@ -613,14 +617,16 @@ impl MetadataSync for AppleMetadataSync {
             if let Some(version_loc) = version_loc_map.get(locale_str) {
                 // Update existing localization
                 if !dry_run {
-                    self.update_version_localization(&version_loc.id, &update).await?;
+                    self.update_version_localization(&version_loc.id, &update)
+                        .await?;
                 }
                 result.updated_locales.push(locale_str.clone());
                 debug!("Updated version localization for {}", locale_str);
             } else {
                 // Create new localization
                 if !dry_run {
-                    self.create_version_localization(&version.id, locale_str, &update).await?;
+                    self.create_version_localization(&version.id, locale_str, &update)
+                        .await?;
                 }
                 result.updated_locales.push(locale_str.clone());
                 debug!("Created version localization for {}", locale_str);
@@ -635,16 +641,27 @@ impl MetadataSync for AppleMetadataSync {
                     if !dry_run {
                         self.update_app_info_localization(
                             &app_info_loc.id,
-                            if name_changed { Some(&local_loc.name) } else { None },
-                            if subtitle_changed { local_loc.subtitle.as_deref() } else { None },
-                        ).await?;
+                            if name_changed {
+                                Some(&local_loc.name)
+                            } else {
+                                None
+                            },
+                            if subtitle_changed {
+                                local_loc.subtitle.as_deref()
+                            } else {
+                                None
+                            },
+                        )
+                        .await?;
                     }
 
                     if name_changed {
                         result.updated_fields.push(format!("{}/name", locale_str));
                     }
                     if subtitle_changed {
-                        result.updated_fields.push(format!("{}/subtitle", locale_str));
+                        result
+                            .updated_fields
+                            .push(format!("{}/subtitle", locale_str));
                     }
                 }
             }
@@ -672,9 +689,9 @@ impl MetadataSync for AppleMetadataSync {
 
         // Get current remote version and localizations
         let versions = self.get_app_store_versions(&asc_app_id).await?;
-        let version = versions.first().ok_or_else(|| {
-            MetadataError::SyncError("No App Store versions found".to_string())
-        })?;
+        let version = versions
+            .first()
+            .ok_or_else(|| MetadataError::SyncError("No App Store versions found".to_string()))?;
 
         let version_locs = self.get_version_localizations(&version.id).await?;
         let app_info_locs = self.get_app_info_localizations(&asc_app_id).await?;
@@ -970,10 +987,19 @@ mod tests {
         assert!(!AppleMetadataSync::strings_differ(None, None));
         assert!(!AppleMetadataSync::strings_differ(Some(""), None));
         assert!(!AppleMetadataSync::strings_differ(None, Some("")));
-        assert!(!AppleMetadataSync::strings_differ(Some("hello"), Some("hello")));
-        assert!(!AppleMetadataSync::strings_differ(Some(" hello "), Some("hello")));
+        assert!(!AppleMetadataSync::strings_differ(
+            Some("hello"),
+            Some("hello")
+        ));
+        assert!(!AppleMetadataSync::strings_differ(
+            Some(" hello "),
+            Some("hello")
+        ));
 
-        assert!(AppleMetadataSync::strings_differ(Some("hello"), Some("world")));
+        assert!(AppleMetadataSync::strings_differ(
+            Some("hello"),
+            Some("world")
+        ));
         assert!(AppleMetadataSync::strings_differ(Some("hello"), None));
         assert!(AppleMetadataSync::strings_differ(None, Some("world")));
     }

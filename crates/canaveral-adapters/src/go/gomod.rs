@@ -137,10 +137,10 @@ impl GoMod {
         }
 
         if module.is_empty() {
-            return Err(
-                AdapterError::ManifestParseError("No module directive found in go.mod".to_string())
-                    .into(),
-            );
+            return Err(AdapterError::ManifestParseError(
+                "No module directive found in go.mod".to_string(),
+            )
+            .into());
         }
 
         Ok(Self {
@@ -178,8 +178,8 @@ impl GoMod {
             return None;
         }
 
-        let old_parts: Vec<&str> = parts[0].trim().split_whitespace().collect();
-        let new_parts: Vec<&str> = parts[1].trim().split_whitespace().collect();
+        let old_parts: Vec<&str> = parts[0].split_whitespace().collect();
+        let new_parts: Vec<&str> = parts[1].split_whitespace().collect();
 
         if old_parts.is_empty() || new_parts.is_empty() {
             return None;
@@ -244,11 +244,19 @@ require (
         let gomod = GoMod::parse(content).unwrap();
         assert_eq!(gomod.require.len(), 2);
 
-        let errors = gomod.require.iter().find(|d| d.path.contains("errors")).unwrap();
+        let errors = gomod
+            .require
+            .iter()
+            .find(|d| d.path.contains("errors"))
+            .unwrap();
         assert_eq!(errors.version, "v0.9.1");
         assert!(!errors.indirect);
 
-        let sys = gomod.require.iter().find(|d| d.path.contains("sys")).unwrap();
+        let sys = gomod
+            .require
+            .iter()
+            .find(|d| d.path.contains("sys"))
+            .unwrap();
         assert!(sys.indirect);
     }
 

@@ -126,7 +126,7 @@ impl BuildContext {
 
         // Standard CI env vars
         if let Ok(v) = std::env::var("CANAVERAL_PROFILE") {
-            ctx.profile = BuildProfile::from_str(&v).unwrap_or(BuildProfile::Release);
+            ctx.profile = BuildProfile::parse(&v).unwrap_or(BuildProfile::Release);
         }
         if let Ok(v) = std::env::var("CANAVERAL_FLAVOR") {
             ctx.flavor = Some(v);
@@ -172,7 +172,7 @@ impl BuildProfile {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "debug" | "dev" => Some(Self::Debug),
             "release" | "prod" | "production" => Some(Self::Release),
@@ -460,10 +460,10 @@ mod tests {
 
     #[test]
     fn test_build_profile_parsing() {
-        assert_eq!(BuildProfile::from_str("debug"), Some(BuildProfile::Debug));
-        assert_eq!(BuildProfile::from_str("release"), Some(BuildProfile::Release));
-        assert_eq!(BuildProfile::from_str("prod"), Some(BuildProfile::Release));
-        assert_eq!(BuildProfile::from_str("invalid"), None);
+        assert_eq!(BuildProfile::parse("debug"), Some(BuildProfile::Debug));
+        assert_eq!(BuildProfile::parse("release"), Some(BuildProfile::Release));
+        assert_eq!(BuildProfile::parse("prod"), Some(BuildProfile::Release));
+        assert_eq!(BuildProfile::parse("invalid"), None);
     }
 
     #[test]

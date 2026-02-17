@@ -186,9 +186,7 @@ impl ScreenshotFramer {
     /// Create minimal frame (just background + text)
     fn frame_minimal(&self, screenshot_path: &Path, output_path: &Path) -> Result<()> {
         // Use ImageMagick for image manipulation
-        let mut args = vec![
-            screenshot_path.to_str().unwrap_or_default().to_string(),
-        ];
+        let mut args = vec![screenshot_path.to_str().unwrap_or_default().to_string()];
 
         // Add background
         args.extend([
@@ -201,11 +199,7 @@ impl ScreenshotFramer {
         // Add padding
         args.extend([
             "-extent".to_string(),
-            format!(
-                "{}x{}",
-                self.get_canvas_width(),
-                self.get_canvas_height()
-            ),
+            format!("{}x{}", self.get_canvas_width(), self.get_canvas_height()),
         ]);
 
         // Add title if present
@@ -233,7 +227,10 @@ impl ScreenshotFramer {
                 "-pointsize".to_string(),
                 self.config.subtitle_font_size.to_string(),
                 "-annotate".to_string(),
-                format!("+0+{}", self.config.padding + self.config.title_font_size + 20),
+                format!(
+                    "+0+{}",
+                    self.config.padding + self.config.title_font_size + 20
+                ),
                 subtitle.clone(),
             ]);
         }

@@ -13,12 +13,12 @@ use tracing::{debug, info};
 use crate::config::Config;
 use crate::error::Result;
 
-mod release_please;
 mod registry;
+mod release_please;
 mod semantic_release;
 
-pub use release_please::ReleasePleaseMigrator;
 pub use registry::MigratorRegistry;
+pub use release_please::ReleasePleaseMigrator;
 pub use semantic_release::SemanticReleaseMigrator;
 
 /// Migration source type
@@ -174,7 +174,10 @@ mod tests {
 
     #[test]
     fn test_migration_source() {
-        assert_eq!(MigrationSource::SemanticRelease.as_str(), "semantic-release");
+        assert_eq!(
+            MigrationSource::SemanticRelease.as_str(),
+            "semantic-release"
+        );
         assert_eq!(MigrationSource::ReleasePlease.as_str(), "release-please");
     }
 
@@ -188,14 +191,20 @@ mod tests {
     fn test_detect_semantic_release() {
         let temp = TempDir::new().unwrap();
         std::fs::write(temp.path().join(".releaserc"), "{}").unwrap();
-        assert_eq!(detect_tool(temp.path()), Some(MigrationSource::SemanticRelease));
+        assert_eq!(
+            detect_tool(temp.path()),
+            Some(MigrationSource::SemanticRelease)
+        );
     }
 
     #[test]
     fn test_detect_release_please() {
         let temp = TempDir::new().unwrap();
         std::fs::write(temp.path().join("release-please-config.json"), "{}").unwrap();
-        assert_eq!(detect_tool(temp.path()), Some(MigrationSource::ReleasePlease));
+        assert_eq!(
+            detect_tool(temp.path()),
+            Some(MigrationSource::ReleasePlease)
+        );
     }
 
     #[test]

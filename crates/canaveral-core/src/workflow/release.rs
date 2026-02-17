@@ -7,7 +7,7 @@ use crate::error::Result;
 use crate::types::{ReleaseResult, ReleaseType};
 
 /// Options for a release
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ReleaseOptions {
     /// Release type (major, minor, patch, etc.)
     pub release_type: Option<ReleaseType>,
@@ -27,22 +27,6 @@ pub struct ReleaseOptions {
     pub allow_branch: bool,
     /// Package to release (for monorepos)
     pub package: Option<String>,
-}
-
-impl Default for ReleaseOptions {
-    fn default() -> Self {
-        Self {
-            release_type: None,
-            version: None,
-            prerelease: None,
-            dry_run: false,
-            skip_changelog: false,
-            skip_publish: false,
-            skip_git: false,
-            allow_branch: false,
-            package: None,
-        }
-    }
 }
 
 impl ReleaseOptions {
@@ -97,7 +81,10 @@ impl<'a> ReleaseWorkflow<'a> {
         );
 
         let result = ReleaseResult::new(
-            self.config.name.clone().unwrap_or_else(|| "package".to_string()),
+            self.config
+                .name
+                .clone()
+                .unwrap_or_else(|| "package".to_string()),
             &version,
         )
         .with_release_type(release_type)

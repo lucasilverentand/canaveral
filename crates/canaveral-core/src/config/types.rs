@@ -7,6 +7,7 @@ use std::path::PathBuf;
 /// Main configuration for Canaveral
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct Config {
     /// Version of the config schema
     #[serde(rename = "$schema")]
@@ -66,29 +67,6 @@ pub struct Config {
     /// Git hooks configuration (commit-msg, pre-commit, pre-push)
     #[serde(default)]
     pub git_hooks: GitHooksConfig,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            schema: None,
-            name: None,
-            versioning: VersioningConfig::default(),
-            git: GitConfig::default(),
-            changelog: ChangelogConfig::default(),
-            packages: Vec::new(),
-            hooks: HooksConfig::default(),
-            publish: PublishConfig::default(),
-            signing: SigningConfig::default(),
-            stores: StoresConfig::default(),
-            metadata: MetadataConfig::default(),
-            tasks: TasksConfig::default(),
-            ci: CIConfig::default(),
-            pr: PrConfig::default(),
-            release_notes: ReleaseNotesConfig::default(),
-            git_hooks: GitHooksConfig::default(),
-        }
-    }
 }
 
 /// Versioning configuration
@@ -592,6 +570,7 @@ impl Default for GpgSigningConfig {
 /// App store and package registry configurations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct StoresConfig {
     /// Apple App Store / macOS configuration
     #[serde(default)]
@@ -612,18 +591,6 @@ pub struct StoresConfig {
     /// Crates.io registry configuration
     #[serde(default)]
     pub crates_io: Option<canaveral_stores::CratesIoConfig>,
-}
-
-impl Default for StoresConfig {
-    fn default() -> Self {
-        Self {
-            apple: None,
-            google_play: None,
-            microsoft: None,
-            npm: None,
-            crates_io: None,
-        }
-    }
 }
 
 /// Metadata management configuration
@@ -799,6 +766,7 @@ impl Default for TasksConfig {
 /// A task in the pipeline configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct PipelineTask {
     /// Shell command to execute
     pub command: Option<String>,
@@ -826,20 +794,6 @@ pub struct PipelineTask {
     /// Whether this is a persistent/long-running task
     #[serde(default)]
     pub persistent: bool,
-}
-
-impl Default for PipelineTask {
-    fn default() -> Self {
-        Self {
-            command: None,
-            depends_on: Vec::new(),
-            depends_on_packages: false,
-            outputs: Vec::new(),
-            inputs: Vec::new(),
-            env: HashMap::new(),
-            persistent: false,
-        }
-    }
 }
 
 /// Cache configuration
@@ -1024,6 +978,7 @@ impl Default for CommitMsgHookConfig {
 /// Script-based hook configuration (pre-commit, pre-push)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct ScriptHookConfig {
     /// Commands to run
     #[serde(default)]
@@ -1031,15 +986,6 @@ pub struct ScriptHookConfig {
 
     /// Whether to run commands in parallel
     pub parallel: bool,
-}
-
-impl Default for ScriptHookConfig {
-    fn default() -> Self {
-        Self {
-            commands: Vec::new(),
-            parallel: false,
-        }
-    }
 }
 
 #[cfg(test)]

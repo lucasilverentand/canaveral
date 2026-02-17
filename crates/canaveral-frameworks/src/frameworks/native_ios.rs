@@ -91,8 +91,8 @@ impl NativeIosAdapter {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let json: serde_json::Value = serde_json::from_str(&stdout)
-            .map_err(|e| FrameworkError::Context {
+        let json: serde_json::Value =
+            serde_json::from_str(&stdout).map_err(|e| FrameworkError::Context {
                 context: "parsing xcodebuild -list output".to_string(),
                 message: e.to_string(),
             })?;
@@ -149,7 +149,13 @@ impl NativeIosAdapter {
     }
 
     /// Find a file recursively up to max_depth
-    fn find_file_recursive(&self, path: &Path, filename: &str, max_depth: usize) -> Option<PathBuf> {
+    #[allow(clippy::only_used_in_recursion)]
+    fn find_file_recursive(
+        &self,
+        path: &Path,
+        filename: &str,
+        max_depth: usize,
+    ) -> Option<PathBuf> {
         if max_depth == 0 {
             return None;
         }
@@ -157,7 +163,12 @@ impl NativeIosAdapter {
         if let Ok(entries) = std::fs::read_dir(path) {
             for entry in entries.flatten() {
                 let entry_path = entry.path();
-                if entry_path.is_file() && entry_path.file_name().map(|n| n == filename).unwrap_or(false) {
+                if entry_path.is_file()
+                    && entry_path
+                        .file_name()
+                        .map(|n| n == filename)
+                        .unwrap_or(false)
+                {
                     // Skip build directories
                     let path_str = entry_path.to_string_lossy();
                     if !path_str.contains("DerivedData")
@@ -182,7 +193,9 @@ impl NativeIosAdapter {
                         && name != "Pods"
                         && name != "Carthage"
                     {
-                        if let Some(found) = self.find_file_recursive(&entry_path, filename, max_depth - 1) {
+                        if let Some(found) =
+                            self.find_file_recursive(&entry_path, filename, max_depth - 1)
+                        {
                             return Some(found);
                         }
                     }
@@ -202,9 +215,19 @@ impl NativeIosAdapter {
             BuildProfile::Release | BuildProfile::Profile => {
                 // Check if signing config specifies adhoc or enterprise
                 if let Some(ref signing) = ctx.signing {
-                    if signing.provisioning_profile.as_ref().map(|p| p.contains("AdHoc")).unwrap_or(false) {
+                    if signing
+                        .provisioning_profile
+                        .as_ref()
+                        .map(|p| p.contains("AdHoc"))
+                        .unwrap_or(false)
+                    {
                         "ad-hoc"
-                    } else if signing.provisioning_profile.as_ref().map(|p| p.contains("Enterprise")).unwrap_or(false) {
+                    } else if signing
+                        .provisioning_profile
+                        .as_ref()
+                        .map(|p| p.contains("Enterprise"))
+                        .unwrap_or(false)
+                    {
                         "enterprise"
                     } else {
                         "app-store"
@@ -223,25 +246,39 @@ impl NativeIosAdapter {
                 options.insert("teamID".to_string(), PlistValue::String(team_id.clone()));
             }
             if signing.automatic {
-                options.insert("signingStyle".to_string(), PlistValue::String("automatic".to_string()));
+                options.insert(
+                    "signingStyle".to_string(),
+                    PlistValue::String("automatic".to_string()),
+                );
             } else {
-                options.insert("signingStyle".to_string(), PlistValue::String("manual".to_string()));
+                options.insert(
+                    "signingStyle".to_string(),
+                    PlistValue::String("manual".to_string()),
+                );
                 if let Some(ref profile) = signing.provisioning_profile {
-                    options.insert("provisioningProfiles".to_string(), PlistValue::Dictionary({
-                        let mut profiles = plist::Dictionary::new();
-                        // Get bundle ID from context or Info.plist
-                        let bundle_id = ctx.config.get("bundle_id")
-                            .and_then(|v| v.as_str())
-                            .map(String::from)
-                            .unwrap_or_else(|| "com.example.app".to_string());
-                        profiles.insert(bundle_id, PlistValue::String(profile.clone()));
-                        profiles
-                    }));
+                    options.insert(
+                        "provisioningProfiles".to_string(),
+                        PlistValue::Dictionary({
+                            let mut profiles = plist::Dictionary::new();
+                            // Get bundle ID from context or Info.plist
+                            let bundle_id = ctx
+                                .config
+                                .get("bundle_id")
+                                .and_then(|v| v.as_str())
+                                .map(String::from)
+                                .unwrap_or_else(|| "com.example.app".to_string());
+                            profiles.insert(bundle_id, PlistValue::String(profile.clone()));
+                            profiles
+                        }),
+                    );
                 }
             }
         } else {
             // Default to automatic signing
-            options.insert("signingStyle".to_string(), PlistValue::String("automatic".to_string()));
+            options.insert(
+                "signingStyle".to_string(),
+                PlistValue::String("automatic".to_string()),
+            );
         }
 
         // Add common options
@@ -249,23 +286,24 @@ impl NativeIosAdapter {
         options.insert("uploadSymbols".to_string(), PlistValue::Boolean(true));
 
         let plist_value = PlistValue::Dictionary(options);
-        let file = std::fs::File::create(&export_options_path)
-            .map_err(|e| FrameworkError::Io(e))?;
-        plist::to_writer_xml(file, &plist_value)
-            .map_err(|e| FrameworkError::Context {
-                context: "writing ExportOptions.plist".to_string(),
-                message: e.to_string(),
-            })?;
+        let file = std::fs::File::create(&export_options_path).map_err(FrameworkError::Io)?;
+        plist::to_writer_xml(file, &plist_value).map_err(|e| FrameworkError::Context {
+            context: "writing ExportOptions.plist".to_string(),
+            message: e.to_string(),
+        })?;
 
         Ok(export_options_path)
     }
 
     /// Run xcodebuild command
-    fn run_xcodebuild(&self, args: &[&str], path: &Path, env: &HashMap<String, String>) -> Result<std::process::Output> {
+    fn run_xcodebuild(
+        &self,
+        args: &[&str],
+        path: &Path,
+        env: &HashMap<String, String>,
+    ) -> Result<std::process::Output> {
         let mut cmd = Command::new("xcodebuild");
-        cmd.args(args)
-            .current_dir(path)
-            .envs(env);
+        cmd.args(args).current_dir(path).envs(env);
 
         let output = cmd.output().map_err(|e| FrameworkError::CommandFailed {
             command: format!("xcodebuild {}", args.join(" ")),
@@ -282,31 +320,45 @@ impl NativeIosAdapter {
         let mut artifacts = Vec::new();
 
         // Check for IPA files
-        if let Some(ipa) = self.find_file_recursive(path, "*.ipa", 5)
-            .or_else(|| self.find_files_with_extension(path, "ipa").into_iter().next())
-        {
+        if let Some(ipa) = self.find_file_recursive(path, "*.ipa", 5).or_else(|| {
+            self.find_files_with_extension(path, "ipa")
+                .into_iter()
+                .next()
+        }) {
             let metadata = ArtifactMetadata::new()
                 .with_framework("native-ios")
                 .with_signed(true);
-            artifacts.push(Artifact::new(ipa, ArtifactKind::Ipa, Platform::Ios).with_metadata(metadata));
+            artifacts
+                .push(Artifact::new(ipa, ArtifactKind::Ipa, Platform::Ios).with_metadata(metadata));
         }
 
         // Check for xcarchive
         if is_archive {
-            if let Some(archive) = self.find_files_with_extension(path, "xcarchive").into_iter().next() {
+            if let Some(archive) = self
+                .find_files_with_extension(path, "xcarchive")
+                .into_iter()
+                .next()
+            {
                 let metadata = ArtifactMetadata::new().with_framework("native-ios");
-                artifacts.push(Artifact::new(archive, ArtifactKind::XcArchive, Platform::Ios).with_metadata(metadata));
+                artifacts.push(
+                    Artifact::new(archive, ArtifactKind::XcArchive, Platform::Ios)
+                        .with_metadata(metadata),
+                );
             }
         }
 
         // Check for app bundles
         for app in self.find_files_with_extension(path, "app") {
             // Skip if we already have an IPA
-            if artifacts.iter().any(|a| matches!(a.kind, ArtifactKind::Ipa)) {
+            if artifacts
+                .iter()
+                .any(|a| matches!(a.kind, ArtifactKind::Ipa))
+            {
                 continue;
             }
             let metadata = ArtifactMetadata::new().with_framework("native-ios");
-            artifacts.push(Artifact::new(app, ArtifactKind::App, Platform::Ios).with_metadata(metadata));
+            artifacts
+                .push(Artifact::new(app, ArtifactKind::App, Platform::Ios).with_metadata(metadata));
         }
 
         artifacts
@@ -338,20 +390,22 @@ impl NativeIosAdapter {
 
     /// Parse version from Info.plist
     fn parse_info_plist_version(&self, plist_path: &Path) -> Result<VersionInfo> {
-        let plist: plist::Dictionary = plist::from_file(plist_path)
-            .map_err(|e| FrameworkError::Context {
+        let plist: plist::Dictionary =
+            plist::from_file(plist_path).map_err(|e| FrameworkError::Context {
                 context: "parsing Info.plist".to_string(),
                 message: e.to_string(),
             })?;
 
-        let version = plist.get("CFBundleShortVersionString")
+        let version = plist
+            .get("CFBundleShortVersionString")
             .and_then(|v| v.as_string())
             .map(String::from)
             .ok_or_else(|| FrameworkError::VersionParseError {
                 message: "CFBundleShortVersionString not found in Info.plist".to_string(),
             })?;
 
-        let build_number = plist.get("CFBundleVersion")
+        let build_number = plist
+            .get("CFBundleVersion")
             .and_then(|v| v.as_string())
             .and_then(|s| s.parse::<u64>().ok());
 
@@ -364,8 +418,8 @@ impl NativeIosAdapter {
 
     /// Update version in Info.plist
     fn update_info_plist_version(&self, plist_path: &Path, version: &VersionInfo) -> Result<()> {
-        let mut plist: plist::Dictionary = plist::from_file(plist_path)
-            .map_err(|e| FrameworkError::Context {
+        let mut plist: plist::Dictionary =
+            plist::from_file(plist_path).map_err(|e| FrameworkError::Context {
                 context: "reading Info.plist".to_string(),
                 message: e.to_string(),
             })?;
@@ -382,13 +436,13 @@ impl NativeIosAdapter {
             );
         }
 
-        let file = std::fs::File::create(plist_path)
-            .map_err(|e| FrameworkError::Io(e))?;
-        plist::to_writer_xml(file, &PlistValue::Dictionary(plist))
-            .map_err(|e| FrameworkError::Context {
+        let file = std::fs::File::create(plist_path).map_err(FrameworkError::Io)?;
+        plist::to_writer_xml(file, &PlistValue::Dictionary(plist)).map_err(|e| {
+            FrameworkError::Context {
                 context: "writing Info.plist".to_string(),
                 message: e.to_string(),
-            })?;
+            }
+        })?;
 
         Ok(())
     }
@@ -507,7 +561,9 @@ impl BuildAdapter for NativeIosAdapter {
                     .ok()
                     .and_then(|o| {
                         if o.status.success() {
-                            String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                            String::from_utf8(o.stdout)
+                                .ok()
+                                .map(|s| s.trim().to_string())
                         } else {
                             None
                         }
@@ -535,7 +591,9 @@ impl BuildAdapter for NativeIosAdapter {
 
         // List and select scheme
         let schemes = self.list_schemes(path, &xcode_project)?;
-        let scheme = ctx.config.get("scheme")
+        let scheme = ctx
+            .config
+            .get("scheme")
             .and_then(|v| v.as_str())
             .map(String::from)
             .or_else(|| self.get_default_scheme(&schemes))
@@ -550,8 +608,11 @@ impl BuildAdapter for NativeIosAdapter {
         };
 
         // Output directory
-        let output_dir = ctx.output_dir.clone().unwrap_or_else(|| path.join("build/ios"));
-        std::fs::create_dir_all(&output_dir).map_err(|e| FrameworkError::Io(e))?;
+        let output_dir = ctx
+            .output_dir
+            .clone()
+            .unwrap_or_else(|| path.join("build/ios"));
+        std::fs::create_dir_all(&output_dir).map_err(FrameworkError::Io)?;
 
         let archive_path = output_dir.join(format!("{}.xcarchive", scheme));
         let export_path = output_dir.clone();
@@ -593,10 +654,14 @@ impl BuildAdapter for NativeIosAdapter {
         // Build archive
         let mut archive_args = vec![
             "archive",
-            "-scheme", &scheme,
-            "-configuration", configuration,
-            "-archivePath", archive_path.to_str().unwrap(),
-            "-destination", "generic/platform=iOS",
+            "-scheme",
+            &scheme,
+            "-configuration",
+            configuration,
+            "-archivePath",
+            archive_path.to_str().unwrap(),
+            "-destination",
+            "generic/platform=iOS",
             "-allowProvisioningUpdates",
         ];
 
@@ -646,9 +711,12 @@ impl BuildAdapter for NativeIosAdapter {
 
             let export_args = vec![
                 "-exportArchive",
-                "-archivePath", archive_path.to_str().unwrap(),
-                "-exportPath", export_path.to_str().unwrap(),
-                "-exportOptionsPlist", export_options.to_str().unwrap(),
+                "-archivePath",
+                archive_path.to_str().unwrap(),
+                "-exportPath",
+                export_path.to_str().unwrap(),
+                "-exportOptionsPlist",
+                export_options.to_str().unwrap(),
                 "-allowProvisioningUpdates",
             ];
 
@@ -685,13 +753,13 @@ impl BuildAdapter for NativeIosAdapter {
         // Clean DerivedData
         let derived_data = path.join("DerivedData");
         if derived_data.exists() {
-            std::fs::remove_dir_all(&derived_data).map_err(|e| FrameworkError::Io(e))?;
+            std::fs::remove_dir_all(&derived_data).map_err(FrameworkError::Io)?;
         }
 
         // Clean build directory
         let build_dir = path.join("build");
         if build_dir.exists() {
-            std::fs::remove_dir_all(&build_dir).map_err(|e| FrameworkError::Io(e))?;
+            std::fs::remove_dir_all(&build_dir).map_err(FrameworkError::Io)?;
         }
 
         // Run xcodebuild clean if project exists

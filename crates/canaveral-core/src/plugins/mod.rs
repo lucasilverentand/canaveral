@@ -247,9 +247,7 @@ impl PluginRegistry {
 
     /// Get a plugin by type and name
     pub fn get(&self, plugin_type: PluginType, name: &str) -> Option<&ExternalPlugin> {
-        self.plugins
-            .get(&plugin_type)
-            .and_then(|m| m.get(name))
+        self.plugins.get(&plugin_type).and_then(|m| m.get(name))
     }
 
     /// List plugins of a type
@@ -334,8 +332,7 @@ impl PluginRegistry {
                     .map_err(|e| CanaveralError::other(e.to_string()))?;
 
                 if let Some(output) = response.output {
-                    serde_json::from_value(output)
-                        .map_err(|e| CanaveralError::other(e.to_string()))
+                    serde_json::from_value(output).map_err(|e| CanaveralError::other(e.to_string()))
                 } else {
                     // Use fallback info
                     Ok(PluginInfo {
@@ -364,7 +361,10 @@ impl PluginRegistry {
 
     /// Discover plugins in search paths
     pub fn discover(&mut self) -> Result<Vec<PluginInfo>> {
-        info!(search_paths = self.search_paths.len(), "discovering plugins");
+        info!(
+            search_paths = self.search_paths.len(),
+            "discovering plugins"
+        );
         let mut discovered = Vec::new();
 
         for search_path in &self.search_paths.clone() {
@@ -420,7 +420,10 @@ impl PluginRegistry {
         }
 
         // Check for known extensions
-        matches!(extension, Some("exe") | Some("so") | Some("dylib") | Some("dll"))
+        matches!(
+            extension,
+            Some("exe") | Some("so") | Some("dylib") | Some("dll")
+        )
     }
 }
 

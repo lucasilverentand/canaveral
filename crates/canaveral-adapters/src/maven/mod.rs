@@ -128,7 +128,10 @@ impl PackageAdapter for MavenAdapter {
 
             // Alternative repository
             if let Some(ref registry) = options.registry {
-                cmd.arg(format!("-DaltDeploymentRepository=release::default::{}", registry));
+                cmd.arg(format!(
+                    "-DaltDeploymentRepository=release::default::{}",
+                    registry
+                ));
             }
 
             // Skip GPG signing if specified
@@ -140,12 +143,10 @@ impl PackageAdapter for MavenAdapter {
         // Batch mode (non-interactive)
         cmd.arg("-B");
 
-        let output = cmd
-            .output()
-            .map_err(|e| AdapterError::CommandFailed {
-                command: format!("{} deploy", mvn),
-                reason: e.to_string(),
-            })?;
+        let output = cmd.output().map_err(|e| AdapterError::CommandFailed {
+            command: format!("{} deploy", mvn),
+            reason: e.to_string(),
+        })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -193,7 +194,8 @@ impl PackageAdapter for MavenAdapter {
             result.add_error("version is not set");
         } else if let Some(ref v) = pom.version {
             if v.contains("SNAPSHOT") {
-                result.add_warning("Version contains SNAPSHOT - use release version for publishing");
+                result
+                    .add_warning("Version contains SNAPSHOT - use release version for publishing");
             }
         }
 

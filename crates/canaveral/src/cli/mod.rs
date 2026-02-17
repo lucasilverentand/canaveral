@@ -7,10 +7,11 @@ use clap::{Parser, Subcommand};
 use tracing::info;
 
 use commands::{
-    BuildCommand, CacheCommand, ChangelogCommand, CICommand, CompletionsCommand, DoctorCommand,
-    FirebaseCommand, HooksCommand, InitCommand, MatchCommand, MetadataCommand, PrCommand,
-    PublishCommand, ReleaseCommand, RunCommand, ScreenshotsCommand, SigningCommand, StatusCommand,
-    TestCommand, TestFlightCommand, ValidateCommand, VersionCommand,
+    BuildCommand, CICommand, CacheCommand, ChangelogCommand, CheckCommand, CompletionsCommand,
+    DoctorCommand, FirebaseCommand, FmtCommand, HooksCommand, InitCommand, LintCommand,
+    MatchCommand, MetadataCommand, PrCommand, PublishCommand, ReleaseCommand, RunCommand,
+    ScreenshotsCommand, SigningCommand, StatusCommand, TestCommand, TestFlightCommand,
+    ValidateCommand, VersionCommand,
 };
 
 /// Canaveral - Universal release management CLI
@@ -79,6 +80,15 @@ pub enum Commands {
     /// App store metadata management
     Metadata(MetadataCommand),
 
+    /// Format source code
+    Fmt(FmtCommand),
+
+    /// Run linter
+    Lint(LintCommand),
+
+    /// Run all checks (fmt, lint, test)
+    Check(CheckCommand),
+
     /// Build project for a platform
     Build(BuildCommand),
 
@@ -139,6 +149,9 @@ impl Cli {
             Commands::Signing(_) => "signing",
             Commands::Publish(_) => "publish",
             Commands::Metadata(_) => "metadata",
+            Commands::Fmt(_) => "fmt",
+            Commands::Lint(_) => "lint",
+            Commands::Check(_) => "check",
             Commands::Build(_) => "build",
             Commands::Completions(_) => "completions",
             Commands::Doctor(_) => "doctor",
@@ -153,7 +166,12 @@ impl Cli {
             Commands::Pr(_) => "pr",
             Commands::Hooks(_) => "hooks",
         };
-        info!(command = command_name, verbose = self.verbose, quiet = self.quiet, "executing command");
+        info!(
+            command = command_name,
+            verbose = self.verbose,
+            quiet = self.quiet,
+            "executing command"
+        );
 
         match self.command {
             Commands::Init(ref cmd) => cmd.execute(&self),
@@ -165,6 +183,9 @@ impl Cli {
             Commands::Signing(ref cmd) => cmd.execute(&self),
             Commands::Publish(ref cmd) => cmd.execute(&self),
             Commands::Metadata(ref cmd) => cmd.execute(&self),
+            Commands::Fmt(ref cmd) => cmd.execute(&self),
+            Commands::Lint(ref cmd) => cmd.execute(&self),
+            Commands::Check(ref cmd) => cmd.execute(&self),
             Commands::Build(ref cmd) => cmd.execute(&self),
             Commands::Completions(ref cmd) => cmd.execute(&self),
             Commands::Doctor(ref cmd) => cmd.execute(&self),

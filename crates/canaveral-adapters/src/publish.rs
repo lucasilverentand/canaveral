@@ -164,7 +164,10 @@ mod tests {
             .otp("123456");
 
         assert!(opts.dry_run);
-        assert_eq!(opts.registry, Some("https://custom.registry.com".to_string()));
+        assert_eq!(
+            opts.registry,
+            Some("https://custom.registry.com".to_string())
+        );
         assert_eq!(opts.access, Some(PublishAccess::Restricted));
         assert_eq!(opts.tag, Some("beta".to_string()));
         assert_eq!(opts.otp, Some("123456".to_string()));

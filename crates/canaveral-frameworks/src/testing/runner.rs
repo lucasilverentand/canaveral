@@ -10,7 +10,7 @@ use tracing::{debug, info, instrument};
 use crate::context::TestContext;
 use crate::error::{FrameworkError, Result};
 use crate::registry::FrameworkRegistry;
-use crate::traits::{TestAdapter, TestReport, TestCase, TestStatus, TestSuite};
+use crate::traits::{TestAdapter, TestCase, TestReport, TestStatus, TestSuite};
 
 /// Configuration for the test runner
 #[derive(Debug, Clone, Default)]
@@ -86,8 +86,7 @@ impl TestRunner {
         // Check prerequisites
         let prereqs = adapter.check_prerequisites().await?;
         if !prereqs.satisfied {
-            let missing = prereqs.tools.iter()
-                .find(|t| !t.available);
+            let missing = prereqs.tools.iter().find(|t| !t.available);
 
             if let Some(tool) = missing {
                 return Err(FrameworkError::ToolNotFound {
@@ -124,13 +123,19 @@ impl TestRunner {
                         break;
                     }
 
-                    info!("Test failures detected, retrying ({}/{})", attempts, max_attempts);
+                    info!(
+                        "Test failures detected, retrying ({}/{})",
+                        attempts, max_attempts
+                    );
                 }
                 Err(e) => {
                     if attempts >= max_attempts {
                         return Err(e);
                     }
-                    info!("Test run failed, retrying ({}/{}): {}", attempts, max_attempts, e);
+                    info!(
+                        "Test run failed, retrying ({}/{}): {}",
+                        attempts, max_attempts, e
+                    );
                 }
             }
         }
@@ -156,11 +161,12 @@ impl TestRunner {
     fn find_adapter(&self, path: &Path) -> Result<&dyn TestAdapter> {
         // If specific adapter requested, use that
         if let Some(ref adapter_id) = self.config.adapter_id {
-            return self.registry.get_test_adapter(adapter_id)
-                .ok_or_else(|| FrameworkError::Context {
+            return self.registry.get_test_adapter(adapter_id).ok_or_else(|| {
+                FrameworkError::Context {
                     context: "adapter resolution".to_string(),
                     message: format!("Unknown test adapter: {}", adapter_id),
-                });
+                }
+            });
         }
 
         // Auto-detect
@@ -178,7 +184,10 @@ impl TestRunner {
         }
 
         if let Some((adapter, confidence)) = best_match {
-            debug!(adapter = adapter.name(), confidence, "test adapter detected");
+            debug!(
+                adapter = adapter.name(),
+                confidence, "test adapter detected"
+            );
         }
 
         best_match

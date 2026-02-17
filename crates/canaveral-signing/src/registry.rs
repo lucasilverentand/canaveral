@@ -58,7 +58,10 @@ impl SigningProviderRegistry {
 
     /// Get provider names
     pub fn names(&self) -> Vec<String> {
-        self.providers.iter().map(|p| p.name().to_string()).collect()
+        self.providers
+            .iter()
+            .map(|p| p.name().to_string())
+            .collect()
     }
 
     /// Get only providers that are available on the current system

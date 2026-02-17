@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 /// Configuration for the commit parser
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ParserConfig {
     /// Commit types to include
     pub include_types: HashSet<String>,
@@ -13,17 +13,6 @@ pub struct ParserConfig {
     pub include_untyped: bool,
     /// Whether to include merge commits
     pub include_merges: bool,
-}
-
-impl Default for ParserConfig {
-    fn default() -> Self {
-        Self {
-            include_types: HashSet::new(),
-            exclude_types: HashSet::new(),
-            include_untyped: false,
-            include_merges: false,
-        }
-    }
 }
 
 impl ParserConfig {

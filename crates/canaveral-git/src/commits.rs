@@ -46,7 +46,10 @@ impl GitRepo {
         let target = reference.peel_to_commit()?;
 
         let commits = self.commits_since_oid(target.id())?;
-        debug!(count = commits.len(), tag_name, "retrieved commits since tag");
+        debug!(
+            count = commits.len(),
+            tag_name, "retrieved commits since tag"
+        );
         Ok(commits)
     }
 
@@ -88,7 +91,11 @@ impl GitRepo {
             commits.push(commit_to_info(&commit));
         }
 
-        debug!(requested = count, returned = commits.len(), "retrieved recent commits");
+        debug!(
+            requested = count,
+            returned = commits.len(),
+            "retrieved recent commits"
+        );
         Ok(commits)
     }
 
@@ -105,10 +112,7 @@ fn commit_to_info(commit: &git2::Commit<'_>) -> CommitInfo {
     let hash = commit.id().to_string();
     let author = commit.author();
 
-    let message = commit
-        .summary()
-        .unwrap_or("(no message)")
-        .to_string();
+    let message = commit.summary().unwrap_or("(no message)").to_string();
 
     let body = commit.body().map(|b| b.to_string());
 

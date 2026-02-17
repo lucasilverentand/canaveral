@@ -113,9 +113,7 @@ impl SemanticReleaseMigrator {
         for plugin in plugins {
             let plugin_name = match plugin {
                 serde_json::Value::String(s) => s.as_str(),
-                serde_json::Value::Array(arr) if !arr.is_empty() => {
-                    arr[0].as_str().unwrap_or("")
-                }
+                serde_json::Value::Array(arr) if !arr.is_empty() => arr[0].as_str().unwrap_or(""),
                 _ => continue,
             };
 
@@ -133,12 +131,9 @@ impl SemanticReleaseMigrator {
                     // This is handled by changelog generation
                 }
                 "@semantic-release/exec" => {
-                    result.warn(
-                        "exec plugin detected - use canaveral hooks for custom commands",
-                    );
-                    result.manual_step(
-                        "Convert @semantic-release/exec commands to canaveral hooks",
-                    );
+                    result.warn("exec plugin detected - use canaveral hooks for custom commands");
+                    result
+                        .manual_step("Convert @semantic-release/exec commands to canaveral hooks");
                 }
                 name if name.starts_with("@semantic-release/") => {
                     result.unsupported(format!("Plugin {} has no direct equivalent", name));
@@ -235,8 +230,7 @@ impl Migrator for SemanticReleaseMigrator {
 
         // Analyze plugins
         if let Some(ref plugins) = sr_config.plugins {
-            let (has_changelog, has_npm, _has_github) =
-                self.analyze_plugins(plugins, &mut result);
+            let (has_changelog, has_npm, _has_github) = self.analyze_plugins(plugins, &mut result);
 
             config.changelog.enabled = has_changelog;
 

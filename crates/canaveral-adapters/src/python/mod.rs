@@ -7,7 +7,7 @@ use tracing::{debug, info};
 
 use canaveral_core::error::{AdapterError, Result};
 use canaveral_core::types::PackageInfo;
-use toml_edit::{DocumentMut, value};
+use toml_edit::{value, DocumentMut};
 
 use crate::credentials::CredentialProvider;
 use crate::publish::{PublishOptions, ValidationResult};
@@ -63,16 +63,12 @@ impl PythonAdapter {
 
     /// Check if project has readme
     fn has_readme(&self, doc: &DocumentMut) -> bool {
-        doc.get("project")
-            .and_then(|p| p.get("readme"))
-            .is_some()
+        doc.get("project").and_then(|p| p.get("readme")).is_some()
     }
 
     /// Check if project has license
     fn has_license(&self, doc: &DocumentMut) -> bool {
-        doc.get("project")
-            .and_then(|p| p.get("license"))
-            .is_some()
+        doc.get("project").and_then(|p| p.get("license")).is_some()
     }
 
     /// Get the dist directory
@@ -121,9 +117,9 @@ impl PackageAdapter for PythonAdapter {
         let manifest_path = self.manifest_path(path);
         let doc = self.load_manifest(&manifest_path)?;
 
-        let name = self.get_name(&doc).ok_or_else(|| {
-            AdapterError::ManifestParseError("No project.name found".to_string())
-        })?;
+        let name = self
+            .get_name(&doc)
+            .ok_or_else(|| AdapterError::ManifestParseError("No project.name found".to_string()))?;
 
         let version = self.get_version_from_doc(&doc).ok_or_else(|| {
             AdapterError::ManifestParseError("No project.version found".to_string())
@@ -154,9 +150,9 @@ impl PackageAdapter for PythonAdapter {
         let content = std::fs::read_to_string(&manifest_path)
             .map_err(|_| AdapterError::ManifestNotFound(manifest_path.clone()))?;
 
-        let mut doc: DocumentMut = content.parse().map_err(|e: toml_edit::TomlError| {
-            AdapterError::ManifestParseError(e.to_string())
-        })?;
+        let mut doc: DocumentMut = content
+            .parse()
+            .map_err(|e: toml_edit::TomlError| AdapterError::ManifestParseError(e.to_string()))?;
 
         if let Some(project) = doc.get_mut("project") {
             if let Some(table) = project.as_table_mut() {
@@ -218,7 +214,11 @@ impl PackageAdapter for PythonAdapter {
         }
 
         // Skip existing (useful for retries)
-        if options.extra.get("skip_existing").is_some_and(|v| v == "true") {
+        if options
+            .extra
+            .get("skip_existing")
+            .is_some_and(|v| v == "true")
+        {
             cmd.arg("--skip-existing");
         }
 
@@ -302,9 +302,7 @@ impl PackageAdapter for PythonAdapter {
         }
 
         // Check that required tools are available
-        let python_check = Command::new("python")
-            .args(["--version"])
-            .output();
+        let python_check = Command::new("python").args(["--version"]).output();
         if python_check.is_err() {
             result.add_error("Python is not available");
         }
@@ -316,9 +314,7 @@ impl PackageAdapter for PythonAdapter {
             result.add_warning("python-build is not installed (pip install build)");
         }
 
-        let twine_check = Command::new("twine")
-            .args(["--version"])
-            .output();
+        let twine_check = Command::new("twine").args(["--version"]).output();
         if twine_check.is_err() || !twine_check.unwrap().status.success() {
             result.add_warning("twine is not installed (pip install twine)");
         }
@@ -351,6 +347,53 @@ impl PackageAdapter for PythonAdapter {
         }
 
         Ok(false)
+    }
+
+    fn fmt(&self, path: &Path, check: bool) -> Result<()> {
+        let mut cmd = Command::new("ruff");
+        cmd.arg("format").current_dir(path);
+        if check {
+            cmd.arg("--check");
+        }
+        cmd.arg(".");
+
+        let output = cmd.output().map_err(|e| AdapterError::CommandFailed {
+            command: "ruff format".to_string(),
+            reason: e.to_string(),
+        })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AdapterError::CommandFailed {
+                command: "ruff format".to_string(),
+                reason: stderr.to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
+    }
+
+    fn lint(&self, path: &Path) -> Result<()> {
+        let output = Command::new("ruff")
+            .args(["check", "."])
+            .current_dir(path)
+            .output()
+            .map_err(|e| AdapterError::CommandFailed {
+                command: "ruff check".to_string(),
+                reason: e.to_string(),
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AdapterError::CommandFailed {
+                command: "ruff check".to_string(),
+                reason: stderr.to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
     }
 
     fn build(&self, path: &Path) -> Result<()> {

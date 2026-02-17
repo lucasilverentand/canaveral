@@ -7,10 +7,8 @@ use console::style;
 use tracing::info;
 
 use canaveral_frameworks::{
-    BuildContext, Orchestrator, OrchestratorConfig,
+    context::BuildProfile, traits::Platform, BuildContext, Orchestrator, OrchestratorConfig,
     OutputFormat as FrameworkOutputFormat,
-    context::BuildProfile,
-    traits::Platform,
 };
 
 use crate::cli::{Cli, OutputFormat};
@@ -223,10 +221,7 @@ impl BuildCommand {
 
         // Pass extra args to framework config
         if !self.extra_args.is_empty() {
-            ctx = ctx.with_config(
-                "extra_args",
-                serde_json::json!(self.extra_args),
-            );
+            ctx = ctx.with_config("extra_args", serde_json::json!(self.extra_args));
         }
 
         // Create orchestrator with config
@@ -281,10 +276,7 @@ impl BuildCommand {
         if exit_code != 0 {
             if cli.format == OutputFormat::Text && !cli.quiet {
                 println!();
-                println!(
-                    "{} Build failed",
-                    style("✗").red().bold()
-                );
+                println!("{} Build failed", style("✗").red().bold());
             }
             std::process::exit(exit_code);
         }
@@ -347,15 +339,30 @@ mod tests {
     #[test]
     fn test_platform_conversion() {
         assert!(matches!(Platform::from(PlatformArg::Ios), Platform::Ios));
-        assert!(matches!(Platform::from(PlatformArg::Android), Platform::Android));
-        assert!(matches!(Platform::from(PlatformArg::MacOs), Platform::MacOs));
+        assert!(matches!(
+            Platform::from(PlatformArg::Android),
+            Platform::Android
+        ));
+        assert!(matches!(
+            Platform::from(PlatformArg::MacOs),
+            Platform::MacOs
+        ));
     }
 
     #[test]
     fn test_profile_conversion() {
-        assert!(matches!(BuildProfile::from(ProfileArg::Debug), BuildProfile::Debug));
-        assert!(matches!(BuildProfile::from(ProfileArg::Release), BuildProfile::Release));
-        assert!(matches!(BuildProfile::from(ProfileArg::Profile), BuildProfile::Profile));
+        assert!(matches!(
+            BuildProfile::from(ProfileArg::Debug),
+            BuildProfile::Debug
+        ));
+        assert!(matches!(
+            BuildProfile::from(ProfileArg::Release),
+            BuildProfile::Release
+        ));
+        assert!(matches!(
+            BuildProfile::from(ProfileArg::Profile),
+            BuildProfile::Profile
+        ));
     }
 
     #[test]

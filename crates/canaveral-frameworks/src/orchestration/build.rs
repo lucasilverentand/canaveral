@@ -153,7 +153,10 @@ impl BuildOrchestrator {
                 if let Some(artifact) = result.artifacts.first() {
                     output = output
                         .with_output("artifact_path", artifact.path.to_string_lossy())
-                        .with_output("artifact_kind", format!("{:?}", artifact.kind).to_lowercase());
+                        .with_output(
+                            "artifact_kind",
+                            format!("{:?}", artifact.kind).to_lowercase(),
+                        );
 
                     if let Some(ref sha) = artifact.sha256 {
                         output = output.with_output("artifact_sha256", sha);
@@ -187,11 +190,7 @@ impl BuildOrchestrator {
         let status = adapter.check_prerequisites().await?;
 
         if !status.satisfied {
-            let missing: Vec<_> = status
-                .tools
-                .iter()
-                .filter(|t| !t.available)
-                .collect();
+            let missing: Vec<_> = status.tools.iter().filter(|t| !t.available).collect();
 
             if !missing.is_empty() {
                 let details: Vec<_> = missing
@@ -201,10 +200,7 @@ impl BuildOrchestrator {
 
                 return Err(FrameworkError::Context {
                     context: "prerequisites".to_string(),
-                    message: format!(
-                        "Missing required tools:\n{}",
-                        details.join("\n")
-                    ),
+                    message: format!("Missing required tools:\n{}", details.join("\n")),
                 });
             }
         }
@@ -242,7 +238,9 @@ pub struct MultiBuildOutput {
 /// Build hooks for extensibility
 #[derive(Default)]
 pub struct BuildHooks {
+    #[allow(clippy::type_complexity)]
     pre_build: Option<Box<dyn Fn(&BuildContext) -> Result<()> + Send + Sync>>,
+    #[allow(clippy::type_complexity)]
     post_build: Option<Box<dyn Fn(&BuildContext, &[Artifact]) -> Result<()> + Send + Sync>>,
 }
 

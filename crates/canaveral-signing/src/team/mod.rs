@@ -33,7 +33,7 @@ mod roles;
 mod types;
 mod vault;
 
-pub use audit::{AuditEntry, AuditLog, AuditAction};
+pub use audit::{AuditAction, AuditEntry, AuditLog};
 pub use encryption::{decrypt_data, encrypt_data, generate_keypair, KeyPair};
 pub use roles::{Permission, Role, RolePermissions};
 pub use types::{CredentialData, Member, StoredIdentity, VaultConfig, VaultMetadata};

@@ -15,12 +15,14 @@ pub mod workflow;
 
 pub use error::{CanaveralError, HookError, Result};
 pub use hooks::{Hook, HookContext, HookRunner, HookStage, HooksConfig};
-pub use plugins::{ExternalPlugin, PluginConfig, PluginInfo, PluginRegistry, PluginType};
 pub use migration::{
-    auto_migrate, detect_tool, MigrationResult, MigrationSource, Migrator,
-    MigratorRegistry, ReleasePleaseMigrator, SemanticReleaseMigrator,
+    auto_migrate, detect_tool, MigrationResult, MigrationSource, Migrator, MigratorRegistry,
+    ReleasePleaseMigrator, SemanticReleaseMigrator,
 };
 pub use monorepo::detector::{WorkspaceDetector, WorkspaceDetectorRegistry};
 pub use monorepo::publishing::PublishCallbackRegistry;
-pub use templates::{CITemplate, CITemplateRegistry, GitHubActionsTemplate, GitLabCITemplate, TemplateOptions};
+pub use plugins::{ExternalPlugin, PluginConfig, PluginInfo, PluginRegistry, PluginType};
+pub use templates::{
+    CITemplate, CITemplateRegistry, GitHubActionsTemplate, GitLabCITemplate, TemplateOptions,
+};
 pub use types::{ReleaseResult, ReleaseType};

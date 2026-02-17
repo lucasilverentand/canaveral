@@ -37,7 +37,11 @@ impl DiscoveredPackage {
         Self {
             name: info.name,
             version: info.version,
-            path: info.manifest_path.parent().unwrap_or(Path::new(".")).to_path_buf(),
+            path: info
+                .manifest_path
+                .parent()
+                .unwrap_or(Path::new("."))
+                .to_path_buf(),
             manifest_path: info.manifest_path,
             package_type: info.package_type,
             private: info.private,
@@ -72,28 +76,34 @@ impl PackageDiscovery {
             let full_pattern = if pattern == "." {
                 self.workspace.root.to_string_lossy().to_string()
             } else {
-                self.workspace.root.join(pattern).to_string_lossy().to_string()
+                self.workspace
+                    .root
+                    .join(pattern)
+                    .to_string_lossy()
+                    .to_string()
             };
 
             // Get the manifest file name based on workspace type
             let manifest_name = self.manifest_name();
 
-            for entry in glob(&full_pattern).map_err(|e| {
-                crate::error::ConfigError::InvalidValue {
+            for entry in
+                glob(&full_pattern).map_err(|e| crate::error::ConfigError::InvalidValue {
                     field: "package_patterns".to_string(),
                     message: e.to_string(),
-                }
-            })? {
-                let path = entry.map_err(|e| {
-                    crate::error::ConfigError::InvalidValue {
-                        field: "package_patterns".to_string(),
-                        message: e.to_string(),
-                    }
+                })?
+            {
+                let path = entry.map_err(|e| crate::error::ConfigError::InvalidValue {
+                    field: "package_patterns".to_string(),
+                    message: e.to_string(),
                 })?;
 
                 let manifest_path = if path.is_dir() {
                     path.join(manifest_name)
-                } else if path.file_name().map(|f| f == manifest_name).unwrap_or(false) {
+                } else if path
+                    .file_name()
+                    .map(|f| f == manifest_name)
+                    .unwrap_or(false)
+                {
                     path.clone()
                 } else {
                     continue;
@@ -122,8 +132,12 @@ impl PackageDiscovery {
     fn manifest_name(&self) -> &'static str {
         match self.workspace.workspace_type {
             WorkspaceType::Cargo => "Cargo.toml",
-            WorkspaceType::Npm | WorkspaceType::Yarn | WorkspaceType::Pnpm |
-            WorkspaceType::Lerna | WorkspaceType::Turbo | WorkspaceType::Nx => "package.json",
+            WorkspaceType::Npm
+            | WorkspaceType::Yarn
+            | WorkspaceType::Pnpm
+            | WorkspaceType::Lerna
+            | WorkspaceType::Turbo
+            | WorkspaceType::Nx => "package.json",
             WorkspaceType::Python => "pyproject.toml",
             WorkspaceType::Custom => "canaveral.toml",
         }
@@ -133,10 +147,12 @@ impl PackageDiscovery {
     fn parse_package(&self, manifest_path: &Path) -> Result<Option<DiscoveredPackage>> {
         match self.workspace.workspace_type {
             WorkspaceType::Cargo => self.parse_cargo_package(manifest_path),
-            WorkspaceType::Npm | WorkspaceType::Yarn | WorkspaceType::Pnpm |
-            WorkspaceType::Lerna | WorkspaceType::Turbo | WorkspaceType::Nx => {
-                self.parse_npm_package(manifest_path)
-            }
+            WorkspaceType::Npm
+            | WorkspaceType::Yarn
+            | WorkspaceType::Pnpm
+            | WorkspaceType::Lerna
+            | WorkspaceType::Turbo
+            | WorkspaceType::Nx => self.parse_npm_package(manifest_path),
             WorkspaceType::Python => self.parse_python_package(manifest_path),
             WorkspaceType::Custom => Ok(None),
         }
@@ -161,7 +177,10 @@ impl PackageDiscovery {
         let cargo: CargoToml = toml::from_str(&content)?;
 
         if let Some(package) = cargo.package {
-            let path = manifest_path.parent().unwrap_or(Path::new(".")).to_path_buf();
+            let path = manifest_path
+                .parent()
+                .unwrap_or(Path::new("."))
+                .to_path_buf();
             return Ok(Some(DiscoveredPackage {
                 name: package.name,
                 version: package.version,
@@ -190,7 +209,10 @@ impl PackageDiscovery {
         let pkg: PackageJson = serde_json::from_str(&content)?;
 
         if let (Some(name), Some(version)) = (pkg.name, pkg.version) {
-            let path = manifest_path.parent().unwrap_or(Path::new(".")).to_path_buf();
+            let path = manifest_path
+                .parent()
+                .unwrap_or(Path::new("."))
+                .to_path_buf();
             return Ok(Some(DiscoveredPackage {
                 name,
                 version,
@@ -224,7 +246,10 @@ impl PackageDiscovery {
 
         if let Some(project) = pyproj.project {
             let version = project.version.unwrap_or_else(|| "0.0.0".to_string());
-            let path = manifest_path.parent().unwrap_or(Path::new(".")).to_path_buf();
+            let path = manifest_path
+                .parent()
+                .unwrap_or(Path::new("."))
+                .to_path_buf();
             return Ok(Some(DiscoveredPackage {
                 name: project.name,
                 version,
@@ -240,20 +265,30 @@ impl PackageDiscovery {
     }
 
     /// Find workspace dependencies for a package
-    fn find_workspace_deps(&self, pkg: &DiscoveredPackage, all_names: &[String]) -> Result<Vec<String>> {
+    fn find_workspace_deps(
+        &self,
+        pkg: &DiscoveredPackage,
+        all_names: &[String],
+    ) -> Result<Vec<String>> {
         match self.workspace.workspace_type {
             WorkspaceType::Cargo => self.find_cargo_workspace_deps(&pkg.manifest_path, all_names),
-            WorkspaceType::Npm | WorkspaceType::Yarn | WorkspaceType::Pnpm |
-            WorkspaceType::Lerna | WorkspaceType::Turbo | WorkspaceType::Nx => {
-                self.find_npm_workspace_deps(&pkg.manifest_path, all_names)
-            }
+            WorkspaceType::Npm
+            | WorkspaceType::Yarn
+            | WorkspaceType::Pnpm
+            | WorkspaceType::Lerna
+            | WorkspaceType::Turbo
+            | WorkspaceType::Nx => self.find_npm_workspace_deps(&pkg.manifest_path, all_names),
             WorkspaceType::Python => self.find_python_workspace_deps(&pkg.manifest_path, all_names),
             WorkspaceType::Custom => Ok(Vec::new()),
         }
     }
 
     /// Find Cargo workspace dependencies
-    fn find_cargo_workspace_deps(&self, manifest_path: &Path, all_names: &[String]) -> Result<Vec<String>> {
+    fn find_cargo_workspace_deps(
+        &self,
+        manifest_path: &Path,
+        all_names: &[String],
+    ) -> Result<Vec<String>> {
         let content = std::fs::read_to_string(manifest_path)?;
 
         #[derive(Deserialize)]
@@ -269,12 +304,17 @@ impl PackageDiscovery {
 
         let mut deps = Vec::new();
 
-        for dep_section in [cargo.dependencies, cargo.dev_dependencies, cargo.build_dependencies] {
-            if let Some(section) = dep_section {
-                for name in section.keys() {
-                    if all_names.contains(name) {
-                        deps.push(name.clone());
-                    }
+        for section in [
+            cargo.dependencies,
+            cargo.dev_dependencies,
+            cargo.build_dependencies,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            for name in section.keys() {
+                if all_names.contains(name) {
+                    deps.push(name.clone());
                 }
             }
         }
@@ -285,7 +325,11 @@ impl PackageDiscovery {
     }
 
     /// Find npm workspace dependencies
-    fn find_npm_workspace_deps(&self, manifest_path: &Path, all_names: &[String]) -> Result<Vec<String>> {
+    fn find_npm_workspace_deps(
+        &self,
+        manifest_path: &Path,
+        all_names: &[String],
+    ) -> Result<Vec<String>> {
         let content = std::fs::read_to_string(manifest_path)?;
 
         #[derive(Deserialize)]
@@ -301,12 +345,17 @@ impl PackageDiscovery {
 
         let mut deps = Vec::new();
 
-        for dep_section in [pkg.dependencies, pkg.dev_dependencies, pkg.peer_dependencies] {
-            if let Some(section) = dep_section {
-                for name in section.keys() {
-                    if all_names.contains(name) {
-                        deps.push(name.clone());
-                    }
+        for section in [
+            pkg.dependencies,
+            pkg.dev_dependencies,
+            pkg.peer_dependencies,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            for name in section.keys() {
+                if all_names.contains(name) {
+                    deps.push(name.clone());
                 }
             }
         }
@@ -317,7 +366,11 @@ impl PackageDiscovery {
     }
 
     /// Find Python workspace dependencies
-    fn find_python_workspace_deps(&self, manifest_path: &Path, all_names: &[String]) -> Result<Vec<String>> {
+    fn find_python_workspace_deps(
+        &self,
+        manifest_path: &Path,
+        all_names: &[String],
+    ) -> Result<Vec<String>> {
         let content = std::fs::read_to_string(manifest_path)?;
 
         #[derive(Deserialize)]
@@ -458,6 +511,8 @@ pkg-a = { path = "../pkg-a" }
         assert_eq!(packages.len(), 2);
 
         let utils = packages.iter().find(|p| p.name == "@my/utils").unwrap();
-        assert!(utils.workspace_dependencies.contains(&"@my/core".to_string()));
+        assert!(utils
+            .workspace_dependencies
+            .contains(&"@my/core".to_string()));
     }
 }

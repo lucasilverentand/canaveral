@@ -48,7 +48,11 @@ impl AdapterRegistry {
     /// Get adapter by name
     pub fn get(&self, name: &str) -> Option<Arc<dyn PackageAdapter>> {
         let result = self.adapters.iter().find(|a| a.name() == name).cloned();
-        debug!(adapter = name, found = result.is_some(), "adapter lookup by name");
+        debug!(
+            adapter = name,
+            found = result.is_some(),
+            "adapter lookup by name"
+        );
         result
     }
 

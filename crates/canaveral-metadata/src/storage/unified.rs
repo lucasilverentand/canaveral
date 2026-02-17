@@ -61,9 +61,8 @@
 use super::MetadataStorage;
 use crate::{
     AppleAgeRating, AppleCategory, AppleLocalizedMetadata, AppleMetadata, AppleScreenshotSet,
-    GooglePlayCategory, GooglePlayContentRating, GooglePlayLocalizedMetadata,
-    GooglePlayMetadata, GooglePlayScreenshotSet, Locale, MetadataError, Platform,
-    Result,
+    GooglePlayCategory, GooglePlayContentRating, GooglePlayLocalizedMetadata, GooglePlayMetadata,
+    GooglePlayScreenshotSet, Locale, MetadataError, Platform, Result,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -120,7 +119,8 @@ impl UnifiedStorage {
             Platform::Crates => "crates",
             Platform::PyPI => "pypi",
         };
-        self.base_path.join(format!("{}.{}.yaml", app_id, platform_suffix))
+        self.base_path
+            .join(format!("{}.{}.yaml", app_id, platform_suffix))
     }
 
     /// Get path to assets directory for an app.
@@ -400,31 +400,35 @@ impl From<UnifiedAppleMetadata> for AppleMetadata {
 
         let mut localizations = HashMap::new();
         for (locale_code, loc) in unified.localizations {
-            localizations.insert(locale_code, AppleLocalizedMetadata {
-                name: loc.name,
-                subtitle: loc.subtitle,
-                description: loc.description,
-                keywords: loc.keywords,
-                whats_new: loc.whats_new,
-                promotional_text: loc.promotional_text,
-                support_url: loc.support_url,
-                marketing_url: loc.marketing_url,
-                privacy_policy_url: loc.privacy_policy_url,
-            });
+            localizations.insert(
+                locale_code,
+                AppleLocalizedMetadata {
+                    name: loc.name,
+                    subtitle: loc.subtitle,
+                    description: loc.description,
+                    keywords: loc.keywords,
+                    whats_new: loc.whats_new,
+                    promotional_text: loc.promotional_text,
+                    support_url: loc.support_url,
+                    marketing_url: loc.marketing_url,
+                    privacy_policy_url: loc.privacy_policy_url,
+                },
+            );
         }
 
-        let (category, secondary_category) = unified.category.map_or((None, None), |cat| {
-            (cat.primary, cat.secondary)
-        });
+        let (category, secondary_category) = unified
+            .category
+            .map_or((None, None), |cat| (cat.primary, cat.secondary));
 
         // Convert screenshot paths to MediaAssets
         // For now, we just track the paths; a full implementation would
         // aggregate screenshots across locales or handle locale-specific sets
         let screenshots = AppleScreenshotSet::default();
 
-        let icon = unified.assets.as_ref().and_then(|a| {
-            a.icon.as_ref().map(|p| PathBuf::from(p))
-        });
+        let icon = unified
+            .assets
+            .as_ref()
+            .and_then(|a| a.icon.as_ref().map(PathBuf::from));
 
         AppleMetadata {
             bundle_id: unified.app_id,
@@ -477,7 +481,10 @@ impl From<&AppleMetadata> for UnifiedAppleMetadata {
             .collect();
 
         let assets = Some(UnifiedAppleAssets {
-            icon: metadata.icon.as_ref().map(|p| p.to_string_lossy().to_string()),
+            icon: metadata
+                .icon
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string()),
             screenshots: HashMap::new(), // Screenshots would be populated separately
             previews: HashMap::new(),
         });
@@ -508,30 +515,37 @@ impl From<UnifiedGooglePlayMetadata> for GooglePlayMetadata {
 
         let mut localizations = HashMap::new();
         for (locale_code, loc) in unified.localizations {
-            localizations.insert(locale_code, GooglePlayLocalizedMetadata {
-                title: loc.title,
-                short_description: loc.short_description,
-                full_description: loc.full_description,
-                changelogs: loc.changelogs,
-                video_url: loc.video_url,
-            });
+            localizations.insert(
+                locale_code,
+                GooglePlayLocalizedMetadata {
+                    title: loc.title,
+                    short_description: loc.short_description,
+                    full_description: loc.full_description,
+                    changelogs: loc.changelogs,
+                    video_url: loc.video_url,
+                },
+            );
         }
 
-        let icon = unified.assets.as_ref().and_then(|a| {
-            a.icon.as_ref().map(|p| PathBuf::from(p))
-        });
+        let icon = unified
+            .assets
+            .as_ref()
+            .and_then(|a| a.icon.as_ref().map(PathBuf::from));
 
-        let feature_graphic = unified.assets.as_ref().and_then(|a| {
-            a.feature_graphic.as_ref().map(|p| PathBuf::from(p))
-        });
+        let feature_graphic = unified
+            .assets
+            .as_ref()
+            .and_then(|a| a.feature_graphic.as_ref().map(PathBuf::from));
 
-        let promo_graphic = unified.assets.as_ref().and_then(|a| {
-            a.promo_graphic.as_ref().map(|p| PathBuf::from(p))
-        });
+        let promo_graphic = unified
+            .assets
+            .as_ref()
+            .and_then(|a| a.promo_graphic.as_ref().map(PathBuf::from));
 
-        let tv_banner = unified.assets.as_ref().and_then(|a| {
-            a.tv_banner.as_ref().map(|p| PathBuf::from(p))
-        });
+        let tv_banner = unified
+            .assets
+            .as_ref()
+            .and_then(|a| a.tv_banner.as_ref().map(PathBuf::from));
 
         GooglePlayMetadata {
             package_name: unified.app_id,
@@ -572,10 +586,22 @@ impl From<&GooglePlayMetadata> for UnifiedGooglePlayMetadata {
             .collect();
 
         let assets = Some(UnifiedGooglePlayAssets {
-            icon: metadata.icon.as_ref().map(|p| p.to_string_lossy().to_string()),
-            feature_graphic: metadata.feature_graphic.as_ref().map(|p| p.to_string_lossy().to_string()),
-            promo_graphic: metadata.promo_graphic.as_ref().map(|p| p.to_string_lossy().to_string()),
-            tv_banner: metadata.tv_banner.as_ref().map(|p| p.to_string_lossy().to_string()),
+            icon: metadata
+                .icon
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string()),
+            feature_graphic: metadata
+                .feature_graphic
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string()),
+            promo_graphic: metadata
+                .promo_graphic
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string()),
+            tv_banner: metadata
+                .tv_banner
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string()),
             screenshots: HashMap::new(),
         });
 
@@ -633,12 +659,14 @@ impl MetadataStorage for UnifiedStorage {
         }
         if let Some(ref feature_graphic) = metadata.feature_graphic {
             if !feature_graphic.is_absolute() {
-                metadata.feature_graphic = Some(self.resolve_asset_path(&feature_graphic.to_string_lossy()));
+                metadata.feature_graphic =
+                    Some(self.resolve_asset_path(&feature_graphic.to_string_lossy()));
             }
         }
         if let Some(ref promo_graphic) = metadata.promo_graphic {
             if !promo_graphic.is_absolute() {
-                metadata.promo_graphic = Some(self.resolve_asset_path(&promo_graphic.to_string_lossy()));
+                metadata.promo_graphic =
+                    Some(self.resolve_asset_path(&promo_graphic.to_string_lossy()));
             }
         }
         if let Some(ref tv_banner) = metadata.tv_banner {
@@ -909,7 +937,9 @@ impl MetadataStorage for UnifiedStorage {
                     }
                 };
 
-                unified.localizations.insert(locale.code(), new_localization);
+                unified
+                    .localizations
+                    .insert(locale.code(), new_localization);
                 self.write_yaml_file(&file_path, &unified).await?;
 
                 // Create screenshots directory for new locale
@@ -926,7 +956,8 @@ impl MetadataStorage for UnifiedStorage {
                     )));
                 }
 
-                let mut unified: UnifiedGooglePlayMetadata = self.read_yaml_file(&file_path).await?;
+                let mut unified: UnifiedGooglePlayMetadata =
+                    self.read_yaml_file(&file_path).await?;
 
                 if unified.localizations.contains_key(&locale.code()) {
                     return Err(MetadataError::InvalidFormat(format!(
@@ -956,7 +987,9 @@ impl MetadataStorage for UnifiedStorage {
                     }
                 };
 
-                unified.localizations.insert(locale.code(), new_localization);
+                unified
+                    .localizations
+                    .insert(locale.code(), new_localization);
                 self.write_yaml_file(&file_path, &unified).await?;
 
                 // Create screenshots directory structure for new locale
@@ -979,12 +1012,7 @@ impl MetadataStorage for UnifiedStorage {
         Ok(())
     }
 
-    async fn remove_locale(
-        &self,
-        platform: Platform,
-        app_id: &str,
-        locale: &Locale,
-    ) -> Result<()> {
+    async fn remove_locale(&self, platform: Platform, app_id: &str, locale: &Locale) -> Result<()> {
         match platform {
             Platform::Apple => {
                 let file_path = self.metadata_file_path(app_id, Platform::Apple);
@@ -1034,7 +1062,8 @@ impl MetadataStorage for UnifiedStorage {
                     )));
                 }
 
-                let mut unified: UnifiedGooglePlayMetadata = self.read_yaml_file(&file_path).await?;
+                let mut unified: UnifiedGooglePlayMetadata =
+                    self.read_yaml_file(&file_path).await?;
 
                 if !unified.localizations.contains_key(&locale.code()) {
                     return Err(MetadataError::NotFound(format!(
@@ -1091,10 +1120,14 @@ mod tests {
         let (storage, _temp) = setup_test_storage().await;
 
         let apple_path = storage.metadata_file_path("com.example.app", Platform::Apple);
-        assert!(apple_path.to_string_lossy().ends_with("com.example.app.apple.yaml"));
+        assert!(apple_path
+            .to_string_lossy()
+            .ends_with("com.example.app.apple.yaml"));
 
         let google_path = storage.metadata_file_path("com.example.app", Platform::GooglePlay);
-        assert!(google_path.to_string_lossy().ends_with("com.example.app.google_play.yaml"));
+        assert!(google_path
+            .to_string_lossy()
+            .ends_with("com.example.app.google_play.yaml"));
     }
 
     #[tokio::test]
@@ -1208,7 +1241,10 @@ mod tests {
         let loc = loaded.get_localization("en-US").unwrap();
         assert_eq!(loc.title, "My App");
         assert_eq!(loc.short_description, "A short description");
-        assert_eq!(loc.changelogs.get("100"), Some(&"Initial release".to_string()));
+        assert_eq!(
+            loc.changelogs.get("100"),
+            Some(&"Initial release".to_string())
+        );
         assert_eq!(
             loc.changelogs.get("101"),
             Some(&"Bug fixes and improvements".to_string())
@@ -1219,10 +1255,7 @@ mod tests {
     async fn test_exists_returns_false_for_missing() {
         let (storage, _temp) = setup_test_storage().await;
 
-        assert!(!storage
-            .exists_apple("com.nonexistent.app")
-            .await
-            .unwrap());
+        assert!(!storage.exists_apple("com.nonexistent.app").await.unwrap());
         assert!(!storage
             .exists_google_play("com.nonexistent.app")
             .await
@@ -1307,7 +1340,12 @@ mod tests {
         let en_locale = Locale::new("en-US").unwrap();
         let de_locale = Locale::new("de-DE").unwrap();
         storage
-            .add_locale(Platform::Apple, "com.example.app", &de_locale, Some(&en_locale))
+            .add_locale(
+                Platform::Apple,
+                "com.example.app",
+                &de_locale,
+                Some(&en_locale),
+            )
             .await
             .unwrap();
 
@@ -1321,10 +1359,7 @@ mod tests {
     #[tokio::test]
     async fn test_remove_locale() {
         let (storage, _temp) = setup_test_storage().await;
-        let locales = vec![
-            Locale::new("en-US").unwrap(),
-            Locale::new("de-DE").unwrap(),
-        ];
+        let locales = vec![Locale::new("en-US").unwrap(), Locale::new("de-DE").unwrap()];
 
         storage
             .init(Platform::Apple, "com.example.app", &locales)
@@ -1363,14 +1398,23 @@ mod tests {
             unrestricted_web_access: true,
             ..Default::default()
         });
-        metadata.set_localization("en-US", AppleLocalizedMetadata::new("My App", "Description"));
+        metadata.set_localization(
+            "en-US",
+            AppleLocalizedMetadata::new("My App", "Description"),
+        );
 
         storage.save_apple(&metadata).await.unwrap();
         let loaded = storage.load_apple("com.example.app").await.unwrap();
 
         let age_rating = loaded.age_rating.unwrap();
-        assert_eq!(age_rating.alcohol_tobacco_drugs, AgeRatingLevel::InfrequentOrMild);
-        assert_eq!(age_rating.violence_cartoon, AgeRatingLevel::FrequentOrIntense);
+        assert_eq!(
+            age_rating.alcohol_tobacco_drugs,
+            AgeRatingLevel::InfrequentOrMild
+        );
+        assert_eq!(
+            age_rating.violence_cartoon,
+            AgeRatingLevel::FrequentOrIntense
+        );
         assert!(age_rating.unrestricted_web_access);
     }
 }

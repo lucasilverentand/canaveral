@@ -4,10 +4,10 @@ use clap::Args;
 use console::style;
 use tracing::info;
 
+use canaveral_changelog::{CommitParser, ConventionalParser};
 use canaveral_core::config::load_config_or_default;
 use canaveral_core::types::ReleaseType;
 use canaveral_git::GitRepo;
-use canaveral_changelog::{CommitParser, ConventionalParser};
 use canaveral_strategies::{BumpType, SemVerStrategy, VersionStrategy};
 
 use crate::cli::{Cli, OutputFormat};
@@ -92,7 +92,14 @@ impl VersionCommand {
         let next = strategy.bump(&current, bump_type)?;
         let next_version = strategy.format(&next);
 
-        self.output_result(&current_version, &next_version, bump_type, commits.len(), &config, cli)?;
+        self.output_result(
+            &current_version,
+            &next_version,
+            bump_type,
+            commits.len(),
+            &config,
+            cli,
+        )?;
 
         Ok(())
     }
@@ -137,7 +144,10 @@ impl VersionCommand {
                     println!();
                     println!("  Current version:  {}", style(current).cyan());
                     println!("  Next version:     {}", style(next).green().bold());
-                    println!("  Bump type:        {}", style(bump_type.to_string()).yellow());
+                    println!(
+                        "  Bump type:        {}",
+                        style(bump_type.to_string()).yellow()
+                    );
                     println!("  Commits analyzed: {}", commit_count);
                 } else {
                     println!("{}", next);

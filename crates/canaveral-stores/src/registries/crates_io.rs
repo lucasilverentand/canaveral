@@ -83,16 +83,20 @@ impl CratesIoRegistry {
             let credentials_path = home_dir.join(".cargo").join("credentials.toml");
 
             if credentials_path.exists() {
-                let content = std::fs::read_to_string(&credentials_path)
-                    .map_err(|e| StoreError::ConfigurationError(format!(
-                        "Failed to read credentials file: {}", e
-                    )))?;
+                let content = std::fs::read_to_string(&credentials_path).map_err(|e| {
+                    StoreError::ConfigurationError(format!(
+                        "Failed to read credentials file: {}",
+                        e
+                    ))
+                })?;
 
                 // Parse TOML
-                let credentials: toml::Value = toml::from_str(&content)
-                    .map_err(|e| StoreError::ConfigurationError(format!(
-                        "Failed to parse credentials.toml: {}", e
-                    )))?;
+                let credentials: toml::Value = toml::from_str(&content).map_err(|e| {
+                    StoreError::ConfigurationError(format!(
+                        "Failed to parse credentials.toml: {}",
+                        e
+                    ))
+                })?;
 
                 // Extract token from [registry] section
                 if let Some(registry) = credentials.get("registry") {
@@ -112,10 +116,9 @@ impl CratesIoRegistry {
     /// Extract and parse Cargo.toml from a .crate file
     async fn extract_crate_info(path: &Path) -> Result<AppInfo> {
         // .crate files are gzipped tar archives
-        let file = std::fs::File::open(path)
-            .map_err(|e| StoreError::InvalidArtifact(format!(
-                "Failed to open .crate file: {}", e
-            )))?;
+        let file = std::fs::File::open(path).map_err(|e| {
+            StoreError::InvalidArtifact(format!("Failed to open .crate file: {}", e))
+        })?;
 
         let decoder = GzDecoder::new(file);
         let mut archive = Archive::new(decoder);
@@ -124,26 +127,22 @@ impl CratesIoRegistry {
         let mut found_cargo_toml = false;
 
         // Search for Cargo.toml in the archive
-        for entry in archive.entries()
-            .map_err(|e| StoreError::InvalidArtifact(format!(
-                "Failed to read .crate archive: {}", e
-            )))?
-        {
-            let mut entry = entry.map_err(|e| StoreError::InvalidArtifact(format!(
-                "Failed to read archive entry: {}", e
-            )))?;
+        for entry in archive.entries().map_err(|e| {
+            StoreError::InvalidArtifact(format!("Failed to read .crate archive: {}", e))
+        })? {
+            let mut entry = entry.map_err(|e| {
+                StoreError::InvalidArtifact(format!("Failed to read archive entry: {}", e))
+            })?;
 
-            let path = entry.path()
-                .map_err(|e| StoreError::InvalidArtifact(format!(
-                    "Failed to get entry path: {}", e
-                )))?;
+            let path = entry.path().map_err(|e| {
+                StoreError::InvalidArtifact(format!("Failed to get entry path: {}", e))
+            })?;
 
             // Cargo.toml is typically in the format: package-name-version/Cargo.toml
             if path.file_name() == Some(std::ffi::OsStr::new("Cargo.toml")) {
-                entry.read_to_string(&mut cargo_toml_content)
-                    .map_err(|e| StoreError::InvalidArtifact(format!(
-                        "Failed to read Cargo.toml: {}", e
-                    )))?;
+                entry.read_to_string(&mut cargo_toml_content).map_err(|e| {
+                    StoreError::InvalidArtifact(format!("Failed to read Cargo.toml: {}", e))
+                })?;
                 found_cargo_toml = true;
                 break;
             }
@@ -151,43 +150,42 @@ impl CratesIoRegistry {
 
         if !found_cargo_toml {
             return Err(StoreError::InvalidArtifact(
-                "Cargo.toml not found in .crate archive".to_string()
+                "Cargo.toml not found in .crate archive".to_string(),
             ));
         }
 
         // Parse Cargo.toml
-        let cargo_toml: toml::Value = toml::from_str(&cargo_toml_content)
-            .map_err(|e| StoreError::InvalidArtifact(format!(
-                "Failed to parse Cargo.toml: {}", e
-            )))?;
+        let cargo_toml: toml::Value = toml::from_str(&cargo_toml_content).map_err(|e| {
+            StoreError::InvalidArtifact(format!("Failed to parse Cargo.toml: {}", e))
+        })?;
 
         // Extract package information
-        let package = cargo_toml.get("package")
-            .ok_or_else(|| StoreError::InvalidArtifact(
-                "Cargo.toml missing [package] section".to_string()
-            ))?;
+        let package = cargo_toml.get("package").ok_or_else(|| {
+            StoreError::InvalidArtifact("Cargo.toml missing [package] section".to_string())
+        })?;
 
-        let name = package.get("name")
+        let name = package
+            .get("name")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| StoreError::InvalidArtifact(
-                "Cargo.toml missing package.name".to_string()
-            ))?
+            .ok_or_else(|| {
+                StoreError::InvalidArtifact("Cargo.toml missing package.name".to_string())
+            })?
             .to_string();
 
-        let version = package.get("version")
+        let version = package
+            .get("version")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| StoreError::InvalidArtifact(
-                "Cargo.toml missing package.version".to_string()
-            ))?
+            .ok_or_else(|| {
+                StoreError::InvalidArtifact("Cargo.toml missing package.version".to_string())
+            })?
             .to_string();
 
-        let description = package.get("description")
+        let description = package
+            .get("description")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
-        let size = std::fs::metadata(path)
-            .map(|m| m.len())
-            .unwrap_or(0);
+        let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
         Ok(AppInfo {
             identifier: name.clone(),
@@ -219,9 +217,7 @@ impl StoreAdapter for CratesIoRegistry {
     #[instrument(skip(self), fields(store = "Crates.io", path = %path.display()))]
     async fn validate_artifact(&self, path: &Path) -> Result<ValidationResult> {
         // Check file extension
-        let ext = path.extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         if ext != "crate" {
             return Ok(ValidationResult::failure(vec![ValidationError {
@@ -254,10 +250,12 @@ impl StoreAdapter for CratesIoRegistry {
         let validation = self.validate_artifact(path).await?;
         if !validation.valid {
             return Err(StoreError::ValidationFailed(
-                validation.errors.iter()
+                validation
+                    .errors
+                    .iter()
                     .map(|e| e.message.clone())
                     .collect::<Vec<_>>()
-                    .join("; ")
+                    .join("; "),
             ));
         }
 
@@ -273,35 +271,33 @@ impl StoreAdapter for CratesIoRegistry {
             });
         }
 
-        let token = self.config.token.as_ref()
-            .ok_or_else(|| StoreError::AuthenticationFailed(
-                "No API token configured".to_string()
-            ))?;
+        let token = self.config.token.as_ref().ok_or_else(|| {
+            StoreError::AuthenticationFailed("No API token configured".to_string())
+        })?;
 
         // Read .crate file
-        let file_content = tokio::fs::read(path).await
-            .map_err(|e| StoreError::UploadFailed(format!(
-                "Failed to read .crate file: {}", e
-            )))?;
+        let file_content = tokio::fs::read(path)
+            .await
+            .map_err(|e| StoreError::UploadFailed(format!("Failed to read .crate file: {}", e)))?;
 
         // Prepare multipart form
-        let form = reqwest::multipart::Form::new()
-            .part(
-                "crate",
-                reqwest::multipart::Part::bytes(file_content)
-                    .file_name(path.file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("package.crate")
-                        .to_string()
-                    )
-            );
+        let form = reqwest::multipart::Form::new().part(
+            "crate",
+            reqwest::multipart::Part::bytes(file_content).file_name(
+                path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("package.crate")
+                    .to_string(),
+            ),
+        );
 
         // Upload to crates.io
         let url = format!("{}/api/v1/crates/new", self.config.registry_url);
 
         info!("Uploading to {}...", url);
 
-        let response = self.client
+        let response = self
+            .client
             .put(&url)
             .header("Authorization", token)
             .multipart(form)
@@ -324,10 +320,10 @@ impl StoreAdapter for CratesIoRegistry {
             warnings: Option<serde_json::Value>,
         }
 
-        let publish_response: PublishResponse = response.json().await
-            .map_err(|e| StoreError::UploadFailed(format!(
-                "Failed to parse response: {}", e
-            )))?;
+        let publish_response: PublishResponse = response
+            .json()
+            .await
+            .map_err(|e| StoreError::UploadFailed(format!("Failed to parse response: {}", e)))?;
 
         let mut warnings = validation.warnings;
         if let Some(api_warnings) = publish_response.warnings {
@@ -339,8 +335,7 @@ impl StoreAdapter for CratesIoRegistry {
         let app_info = validation.app_info.as_ref().unwrap();
         let console_url = format!(
             "{}/crates/{}",
-            self.config.registry_url,
-            app_info.identifier
+            self.config.registry_url, app_info.identifier
         );
 
         Ok(UploadResult {

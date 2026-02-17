@@ -4,8 +4,8 @@ use clap::Args;
 use console::style;
 use tracing::info;
 
-use canaveral_core::config::load_config_or_default;
 use canaveral_changelog::ChangelogGenerator;
+use canaveral_core::config::load_config_or_default;
 use canaveral_git::GitRepo;
 
 use crate::cli::{Cli, OutputFormat};

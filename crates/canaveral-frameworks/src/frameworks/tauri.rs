@@ -11,9 +11,9 @@ use tracing::{debug, info, instrument, warn};
 use walkdir::WalkDir;
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
+use crate::capabilities::Capabilities;
 #[cfg(test)]
 use crate::capabilities::Capability;
-use crate::capabilities::Capabilities;
 use crate::context::{BuildContext, BuildProfile};
 use crate::detection::{file_exists, has_npm_dependency, Detection};
 use crate::error::{FrameworkError, Result};
@@ -112,31 +112,28 @@ impl TauriAdapter {
 
     /// Parse version from tauri.conf.json
     fn parse_tauri_conf_version(&self, path: &Path) -> Result<Option<String>> {
-        let tauri_dir = self.find_tauri_dir(path).ok_or_else(|| {
-            FrameworkError::Context {
+        let tauri_dir = self
+            .find_tauri_dir(path)
+            .ok_or_else(|| FrameworkError::Context {
                 context: "finding tauri directory".to_string(),
                 message: "No src-tauri directory found".to_string(),
-            }
-        })?;
+            })?;
 
         let conf_path = tauri_dir.join("tauri.conf.json");
         if !conf_path.exists() {
             return Ok(None);
         }
 
-        let content = std::fs::read_to_string(&conf_path).map_err(|e| {
-            FrameworkError::Context {
-                context: "reading tauri.conf.json".to_string(),
-                message: e.to_string(),
-            }
+        let content = std::fs::read_to_string(&conf_path).map_err(|e| FrameworkError::Context {
+            context: "reading tauri.conf.json".to_string(),
+            message: e.to_string(),
         })?;
 
-        let json: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
-            FrameworkError::Context {
+        let json: serde_json::Value =
+            serde_json::from_str(&content).map_err(|e| FrameworkError::Context {
                 context: "parsing tauri.conf.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         // Tauri v2: version is in "version" field
         // Tauri v1: version is in "package.version" field
@@ -157,20 +154,19 @@ impl TauriAdapter {
 
     /// Parse version from Cargo.toml
     fn parse_cargo_version(&self, path: &Path) -> Result<String> {
-        let tauri_dir = self.find_tauri_dir(path).ok_or_else(|| {
-            FrameworkError::Context {
+        let tauri_dir = self
+            .find_tauri_dir(path)
+            .ok_or_else(|| FrameworkError::Context {
                 context: "finding tauri directory".to_string(),
                 message: "No src-tauri directory found".to_string(),
-            }
-        })?;
+            })?;
 
         let cargo_path = tauri_dir.join("Cargo.toml");
-        let content = std::fs::read_to_string(&cargo_path).map_err(|e| {
-            FrameworkError::Context {
+        let content =
+            std::fs::read_to_string(&cargo_path).map_err(|e| FrameworkError::Context {
                 context: "reading Cargo.toml".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         // Parse version from [package] section
         let version_re = Regex::new(r#"(?m)^\s*version\s*=\s*"([^"]+)""#).unwrap();
@@ -186,31 +182,28 @@ impl TauriAdapter {
 
     /// Update version in tauri.conf.json
     fn update_tauri_conf_version(&self, path: &Path, version: &str) -> Result<()> {
-        let tauri_dir = self.find_tauri_dir(path).ok_or_else(|| {
-            FrameworkError::Context {
+        let tauri_dir = self
+            .find_tauri_dir(path)
+            .ok_or_else(|| FrameworkError::Context {
                 context: "finding tauri directory".to_string(),
                 message: "No src-tauri directory found".to_string(),
-            }
-        })?;
+            })?;
 
         let conf_path = tauri_dir.join("tauri.conf.json");
         if !conf_path.exists() {
             return Ok(());
         }
 
-        let content = std::fs::read_to_string(&conf_path).map_err(|e| {
-            FrameworkError::Context {
-                context: "reading tauri.conf.json".to_string(),
-                message: e.to_string(),
-            }
+        let content = std::fs::read_to_string(&conf_path).map_err(|e| FrameworkError::Context {
+            context: "reading tauri.conf.json".to_string(),
+            message: e.to_string(),
         })?;
 
-        let mut json: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
-            FrameworkError::Context {
+        let mut json: serde_json::Value =
+            serde_json::from_str(&content).map_err(|e| FrameworkError::Context {
                 context: "parsing tauri.conf.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         // Update version in the appropriate location
         // Tauri v2 uses top-level "version"
@@ -224,18 +217,15 @@ impl TauriAdapter {
             json["version"] = serde_json::Value::String(version.to_string());
         }
 
-        let new_content = serde_json::to_string_pretty(&json).map_err(|e| {
-            FrameworkError::Context {
+        let new_content =
+            serde_json::to_string_pretty(&json).map_err(|e| FrameworkError::Context {
                 context: "serializing tauri.conf.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
-        std::fs::write(&conf_path, new_content).map_err(|e| {
-            FrameworkError::Context {
-                context: "writing tauri.conf.json".to_string(),
-                message: e.to_string(),
-            }
+        std::fs::write(&conf_path, new_content).map_err(|e| FrameworkError::Context {
+            context: "writing tauri.conf.json".to_string(),
+            message: e.to_string(),
         })?;
 
         Ok(())
@@ -243,20 +233,19 @@ impl TauriAdapter {
 
     /// Update version in Cargo.toml
     fn update_cargo_version(&self, path: &Path, version: &str) -> Result<()> {
-        let tauri_dir = self.find_tauri_dir(path).ok_or_else(|| {
-            FrameworkError::Context {
+        let tauri_dir = self
+            .find_tauri_dir(path)
+            .ok_or_else(|| FrameworkError::Context {
                 context: "finding tauri directory".to_string(),
                 message: "No src-tauri directory found".to_string(),
-            }
-        })?;
+            })?;
 
         let cargo_path = tauri_dir.join("Cargo.toml");
-        let content = std::fs::read_to_string(&cargo_path).map_err(|e| {
-            FrameworkError::Context {
+        let content =
+            std::fs::read_to_string(&cargo_path).map_err(|e| FrameworkError::Context {
                 context: "reading Cargo.toml".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         // Replace version in [package] section
         let version_re = Regex::new(r#"(?m)^(\s*version\s*=\s*)"[^"]+""#).unwrap();
@@ -275,7 +264,9 @@ impl TauriAdapter {
 
     /// Find build artifacts
     fn find_artifacts(&self, path: &Path, platform: Platform) -> Result<Vec<Artifact>> {
-        let tauri_dir = self.find_tauri_dir(path).unwrap_or_else(|| path.to_path_buf());
+        let tauri_dir = self
+            .find_tauri_dir(path)
+            .unwrap_or_else(|| path.to_path_buf());
         let target_dir = tauri_dir.join("target");
 
         let mut artifacts = Vec::new();
@@ -356,29 +347,31 @@ impl TauriAdapter {
         for dir_name in platform_dirs {
             let platform_dir = bundle_dir.join(dir_name);
             if platform_dir.exists() {
-                for entry in std::fs::read_dir(&platform_dir).into_iter().flatten() {
-                    if let Ok(entry) = entry {
-                        let entry_path = entry.path();
-                        let kind = ArtifactKind::from_path(&entry_path);
-                        if !matches!(kind, ArtifactKind::Other) {
-                            let metadata = ArtifactMetadata::new()
-                                .with_framework("tauri")
-                                .with_signed(false);
+                for entry in std::fs::read_dir(&platform_dir)
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                {
+                    let entry_path = entry.path();
+                    let kind = ArtifactKind::from_path(&entry_path);
+                    if !matches!(kind, ArtifactKind::Other) {
+                        let metadata = ArtifactMetadata::new()
+                            .with_framework("tauri")
+                            .with_signed(false);
 
-                            let metadata = if let Some(ref v) = version {
-                                metadata.with_version(v)
-                            } else {
-                                metadata
-                            };
+                        let metadata = if let Some(ref v) = version {
+                            metadata.with_version(v)
+                        } else {
+                            metadata
+                        };
 
-                            // Avoid duplicates
-                            if !artifacts.iter().any(|a| a.path == entry_path) {
-                                let artifact = Artifact::new(entry_path, kind, platform)
-                                    .with_metadata(metadata)
-                                    .with_sha256();
+                        // Avoid duplicates
+                        if !artifacts.iter().any(|a| a.path == entry_path) {
+                            let artifact = Artifact::new(entry_path, kind, platform)
+                                .with_metadata(metadata)
+                                .with_sha256();
 
-                                artifacts.push(artifact);
-                            }
+                            artifacts.push(artifact);
                         }
                     }
                 }
@@ -420,8 +413,8 @@ impl BuildAdapter for TauriAdapter {
 
     fn detect(&self, path: &Path) -> Detection {
         // Check for tauri.conf.json (v1) or tauri.conf.json in src-tauri (v2)
-        let has_tauri_conf = file_exists(path, "tauri.conf.json")
-            || file_exists(path, "src-tauri/tauri.conf.json");
+        let has_tauri_conf =
+            file_exists(path, "tauri.conf.json") || file_exists(path, "src-tauri/tauri.conf.json");
 
         if has_tauri_conf {
             return Detection::Yes(95);
@@ -625,7 +618,9 @@ impl BuildAdapter for TauriAdapter {
         info!("Cleaning Tauri build artifacts");
 
         // Clean cargo target
-        let tauri_dir = self.find_tauri_dir(path).unwrap_or_else(|| path.to_path_buf());
+        let tauri_dir = self
+            .find_tauri_dir(path)
+            .unwrap_or_else(|| path.to_path_buf());
         let target_dir = tauri_dir.join("target");
 
         if target_dir.exists() {
@@ -683,34 +678,29 @@ impl BuildAdapter for TauriAdapter {
         // Also update package.json if it exists (for consistency)
         let package_json = path.join("package.json");
         if package_json.exists() {
-            let content = std::fs::read_to_string(&package_json).map_err(|e| {
-                FrameworkError::Context {
+            let content =
+                std::fs::read_to_string(&package_json).map_err(|e| FrameworkError::Context {
                     context: "reading package.json".to_string(),
                     message: e.to_string(),
-                }
-            })?;
+                })?;
 
-            let mut json: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
-                FrameworkError::Context {
+            let mut json: serde_json::Value =
+                serde_json::from_str(&content).map_err(|e| FrameworkError::Context {
                     context: "parsing package.json".to_string(),
                     message: e.to_string(),
-                }
-            })?;
+                })?;
 
             json["version"] = serde_json::Value::String(version.version.clone());
 
-            let new_content = serde_json::to_string_pretty(&json).map_err(|e| {
-                FrameworkError::Context {
+            let new_content =
+                serde_json::to_string_pretty(&json).map_err(|e| FrameworkError::Context {
                     context: "serializing package.json".to_string(),
                     message: e.to_string(),
-                }
-            })?;
+                })?;
 
-            std::fs::write(&package_json, new_content).map_err(|e| {
-                FrameworkError::Context {
-                    context: "writing package.json".to_string(),
-                    message: e.to_string(),
-                }
+            std::fs::write(&package_json, new_content).map_err(|e| FrameworkError::Context {
+                context: "writing package.json".to_string(),
+                message: e.to_string(),
             })?;
         }
 

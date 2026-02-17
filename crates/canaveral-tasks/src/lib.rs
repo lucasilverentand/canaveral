@@ -13,6 +13,6 @@ pub mod test_selection;
 pub use cache::{CacheEntry, CacheKey, TaskCache};
 pub use dag::{TaskDag, TaskNode};
 pub use reporter::{TaskEvent, TaskReporter, TaskReporterRegistry};
-pub use scheduler::{TaskScheduler, TaskResult, TaskStatus};
+pub use scheduler::{TaskResult, TaskScheduler, TaskStatus};
 pub use task::{TaskCommand, TaskDefinition, TaskId};
 pub use test_selection::{SelectedTest, SelectionReason, TestMap, TestSelector};

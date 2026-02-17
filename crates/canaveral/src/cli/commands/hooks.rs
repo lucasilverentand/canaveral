@@ -1,6 +1,6 @@
 //! Git hooks management command
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use clap::{Args, Subcommand};
@@ -53,7 +53,7 @@ impl HooksCommand {
         }
     }
 
-    fn install(&self, repo_root: &PathBuf, hook: Option<&str>, cli: &Cli) -> anyhow::Result<()> {
+    fn install(&self, repo_root: &Path, hook: Option<&str>, cli: &Cli) -> anyhow::Result<()> {
         info!("installing git hooks");
 
         if let Some(name) = hook {
@@ -79,7 +79,7 @@ impl HooksCommand {
         Ok(())
     }
 
-    fn uninstall(&self, repo_root: &PathBuf, cli: &Cli) -> anyhow::Result<()> {
+    fn uninstall(&self, repo_root: &Path, cli: &Cli) -> anyhow::Result<()> {
         info!("uninstalling git hooks");
         hooks::uninstall_all(repo_root)?;
 
@@ -92,7 +92,7 @@ impl HooksCommand {
         Ok(())
     }
 
-    fn run(&self, repo_root: &PathBuf, name: &str, args: &[String]) -> anyhow::Result<()> {
+    fn run(&self, repo_root: &Path, name: &str, args: &[String]) -> anyhow::Result<()> {
         info!(hook = name, "running git hook");
 
         match name {
@@ -103,7 +103,7 @@ impl HooksCommand {
         }
     }
 
-    fn run_commit_msg(&self, repo_root: &PathBuf, args: &[String]) -> anyhow::Result<()> {
+    fn run_commit_msg(&self, repo_root: &Path, args: &[String]) -> anyhow::Result<()> {
         let msg_file = args
             .first()
             .ok_or_else(|| anyhow::anyhow!("commit-msg hook requires a message file argument"))?;
@@ -134,8 +134,8 @@ impl HooksCommand {
 
         // Validate conventional commits format
         if hook_cfg.conventional_commits {
-            use canaveral_changelog::ConventionalParser;
             use canaveral_changelog::CommitParser;
+            use canaveral_changelog::ConventionalParser;
             use canaveral_git::CommitInfo;
             use chrono::Utc;
 
@@ -168,7 +168,7 @@ impl HooksCommand {
         Ok(())
     }
 
-    fn run_script_hook(&self, repo_root: &PathBuf, config_key: &str) -> anyhow::Result<()> {
+    fn run_script_hook(&self, repo_root: &Path, config_key: &str) -> anyhow::Result<()> {
         let config = load_config(repo_root)?;
 
         let hook_cfg = match config_key {
@@ -192,18 +192,14 @@ impl HooksCommand {
 
             if !status.success() {
                 let code = status.code().unwrap_or(1);
-                anyhow::bail!(
-                    "Hook command failed (exit {}): {}",
-                    code,
-                    cmd_str
-                );
+                anyhow::bail!("Hook command failed (exit {}): {}", code, cmd_str);
             }
         }
 
         Ok(())
     }
 
-    fn status(&self, repo_root: &PathBuf, cli: &Cli) -> anyhow::Result<()> {
+    fn status(&self, repo_root: &Path, cli: &Cli) -> anyhow::Result<()> {
         let statuses = hooks::status(repo_root);
 
         if !cli.quiet {
@@ -220,7 +216,10 @@ impl HooksCommand {
                     "not installed"
                 };
                 let backup_note = if s.has_backup { " (backup exists)" } else { "" };
-                println!("  {icon} {:<12} {state}{backup_note}", s.hook_type.filename());
+                println!(
+                    "  {icon} {:<12} {state}{backup_note}",
+                    s.hook_type.filename()
+                );
             }
         }
 
@@ -252,7 +251,7 @@ fn find_repo_root() -> anyhow::Result<PathBuf> {
     }
 }
 
-fn load_config(repo_root: &PathBuf) -> anyhow::Result<Config> {
+fn load_config(repo_root: &Path) -> anyhow::Result<Config> {
     let (config, _) = canaveral_core::config::load_config_or_default(repo_root);
     Ok(config)
 }

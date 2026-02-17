@@ -7,7 +7,7 @@ use crate::error::Result;
 use crate::types::ReleaseType;
 
 /// Options for version calculation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct VersionOptions {
     /// Force a specific release type
     pub release_type: Option<ReleaseType>,
@@ -15,16 +15,6 @@ pub struct VersionOptions {
     pub prerelease: Option<String>,
     /// Package name (for monorepos)
     pub package: Option<String>,
-}
-
-impl Default for VersionOptions {
-    fn default() -> Self {
-        Self {
-            release_type: None,
-            prerelease: None,
-            package: None,
-        }
-    }
 }
 
 /// Result of version calculation

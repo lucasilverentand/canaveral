@@ -122,10 +122,7 @@ pub fn read_image_dimensions(path: &Path) -> Result<Dimensions> {
         ))
     })?;
 
-    Ok(Dimensions {
-        width: width as u32,
-        height: height as u32,
-    })
+    Ok(Dimensions { width, height })
 }
 
 /// Get valid dimensions for an Apple device type.
@@ -238,7 +235,10 @@ pub fn validate_apple_screenshot_file(path: &Path, device_type: &str) -> Validat
         None => {
             result.add(ValidationIssue::warning(
                 &field,
-                format!("Unknown Apple device type: {}. Cannot validate dimensions.", device_type),
+                format!(
+                    "Unknown Apple device type: {}. Cannot validate dimensions.",
+                    device_type
+                ),
             ));
             return result;
         }
@@ -522,7 +522,9 @@ pub async fn validate_screenshot_directory(
                 image_count += 1;
                 let file_result = match platform {
                     Platform::Apple => validate_apple_screenshot_file(&path, device_type),
-                    Platform::GooglePlay => validate_google_play_screenshot_file(&path, device_type),
+                    Platform::GooglePlay => {
+                        validate_google_play_screenshot_file(&path, device_type)
+                    }
                     // Package registries don't use screenshot validation
                     Platform::Npm | Platform::Crates | Platform::PyPI => ValidationResult::new(),
                 };
@@ -625,9 +627,13 @@ mod tests {
 
     #[test]
     fn test_validate_nonexistent_file() {
-        let result = validate_apple_screenshot_file(Path::new("/nonexistent/file.png"), "iphone_6_5");
+        let result =
+            validate_apple_screenshot_file(Path::new("/nonexistent/file.png"), "iphone_6_5");
         assert!(!result.is_valid());
-        assert!(result.errors().iter().any(|e| e.message.contains("does not exist")));
+        assert!(result
+            .errors()
+            .iter()
+            .any(|e| e.message.contains("does not exist")));
     }
 
     #[test]
@@ -635,12 +641,16 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let result = validate_apple_screenshot_file(temp_dir.path(), "iphone_6_5");
         assert!(!result.is_valid());
-        assert!(result.errors().iter().any(|e| e.message.contains("not a file")));
+        assert!(result
+            .errors()
+            .iter()
+            .any(|e| e.message.contains("not a file")));
     }
 
     #[test]
     fn test_validate_google_play_nonexistent() {
-        let result = validate_google_play_screenshot_file(Path::new("/nonexistent/file.png"), "phone");
+        let result =
+            validate_google_play_screenshot_file(Path::new("/nonexistent/file.png"), "phone");
         assert!(!result.is_valid());
     }
 
@@ -667,16 +677,23 @@ mod tests {
         )
         .await;
         assert!(!result.is_valid());
-        assert!(result.errors().iter().any(|e| e.message.contains("does not exist")));
+        assert!(result
+            .errors()
+            .iter()
+            .any(|e| e.message.contains("does not exist")));
     }
 
     #[tokio::test]
     async fn test_validate_empty_directory() {
         let temp_dir = TempDir::new().unwrap();
-        let result = validate_screenshot_directory(temp_dir.path(), Platform::Apple, "iphone_6_5").await;
+        let result =
+            validate_screenshot_directory(temp_dir.path(), Platform::Apple, "iphone_6_5").await;
         // Should be valid but with a warning about no images
         assert!(result.is_valid());
-        assert!(result.warnings().iter().any(|w| w.message.contains("No image files")));
+        assert!(result
+            .warnings()
+            .iter()
+            .any(|w| w.message.contains("No image files")));
     }
 
     #[tokio::test]
@@ -687,6 +704,9 @@ mod tests {
 
         let result = validate_screenshot_directory(&file_path, Platform::Apple, "iphone_6_5").await;
         assert!(!result.is_valid());
-        assert!(result.errors().iter().any(|e| e.message.contains("not a directory")));
+        assert!(result
+            .errors()
+            .iter()
+            .any(|e| e.message.contains("not a directory")));
     }
 }

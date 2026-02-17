@@ -71,7 +71,7 @@ impl HookStage {
     }
 
     /// Parse stage from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "pre-release" => Some(Self::PreRelease),
             "post-release" => Some(Self::PostRelease),
@@ -324,7 +324,10 @@ impl HookRunner {
 
     /// Check if there are any hooks for a stage
     pub fn has_hooks(&self, stage: HookStage) -> bool {
-        self.hooks.get(&stage).map(|v| !v.is_empty()).unwrap_or(false)
+        self.hooks
+            .get(&stage)
+            .map(|v| !v.is_empty())
+            .unwrap_or(false)
     }
 
     /// Execute all hooks for a stage
@@ -492,7 +495,7 @@ pub fn build_hook_runner(config: &HooksConfig, base_dir: Option<&Path>) -> HookR
 
     let mut total_hooks = 0;
     for (stage_name, hook_configs) in &config.hooks {
-        if let Some(stage) = HookStage::from_str(stage_name) {
+        if let Some(stage) = HookStage::parse(stage_name) {
             for hook_config in hook_configs {
                 runner.register(stage, hook_config.clone().into());
                 total_hooks += 1;
@@ -514,7 +517,7 @@ mod tests {
     fn test_hook_stage_roundtrip() {
         for stage in HookStage::all() {
             let s = stage.as_str();
-            let parsed = HookStage::from_str(s);
+            let parsed = HookStage::parse(s);
             assert_eq!(parsed, Some(*stage));
         }
     }
@@ -554,8 +557,14 @@ mod tests {
             env.get("CANAVERAL_PREVIOUS_VERSION"),
             Some(&"0.9.0".to_string())
         );
-        assert_eq!(env.get("CANAVERAL_PACKAGE"), Some(&"my-package".to_string()));
-        assert_eq!(env.get("CANAVERAL_RELEASE_TYPE"), Some(&"minor".to_string()));
+        assert_eq!(
+            env.get("CANAVERAL_PACKAGE"),
+            Some(&"my-package".to_string())
+        );
+        assert_eq!(
+            env.get("CANAVERAL_RELEASE_TYPE"),
+            Some(&"minor".to_string())
+        );
         assert_eq!(env.get("CANAVERAL_TAG"), Some(&"v1.0.0".to_string()));
         assert_eq!(env.get("CANAVERAL_DRY_RUN"), Some(&"true".to_string()));
         assert_eq!(env.get("CANAVERAL_BUILD_ID"), Some(&"123".to_string()));
@@ -588,10 +597,7 @@ mod tests {
     #[test]
     fn test_hook_with_env_from_context() {
         let mut runner = HookRunner::new();
-        runner.register(
-            HookStage::PreVersion,
-            Hook::new("echo $CANAVERAL_VERSION"),
-        );
+        runner.register(HookStage::PreVersion, Hook::new("echo $CANAVERAL_VERSION"));
 
         let ctx = HookContext::new().with_version("2.0.0");
         let results = runner.run(HookStage::PreVersion, &ctx).unwrap();

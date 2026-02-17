@@ -72,7 +72,8 @@ impl GpgProvider {
             if line.starts_with("sec") || line.starts_with("pub") {
                 // Save previous key if exists
                 if let (Some(fp), Some(name)) = (&current_fingerprint, &current_name) {
-                    let mut identity = SigningIdentity::new(fp.clone(), name.clone(), SigningIdentityType::Gpg);
+                    let mut identity =
+                        SigningIdentity::new(fp.clone(), name.clone(), SigningIdentityType::Gpg);
                     identity.fingerprint = Some(fp.clone());
                     identity.subject = current_email.clone();
                     identity.created_at = created_at;
@@ -86,7 +87,8 @@ impl GpgProvider {
                 if parts.len() >= 3 {
                     // Parse creation date
                     if let Ok(date) = chrono::NaiveDate::parse_from_str(parts[2], "%Y-%m-%d") {
-                        created_at = Some(Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap()));
+                        created_at =
+                            Some(Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap()));
                     }
                 }
 
@@ -94,7 +96,8 @@ impl GpgProvider {
                 if let Some(exp_str) = line.split("[expires: ").nth(1) {
                     if let Some(date_str) = exp_str.split(']').next() {
                         if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-                            expires_at = Some(Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap()));
+                            expires_at =
+                                Some(Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap()));
                         }
                     }
                 } else {
@@ -106,7 +109,11 @@ impl GpgProvider {
                 current_email = None;
             }
             // Fingerprint line (40 hex chars with optional spaces)
-            else if line.len() >= 40 && line.chars().all(|c| c.is_ascii_hexdigit() || c.is_whitespace()) {
+            else if line.len() >= 40
+                && line
+                    .chars()
+                    .all(|c| c.is_ascii_hexdigit() || c.is_whitespace())
+            {
                 current_fingerprint = Some(line.replace(' ', ""));
             }
             // User ID line: "uid           [ultimate] Name <email@example.com>"
@@ -165,7 +172,9 @@ impl SigningProvider for GpgProvider {
 
     #[instrument(skip(self), fields(provider = "gpg"))]
     async fn list_identities(&self) -> Result<Vec<SigningIdentity>> {
-        let output = self.run_gpg(&["--list-secret-keys", "--keyid-format=long"]).await?;
+        let output = self
+            .run_gpg(&["--list-secret-keys", "--keyid-format=long"])
+            .await?;
         let identities = Self::parse_key_listing(&output);
         info!(count = identities.len(), "Found GPG signing identities");
         Ok(identities)
@@ -178,8 +187,16 @@ impl SigningProvider for GpgProvider {
             .into_iter()
             .filter(|id| {
                 id.name.to_lowercase().contains(&query.to_lowercase())
-                    || id.fingerprint.as_ref().map(|f| f.contains(query)).unwrap_or(false)
-                    || id.subject.as_ref().map(|s| s.to_lowercase().contains(&query.to_lowercase())).unwrap_or(false)
+                    || id
+                        .fingerprint
+                        .as_ref()
+                        .map(|f| f.contains(query))
+                        .unwrap_or(false)
+                    || id
+                        .subject
+                        .as_ref()
+                        .map(|s| s.to_lowercase().contains(&query.to_lowercase()))
+                        .unwrap_or(false)
                     || id.id.contains(query)
             })
             .collect();
@@ -252,7 +269,11 @@ impl SigningProvider for GpgProvider {
 
         args.push(&artifact_str);
 
-        info!("Signing {} with GPG key {}", artifact.display(), identity.name);
+        info!(
+            "Signing {} with GPG key {}",
+            artifact.display(),
+            identity.name
+        );
         self.run_gpg(&args).await?;
 
         Ok(())
@@ -311,11 +332,7 @@ impl SigningProvider for GpgProvider {
                 .lines()
                 .find(|l| l.contains("Good signature from"))
                 .map(|line| {
-                    let name = line
-                        .split('"')
-                        .nth(1)
-                        .unwrap_or("Unknown")
-                        .to_string();
+                    let name = line.split('"').nth(1).unwrap_or("Unknown").to_string();
 
                     SignerInfo {
                         common_name: name,
@@ -335,11 +352,7 @@ impl SigningProvider for GpgProvider {
         let signed_at = stderr
             .lines()
             .find(|l| l.contains("Signature made"))
-            .and_then(|_line| {
-                // Parse date from "Signature made Mon Jan  1 12:00:00 2024 UTC"
-                // This is complex, so we'll skip for now
-                None
-            });
+            .and(None);
 
         Ok(SignatureInfo {
             path: artifact.to_string_lossy().to_string(),

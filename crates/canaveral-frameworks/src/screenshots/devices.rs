@@ -51,7 +51,11 @@ impl DeviceConfig {
     }
 
     /// Create a new Android device config
-    pub fn android(name: impl Into<String>, avd: impl Into<String>, resolution: (u32, u32)) -> Self {
+    pub fn android(
+        name: impl Into<String>,
+        avd: impl Into<String>,
+        resolution: (u32, u32),
+    ) -> Self {
         Self {
             name: name.into(),
             platform: Platform::Android,
@@ -302,7 +306,12 @@ impl DeviceManager {
     pub async fn boot_device(&mut self, device: &DeviceConfig) -> Result<()> {
         let device_id = device.device_id();
 
-        if self.booted_devices.get(&device_id).copied().unwrap_or(false) {
+        if self
+            .booted_devices
+            .get(&device_id)
+            .copied()
+            .unwrap_or(false)
+        {
             return Ok(());
         }
 
@@ -494,7 +503,13 @@ impl DeviceManager {
 
         // Restart activity to apply locale
         Command::new("adb")
-            .args(["shell", "am", "broadcast", "-a", "android.intent.action.LOCALE_CHANGED"])
+            .args([
+                "shell",
+                "am",
+                "broadcast",
+                "-a",
+                "android.intent.action.LOCALE_CHANGED",
+            ])
             .output()
             .ok();
 
@@ -568,7 +583,11 @@ impl DeviceManager {
                     .args(["simctl", "launch", &device.device_id(), bundle_id])
                     .output()
                     .map_err(|e| FrameworkError::CommandFailed {
-                        command: format!("xcrun simctl launch {} {}", device.device_id(), bundle_id),
+                        command: format!(
+                            "xcrun simctl launch {} {}",
+                            device.device_id(),
+                            bundle_id
+                        ),
                         exit_code: None,
                         stdout: String::new(),
                         stderr: e.to_string(),
@@ -677,11 +696,7 @@ pub mod presets {
 
     /// All required iPhone sizes for App Store
     pub fn all_iphones() -> Vec<DeviceConfig> {
-        vec![
-            iphone_16_pro_max(),
-            iphone_14_pro_max(),
-            iphone_8_plus(),
-        ]
+        vec![iphone_16_pro_max(), iphone_14_pro_max(), iphone_8_plus()]
     }
 
     /// All required iPad sizes for App Store

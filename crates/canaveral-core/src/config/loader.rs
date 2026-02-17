@@ -71,8 +71,7 @@ pub fn find_config(start_dir: &Path) -> Option<PathBuf> {
 
 /// Load configuration from directory (searching parent directories)
 pub fn load_config_from_dir(dir: &Path) -> Result<(Config, PathBuf)> {
-    let config_path =
-        find_config(dir).ok_or_else(|| ConfigError::NotFound(dir.to_path_buf()))?;
+    let config_path = find_config(dir).ok_or_else(|| ConfigError::NotFound(dir.to_path_buf()))?;
 
     let config = load_config(&config_path)?;
     Ok((config, config_path))

@@ -58,7 +58,10 @@ impl std::str::FromStr for Role {
             "admin" => Ok(Role::Admin),
             "signer" => Ok(Role::Signer),
             "viewer" | "read" | "readonly" => Ok(Role::Viewer),
-            _ => Err(format!("Unknown role: {}. Valid roles: admin, signer, viewer", s)),
+            _ => Err(format!(
+                "Unknown role: {}. Valid roles: admin, signer, viewer",
+                s
+            )),
         }
     }
 }

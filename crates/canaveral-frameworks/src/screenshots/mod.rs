@@ -97,15 +97,11 @@ impl ScreenshotSession {
 
             for locale in &self.config.locales.clone() {
                 // Set device locale
-                self.device_manager
-                    .set_locale(device, locale)
-                    .await?;
+                self.device_manager.set_locale(device, locale).await?;
 
                 for screen in &self.config.screens.clone() {
                     // Capture screenshot
-                    let result = self
-                        .capture_screen(device, screen, locale)
-                        .await?;
+                    let result = self.capture_screen(device, screen, locale).await?;
                     all_results.push(result);
                 }
             }

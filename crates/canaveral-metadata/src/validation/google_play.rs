@@ -9,7 +9,9 @@ use std::path::PathBuf;
 use tracing::{debug, info};
 
 use crate::types::common::{Dimensions, Locale, MediaAsset};
-use crate::types::google_play::{limits, GooglePlayLocalizedMetadata, GooglePlayMetadata, GooglePlayScreenshotSet};
+use crate::types::google_play::{
+    limits, GooglePlayLocalizedMetadata, GooglePlayMetadata, GooglePlayScreenshotSet,
+};
 
 use super::common::{char_count, has_excess_whitespace, is_blank, validate_url};
 use super::{Severity, ValidationIssue, ValidationResult};
@@ -342,19 +344,21 @@ impl GooglePlayValidator {
 
         // Validate video URL if present (must be YouTube)
         if let Some(ref video_url) = meta.video_url {
-            if !video_url.is_empty() {
-                if !validate_youtube_url(video_url) {
-                    result.add_error(
-                        &field("video_url"),
-                        "Video URL must be a valid YouTube URL",
-                        Some("Provide a YouTube URL (e.g., https://www.youtube.com/watch?v=... or https://youtu.be/...)"),
-                    );
-                }
+            if !video_url.is_empty() && !validate_youtube_url(video_url) {
+                result.add_error(
+                    &field("video_url"),
+                    "Video URL must be a valid YouTube URL",
+                    Some("Provide a YouTube URL (e.g., https://www.youtube.com/watch?v=... or https://youtu.be/...)"),
+                );
             }
         }
 
         // For default locale, ensure all required fields are complete
-        if is_default && (is_blank(&meta.title) || is_blank(&meta.short_description) || is_blank(&meta.full_description)) {
+        if is_default
+            && (is_blank(&meta.title)
+                || is_blank(&meta.short_description)
+                || is_blank(&meta.full_description))
+        {
             result.add_error(
                 "default_locale",
                 "Default locale must have all required fields (title, short_description, full_description)",
@@ -394,12 +398,7 @@ impl GooglePlayValidator {
         );
 
         // Validate TV screenshots
-        self.validate_screenshot_set(
-            &screenshots.tv,
-            "screenshots.tv",
-            DeviceType::Tv,
-            result,
-        );
+        self.validate_screenshot_set(&screenshots.tv, "screenshots.tv", DeviceType::Tv, result);
 
         // Validate Wear screenshots
         self.validate_screenshot_set(
@@ -565,11 +564,7 @@ impl GooglePlayValidator {
     }
 
     /// Validates the feature graphic.
-    fn validate_feature_graphic(
-        &self,
-        path: &Option<PathBuf>,
-        result: &mut ValidationResult,
-    ) {
+    fn validate_feature_graphic(&self, path: &Option<PathBuf>, result: &mut ValidationResult) {
         match path {
             Some(p) if !p.as_os_str().is_empty() => {
                 // Feature graphic exists - we would need to check its dimensions
@@ -688,7 +683,9 @@ mod tests {
             "A longer full description that explains what my app does in detail.",
         );
 
-        metadata.localizations.insert("en-US".to_string(), localized);
+        metadata
+            .localizations
+            .insert("en-US".to_string(), localized);
         metadata
     }
 
@@ -769,7 +766,9 @@ mod tests {
     fn test_changelog_too_long() {
         let mut metadata = create_valid_metadata();
         if let Some(localized) = metadata.localizations.get_mut("en-US") {
-            localized.changelogs.insert("100".to_string(), "A".repeat(550)); // Exceeds 500 char limit
+            localized
+                .changelogs
+                .insert("100".to_string(), "A".repeat(550)); // Exceeds 500 char limit
         }
 
         let validator = GooglePlayValidator::new(false);
@@ -784,10 +783,16 @@ mod tests {
 
     #[test]
     fn test_valid_youtube_url() {
-        assert!(validate_youtube_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
-        assert!(validate_youtube_url("https://youtube.com/watch?v=dQw4w9WgXcQ"));
+        assert!(validate_youtube_url(
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ));
+        assert!(validate_youtube_url(
+            "https://youtube.com/watch?v=dQw4w9WgXcQ"
+        ));
         assert!(validate_youtube_url("https://youtu.be/dQw4w9WgXcQ"));
-        assert!(validate_youtube_url("https://www.youtube.com/embed/dQw4w9WgXcQ"));
+        assert!(validate_youtube_url(
+            "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        ));
     }
 
     #[test]

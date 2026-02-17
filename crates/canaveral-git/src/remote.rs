@@ -9,7 +9,10 @@ impl GitRepo {
     /// Get list of remote names
     pub fn remotes(&self) -> Result<Vec<String>> {
         let remotes = self.repo.remotes()?;
-        Ok(remotes.iter().filter_map(|r| r.map(|s| s.to_string())).collect())
+        Ok(remotes
+            .iter()
+            .filter_map(|r| r.map(|s| s.to_string()))
+            .collect())
     }
 
     /// Check if a remote exists
@@ -35,19 +38,25 @@ impl GitRepo {
     #[instrument(skip(self), fields(remote_name, tag_name))]
     pub fn push_tag(&self, remote_name: &str, tag_name: &str) -> Result<()> {
         let start = std::time::Instant::now();
-        let mut remote = self.repo.find_remote(remote_name).map_err(|_| {
-            GitError::RemoteNotFound(remote_name.to_string())
-        })?;
+        let mut remote = self
+            .repo
+            .find_remote(remote_name)
+            .map_err(|_| GitError::RemoteNotFound(remote_name.to_string()))?;
 
         let refspec = format!("refs/tags/{}:refs/tags/{}", tag_name, tag_name);
 
         // Note: This will fail without proper credentials setup
         // In practice, the CLI will shell out to git for push operations
-        remote.push(&[&refspec], None).map_err(|e| {
-            GitError::PushFailed(format!("Failed to push tag {}: {}", tag_name, e))
-        })?;
+        remote
+            .push(&[&refspec], None)
+            .map_err(|e| GitError::PushFailed(format!("Failed to push tag {}: {}", tag_name, e)))?;
 
-        info!(remote = remote_name, tag = tag_name, duration_ms = start.elapsed().as_millis(), "pushed tag");
+        info!(
+            remote = remote_name,
+            tag = tag_name,
+            duration_ms = start.elapsed().as_millis(),
+            "pushed tag"
+        );
         Ok(())
     }
 
@@ -57,17 +66,26 @@ impl GitRepo {
     #[instrument(skip(self), fields(remote_name, branch))]
     pub fn push_commits(&self, remote_name: &str, branch: &str) -> Result<()> {
         let start = std::time::Instant::now();
-        let mut remote = self.repo.find_remote(remote_name).map_err(|_| {
-            GitError::RemoteNotFound(remote_name.to_string())
-        })?;
+        let mut remote = self
+            .repo
+            .find_remote(remote_name)
+            .map_err(|_| GitError::RemoteNotFound(remote_name.to_string()))?;
 
         let refspec = format!("refs/heads/{}:refs/heads/{}", branch, branch);
 
         remote.push(&[&refspec], None).map_err(|e| {
-            GitError::PushFailed(format!("Failed to push to {}/{}: {}", remote_name, branch, e))
+            GitError::PushFailed(format!(
+                "Failed to push to {}/{}: {}",
+                remote_name, branch, e
+            ))
         })?;
 
-        info!(remote = remote_name, branch, duration_ms = start.elapsed().as_millis(), "pushed commits");
+        info!(
+            remote = remote_name,
+            branch,
+            duration_ms = start.elapsed().as_millis(),
+            "pushed commits"
+        );
         Ok(())
     }
 
@@ -75,15 +93,18 @@ impl GitRepo {
     #[instrument(skip(self), fields(remote_name))]
     pub fn fetch(&self, remote_name: &str, refspecs: &[&str]) -> Result<()> {
         let start = std::time::Instant::now();
-        let mut remote = self.repo.find_remote(remote_name).map_err(|_| {
-            GitError::RemoteNotFound(remote_name.to_string())
-        })?;
+        let mut remote = self
+            .repo
+            .find_remote(remote_name)
+            .map_err(|_| GitError::RemoteNotFound(remote_name.to_string()))?;
 
-        remote.fetch(refspecs, None, None).map_err(|e| {
-            GitError::Git2(e)
-        })?;
+        remote.fetch(refspecs, None, None).map_err(GitError::Git2)?;
 
-        info!(remote = remote_name, duration_ms = start.elapsed().as_millis(), "fetched from remote");
+        info!(
+            remote = remote_name,
+            duration_ms = start.elapsed().as_millis(),
+            "fetched from remote"
+        );
         Ok(())
     }
 }
@@ -95,7 +116,13 @@ pub fn git_push_tag(remote: &str, tag: &str) -> std::io::Result<std::process::Ou
     let output = std::process::Command::new("git")
         .args(["push", remote, tag])
         .output()?;
-    info!(remote, tag, duration_ms = start.elapsed().as_millis(), success = output.status.success(), "git push tag (CLI)");
+    info!(
+        remote,
+        tag,
+        duration_ms = start.elapsed().as_millis(),
+        success = output.status.success(),
+        "git push tag (CLI)"
+    );
     Ok(output)
 }
 
@@ -106,7 +133,13 @@ pub fn git_push(remote: &str, branch: &str) -> std::io::Result<std::process::Out
     let output = std::process::Command::new("git")
         .args(["push", remote, branch])
         .output()?;
-    info!(remote, branch, duration_ms = start.elapsed().as_millis(), success = output.status.success(), "git push (CLI)");
+    info!(
+        remote,
+        branch,
+        duration_ms = start.elapsed().as_millis(),
+        success = output.status.success(),
+        "git push (CLI)"
+    );
     Ok(output)
 }
 
@@ -117,7 +150,13 @@ pub fn git_push_with_tags(remote: &str, branch: &str) -> std::io::Result<std::pr
     let output = std::process::Command::new("git")
         .args(["push", "--follow-tags", remote, branch])
         .output()?;
-    info!(remote, branch, duration_ms = start.elapsed().as_millis(), success = output.status.success(), "git push with tags (CLI)");
+    info!(
+        remote,
+        branch,
+        duration_ms = start.elapsed().as_millis(),
+        success = output.status.success(),
+        "git push with tags (CLI)"
+    );
     Ok(output)
 }
 

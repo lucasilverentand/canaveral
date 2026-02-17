@@ -86,7 +86,11 @@ pub struct SigningIdentity {
 
 impl SigningIdentity {
     /// Create a new signing identity
-    pub fn new(id: impl Into<String>, name: impl Into<String>, identity_type: SigningIdentityType) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        identity_type: SigningIdentityType,
+    ) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
@@ -173,11 +177,7 @@ mod tests {
 
     #[test]
     fn test_identity_expiration() {
-        let mut identity = SigningIdentity::new(
-            "test",
-            "Test",
-            SigningIdentityType::Generic,
-        );
+        let mut identity = SigningIdentity::new("test", "Test", SigningIdentityType::Generic);
 
         // No expiration set
         assert!(!identity.is_expired());

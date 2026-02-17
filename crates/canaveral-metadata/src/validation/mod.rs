@@ -28,18 +28,34 @@ pub use apple::{validate_localized_screenshots, AppleValidator};
 pub use common::*;
 pub use google_play::{validate_localized_google_play_screenshots, GooglePlayValidator};
 pub use screenshots::{
-    read_image_dimensions, validate_apple_screenshot_file, validate_feature_graphic_file,
-    validate_google_play_screenshot_file, validate_screenshot_directory,
-    // Apple dimension constants
-    APPLE_DEVICE_TYPES, APPLE_IPAD_10_5_DIMS, APPLE_IPAD_PRO_11_DIMS, APPLE_IPAD_PRO_12_9_DIMS,
-    APPLE_IPHONE_5_5_DIMS, APPLE_IPHONE_6_1_DIMS, APPLE_IPHONE_6_5_DIMS, APPLE_IPHONE_6_7_DIMS,
-    APPLE_TV_DIMS, APPLE_WATCH_SERIES_9_DIMS,
-    // Google Play dimension constants
-    GOOGLE_PLAY_DEVICE_TYPES, GOOGLE_PLAY_FEATURE_GRAPHIC_DIMS, GOOGLE_PLAY_PHONE_DIMS,
-    GOOGLE_PLAY_SCREENSHOT_MAX, GOOGLE_PLAY_SCREENSHOT_MIN, GOOGLE_PLAY_TABLET_10_DIMS,
-    GOOGLE_PLAY_TABLET_7_DIMS, GOOGLE_PLAY_TV_DIMS,
     // Helper functions
-    get_apple_valid_dimensions, get_google_play_valid_dimensions,
+    get_apple_valid_dimensions,
+    get_google_play_valid_dimensions,
+    read_image_dimensions,
+    validate_apple_screenshot_file,
+    validate_feature_graphic_file,
+    validate_google_play_screenshot_file,
+    validate_screenshot_directory,
+    // Apple dimension constants
+    APPLE_DEVICE_TYPES,
+    APPLE_IPAD_10_5_DIMS,
+    APPLE_IPAD_PRO_11_DIMS,
+    APPLE_IPAD_PRO_12_9_DIMS,
+    APPLE_IPHONE_5_5_DIMS,
+    APPLE_IPHONE_6_1_DIMS,
+    APPLE_IPHONE_6_5_DIMS,
+    APPLE_IPHONE_6_7_DIMS,
+    APPLE_TV_DIMS,
+    APPLE_WATCH_SERIES_9_DIMS,
+    // Google Play dimension constants
+    GOOGLE_PLAY_DEVICE_TYPES,
+    GOOGLE_PLAY_FEATURE_GRAPHIC_DIMS,
+    GOOGLE_PLAY_PHONE_DIMS,
+    GOOGLE_PLAY_SCREENSHOT_MAX,
+    GOOGLE_PLAY_SCREENSHOT_MIN,
+    GOOGLE_PLAY_TABLET_10_DIMS,
+    GOOGLE_PLAY_TABLET_7_DIMS,
+    GOOGLE_PLAY_TV_DIMS,
 };
 
 /// Validation issue severity.
@@ -78,11 +94,7 @@ pub struct ValidationIssue {
 
 impl ValidationIssue {
     /// Creates a new validation issue.
-    pub fn new(
-        severity: Severity,
-        field: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
+    pub fn new(severity: Severity, field: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             severity,
             field: field.into(),

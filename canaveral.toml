@@ -125,3 +125,20 @@ pre_version = []
 post_version = []
 pre_publish = []
 post_publish = []
+
+[git_hooks]
+auto_install = true
+
+[git_hooks.commit_msg]
+conventional_commits = true
+max_subject_length = 72
+allow_wip = true
+allowed_types = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"]
+
+[git_hooks.pre_commit]
+commands = ["canaveral fmt --check", "canaveral lint"]
+parallel = false
+
+[git_hooks.pre_push]
+commands = ["canaveral check"]
+parallel = false

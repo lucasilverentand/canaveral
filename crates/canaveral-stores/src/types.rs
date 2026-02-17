@@ -70,7 +70,6 @@ pub struct UploadOptions {
     pub timeout: Option<u64>,
 
     // --- Metadata integration options ---
-
     /// Validate metadata before upload
     pub validate_metadata: bool,
 

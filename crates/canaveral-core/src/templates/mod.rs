@@ -169,9 +169,6 @@ mod tests {
 
         // npm
         std::fs::write(temp.path().join("package.json"), "{}").unwrap();
-        assert_eq!(
-            detect_package_type(temp.path()),
-            Some("npm".to_string())
-        );
+        assert_eq!(detect_package_type(temp.path()), Some("npm".to_string()));
     }
 }

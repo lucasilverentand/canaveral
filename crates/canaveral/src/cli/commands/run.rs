@@ -3,19 +3,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use anyhow::Context;
 use clap::Args;
 use console::style;
-use anyhow::Context;
 use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
-use canaveral_core::monorepo::{
-    ChangeDetector, DependencyGraph, PackageDiscovery, Workspace,
-};
-use canaveral_tasks::{
-    TaskCache, TaskDag, TaskDefinition, TaskEvent, TaskReporter, TaskScheduler,
-};
+use canaveral_core::monorepo::{ChangeDetector, DependencyGraph, PackageDiscovery, Workspace};
 use canaveral_tasks::scheduler::SchedulerOptions;
+use canaveral_tasks::{TaskCache, TaskDag, TaskDefinition, TaskEvent, TaskReporter, TaskScheduler};
 
 use crate::cli::{Cli, OutputFormat};
 
@@ -73,8 +69,8 @@ impl RunCommand {
         let (config, _) = load_config_or_default(&cwd);
 
         // Discover workspace
-        let workspace = Workspace::detect(&cwd)?
-            .context("No workspace found in current directory")?;
+        let workspace =
+            Workspace::detect(&cwd)?.context("No workspace found in current directory")?;
         let discovery = PackageDiscovery::new(workspace);
         let discovered = discovery.discover()?;
 
@@ -146,7 +142,12 @@ impl RunCommand {
             }
 
             if self.dry_run {
-                println!("{}", style("[DRY RUN - no tasks will be executed]").yellow().bold());
+                println!(
+                    "{}",
+                    style("[DRY RUN - no tasks will be executed]")
+                        .yellow()
+                        .bold()
+                );
                 return Ok(());
             }
 
@@ -309,7 +310,11 @@ impl TaskReporter for ConsoleReporter {
                     }
                 );
             }
-            TaskEvent::Output { id, line, is_stderr } => {
+            TaskEvent::Output {
+                id,
+                line,
+                is_stderr,
+            } => {
                 if self.verbose {
                     if *is_stderr {
                         println!("    {} {}", style(format!("[{}]", id)).red().dim(), line);

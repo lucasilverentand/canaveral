@@ -140,7 +140,8 @@ impl GooglePlayLocalizedMetadata {
 
     /// Adds a changelog entry for a version.
     pub fn add_changelog(&mut self, version_code: impl Into<String>, changelog: impl Into<String>) {
-        self.changelogs.insert(version_code.into(), changelog.into());
+        self.changelogs
+            .insert(version_code.into(), changelog.into());
     }
 }
 
@@ -176,7 +177,7 @@ impl GooglePlayScreenshotSet {
 }
 
 /// Google Play Store categories.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePlayCategory {
     /// Art & Design category.
@@ -238,6 +239,7 @@ pub enum GooglePlayCategory {
     /// Sports category.
     Sports,
     /// Tools category.
+    #[default]
     Tools,
     /// Travel & Local category.
     TravelAndLocal,
@@ -245,12 +247,6 @@ pub enum GooglePlayCategory {
     VideoPlayersAndEditors,
     /// Weather category.
     Weather,
-}
-
-impl Default for GooglePlayCategory {
-    fn default() -> Self {
-        GooglePlayCategory::Tools
-    }
 }
 
 /// Content rating for Google Play Store.
@@ -350,7 +346,13 @@ mod tests {
         metadata.add_changelog("100", "Initial release");
         metadata.add_changelog("101", "Bug fixes");
 
-        assert_eq!(metadata.changelogs.get("100"), Some(&"Initial release".to_string()));
-        assert_eq!(metadata.changelogs.get("101"), Some(&"Bug fixes".to_string()));
+        assert_eq!(
+            metadata.changelogs.get("100"),
+            Some(&"Initial release".to_string())
+        );
+        assert_eq!(
+            metadata.changelogs.get("101"),
+            Some(&"Bug fixes".to_string())
+        );
     }
 }

@@ -114,9 +114,7 @@ impl VersioningStrategy {
             VersioningMode::Independent => {
                 self.calculate_independent_bumps(packages, changes, release_type, graph)
             }
-            VersioningMode::Fixed => {
-                self.calculate_fixed_bumps(packages, changes, release_type)
-            }
+            VersioningMode::Fixed => self.calculate_fixed_bumps(packages, changes, release_type),
             VersioningMode::Grouped => {
                 self.calculate_grouped_bumps(packages, changes, release_type, graph)
             }
@@ -204,8 +202,7 @@ impl VersioningStrategy {
         // Find the highest current version
         let max_version = packages
             .iter()
-            .map(|p| semver::Version::parse(&p.version).ok())
-            .flatten()
+            .filter_map(|p| semver::Version::parse(&p.version).ok())
             .max()
             .map(|v| v.to_string())
             .unwrap_or_else(|| "0.0.0".to_string());
@@ -260,8 +257,7 @@ impl VersioningStrategy {
             let max_version = packages
                 .iter()
                 .filter(|p| members.contains(&p.name))
-                .map(|p| semver::Version::parse(&p.version).ok())
-                .flatten()
+                .filter_map(|p| semver::Version::parse(&p.version).ok())
                 .max()
                 .map(|v| v.to_string())
                 .unwrap_or_else(|| "0.0.0".to_string());
@@ -287,7 +283,10 @@ impl VersioningStrategy {
 
         // Handle packages not in any group (independent versioning)
         for change in changes {
-            let in_group = self.groups.values().any(|members| members.contains(&change.name));
+            let in_group = self
+                .groups
+                .values()
+                .any(|members| members.contains(&change.name));
             if in_group {
                 continue;
             }
@@ -314,7 +313,10 @@ impl VersioningStrategy {
                         continue;
                     }
 
-                    let in_group = self.groups.values().any(|members| members.contains(&pkg.name));
+                    let in_group = self
+                        .groups
+                        .values()
+                        .any(|members| members.contains(&pkg.name));
                     if in_group {
                         continue;
                     }
@@ -370,7 +372,8 @@ impl VersioningStrategy {
                     let pre_str = v.pre.to_string();
                     if let Some((prefix, num)) = pre_str.rsplit_once('.') {
                         if let Ok(n) = num.parse::<u32>() {
-                            v.pre = semver::Prerelease::new(&format!("{}.{}", prefix, n + 1)).unwrap();
+                            v.pre =
+                                semver::Prerelease::new(&format!("{}.{}", prefix, n + 1)).unwrap();
                         }
                     }
                 }
@@ -480,7 +483,10 @@ mod tests {
         let changes = create_changes();
 
         let mut groups = HashMap::new();
-        groups.insert("core-group".to_string(), vec!["core".to_string(), "utils".to_string()]);
+        groups.insert(
+            "core-group".to_string(),
+            vec!["core".to_string(), "utils".to_string()],
+        );
 
         let strategy = VersioningStrategy::new(VersioningMode::Grouped).with_groups(groups);
 

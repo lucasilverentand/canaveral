@@ -110,7 +110,7 @@ impl GitStorage {
                 .args(["pull", "origin", &self.branch])
                 .current_dir(&self.local_path)
                 .output()
-                .map_err(|e| SigningError::Io(e))?;
+                .map_err(SigningError::Io)?;
 
             if !output.status.success() {
                 return Err(SigningError::Command {
@@ -121,8 +121,7 @@ impl GitStorage {
             }
         } else {
             // Clone repository
-            std::fs::create_dir_all(self.local_path.parent().unwrap())
-                .map_err(|e| SigningError::Io(e))?;
+            std::fs::create_dir_all(self.local_path.parent().unwrap()).map_err(SigningError::Io)?;
 
             let output = Command::new("git")
                 .args([
@@ -134,7 +133,7 @@ impl GitStorage {
                     self.local_path.to_str().unwrap_or_default(),
                 ])
                 .output()
-                .map_err(|e| SigningError::Io(e))?;
+                .map_err(SigningError::Io)?;
 
             if !output.status.success() {
                 return Err(SigningError::Command {
@@ -150,20 +149,24 @@ impl GitStorage {
 
     /// Commit and push changes
     fn commit_and_push(&self, message: &str) -> Result<()> {
-        debug!(backend = "git", message = message, "Committing and pushing changes");
+        debug!(
+            backend = "git",
+            message = message,
+            "Committing and pushing changes"
+        );
         // Add all changes
         Command::new("git")
             .args(["add", "-A"])
             .current_dir(&self.local_path)
             .output()
-            .map_err(|e| SigningError::Io(e))?;
+            .map_err(SigningError::Io)?;
 
         // Commit
         let commit_output = Command::new("git")
             .args(["commit", "-m", message])
             .current_dir(&self.local_path)
             .output()
-            .map_err(|e| SigningError::Io(e))?;
+            .map_err(SigningError::Io)?;
 
         // If nothing to commit, that's fine
         if !commit_output.status.success() {
@@ -183,7 +186,7 @@ impl GitStorage {
             .args(["push", "origin", &self.branch])
             .current_dir(&self.local_path)
             .output()
-            .map_err(|e| SigningError::Io(e))?;
+            .map_err(SigningError::Io)?;
 
         if !push_output.status.success() {
             return Err(SigningError::Command {
@@ -205,7 +208,7 @@ impl StorageBackend for GitStorage {
 
     async fn read(&self, path: &str) -> Result<Vec<u8>> {
         let file_path = self.local_path.join(path);
-        std::fs::read(&file_path).map_err(|e| SigningError::Io(e))
+        std::fs::read(&file_path).map_err(SigningError::Io)
     }
 
     async fn write(&self, path: &str, data: &[u8]) -> Result<()> {
@@ -213,10 +216,10 @@ impl StorageBackend for GitStorage {
 
         // Create parent directories
         if let Some(parent) = file_path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| SigningError::Io(e))?;
+            std::fs::create_dir_all(parent).map_err(SigningError::Io)?;
         }
 
-        std::fs::write(&file_path, data).map_err(|e| SigningError::Io(e))?;
+        std::fs::write(&file_path, data).map_err(SigningError::Io)?;
 
         // Commit and push
         self.commit_and_push(&format!("Update {}", path))
@@ -226,7 +229,7 @@ impl StorageBackend for GitStorage {
         let file_path = self.local_path.join(path);
 
         if file_path.exists() {
-            std::fs::remove_file(&file_path).map_err(|e| SigningError::Io(e))?;
+            std::fs::remove_file(&file_path).map_err(SigningError::Io)?;
             self.commit_and_push(&format!("Delete {}", path))?;
         }
 
@@ -294,7 +297,7 @@ impl S3Storage {
             .args(args)
             .env("AWS_DEFAULT_REGION", &self.region)
             .output()
-            .map_err(|e| SigningError::Io(e))?;
+            .map_err(SigningError::Io)?;
 
         Ok(output)
     }
@@ -309,12 +312,7 @@ impl StorageBackend for S3Storage {
 
     async fn read(&self, path: &str) -> Result<Vec<u8>> {
         let key = self.full_key(path);
-        let output = self.aws_cli(&[
-            "s3",
-            "cp",
-            &format!("s3://{}/{}", self.bucket, key),
-            "-",
-        ])?;
+        let output = self.aws_cli(&["s3", "cp", &format!("s3://{}/{}", self.bucket, key), "-"])?;
 
         if !output.status.success() {
             return Err(SigningError::Command {
@@ -331,10 +329,8 @@ impl StorageBackend for S3Storage {
         let key = self.full_key(path);
 
         // Write to temp file first
-        let temp_file = tempfile::NamedTempFile::new()
-            .map_err(|e| SigningError::Io(e))?;
-        std::fs::write(temp_file.path(), data)
-            .map_err(|e| SigningError::Io(e))?;
+        let temp_file = tempfile::NamedTempFile::new().map_err(SigningError::Io)?;
+        std::fs::write(temp_file.path(), data).map_err(SigningError::Io)?;
 
         let output = self.aws_cli(&[
             "s3",
@@ -356,11 +352,7 @@ impl StorageBackend for S3Storage {
 
     async fn delete(&self, path: &str) -> Result<()> {
         let key = self.full_key(path);
-        let output = self.aws_cli(&[
-            "s3",
-            "rm",
-            &format!("s3://{}/{}", self.bucket, key),
-        ])?;
+        let output = self.aws_cli(&["s3", "rm", &format!("s3://{}/{}", self.bucket, key)])?;
 
         if !output.status.success() {
             return Err(SigningError::Command {
@@ -405,11 +397,7 @@ impl StorageBackend for S3Storage {
 
     async fn exists(&self, path: &str) -> Result<bool> {
         let key = self.full_key(path);
-        let output = self.aws_cli(&[
-            "s3",
-            "ls",
-            &format!("s3://{}/{}", self.bucket, key),
-        ])?;
+        let output = self.aws_cli(&["s3", "ls", &format!("s3://{}/{}", self.bucket, key)])?;
 
         Ok(output.status.success() && !output.stdout.is_empty())
     }

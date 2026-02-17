@@ -53,7 +53,10 @@ pub fn validate_release(
     is_clean: bool,
     on_correct_branch: bool,
 ) -> Result<ValidationResult> {
-    info!(is_clean, on_correct_branch, "validating release preconditions");
+    info!(
+        is_clean,
+        on_correct_branch, "validating release preconditions"
+    );
     let mut result = ValidationResult::pass();
 
     // Check working directory

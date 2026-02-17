@@ -41,7 +41,7 @@ impl OutputFormat {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "text" | "pretty" => Some(Self::Text),
             "json" => Some(Self::Json),
@@ -142,7 +142,8 @@ impl Output {
     }
 
     pub fn with_artifacts(mut self, artifacts: Vec<Artifact>) -> Self {
-        self.artifacts.extend(artifacts.into_iter().map(ArtifactOutput::from));
+        self.artifacts
+            .extend(artifacts.into_iter().map(ArtifactOutput::from));
         self
     }
 
@@ -264,7 +265,10 @@ impl Output {
         // Set outputs
         for (key, value) in &self.outputs {
             // Escape for multiline values
-            let escaped = value.replace('%', "%25").replace('\n', "%0A").replace('\r', "%0D");
+            let escaped = value
+                .replace('%', "%25")
+                .replace('\n', "%0A")
+                .replace('\r', "%0D");
             out.push_str(&format!("::set-output name={}::{}\n", key, escaped));
         }
 
@@ -335,7 +339,9 @@ impl Output {
 
         // Collapsible section for artifacts
         if !self.artifacts.is_empty() {
-            out.push_str("\n\\e[0Ksection_start:`date +%s`:artifacts[collapsed=true]\\r\\e[0KArtifacts\n");
+            out.push_str(
+                "\n\\e[0Ksection_start:`date +%s`:artifacts[collapsed=true]\\r\\e[0KArtifacts\n",
+            );
             for artifact in &self.artifacts {
                 out.push_str(&format!(
                     "{} ({}, {})\n",
@@ -453,14 +459,17 @@ mod tests {
 
         assert!(output.success);
         assert_eq!(output.duration_ms, Some(1234));
-        assert_eq!(output.outputs.get("artifact_path"), Some(&"/path/to/app.ipa".to_string()));
+        assert_eq!(
+            output.outputs.get("artifact_path"),
+            Some(&"/path/to/app.ipa".to_string())
+        );
         assert_eq!(output.warnings.len(), 1);
     }
 
     #[test]
     fn test_output_failure() {
-        let output = Output::failure("build", "Build failed")
-            .with_error("Missing provisioning profile");
+        let output =
+            Output::failure("build", "Build failed").with_error("Missing provisioning profile");
 
         assert!(!output.success);
         assert_eq!(output.errors.len(), 1);
@@ -468,8 +477,7 @@ mod tests {
 
     #[test]
     fn test_render_json() {
-        let output = Output::success("test", "Tests passed")
-            .with_output("coverage", "85.5");
+        let output = Output::success("test", "Tests passed").with_output("coverage", "85.5");
 
         let json = output.render(OutputFormat::Json);
         assert!(json.contains("\"success\": true"));
@@ -486,8 +494,11 @@ mod tests {
 
     #[test]
     fn test_output_format_from_str() {
-        assert_eq!(OutputFormat::from_str("json"), Some(OutputFormat::Json));
-        assert_eq!(OutputFormat::from_str("github"), Some(OutputFormat::GithubActions));
-        assert_eq!(OutputFormat::from_str("invalid"), None);
+        assert_eq!(OutputFormat::parse("json"), Some(OutputFormat::Json));
+        assert_eq!(
+            OutputFormat::parse("github"),
+            Some(OutputFormat::GithubActions)
+        );
+        assert_eq!(OutputFormat::parse("invalid"), None);
     }
 }

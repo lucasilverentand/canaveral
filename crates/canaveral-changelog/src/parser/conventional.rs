@@ -4,25 +4,30 @@
 //! https://www.conventionalcommits.org/
 
 use regex::Regex;
-use std::sync::LazyLock;
+use std::sync::OnceLock;
 
 use super::{CommitParser, ParserConfig};
 use crate::types::{Footer, ParsedCommit};
 use canaveral_git::CommitInfo;
 use tracing::debug;
 
-/// Regex for parsing conventional commit messages
-static CONVENTIONAL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"^(?P<type>[a-zA-Z]+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?: (?P<description>.+)$",
-    )
-    .expect("Invalid regex")
-});
+fn conventional_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(
+            r"^(?P<type>[a-zA-Z]+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?: (?P<description>.+)$",
+        )
+        .expect("Invalid regex")
+    })
+}
 
-/// Regex for parsing footer lines
-static FOOTER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(?P<token>[A-Za-z-]+|BREAKING CHANGE): (?P<value>.+)$").expect("Invalid regex")
-});
+fn footer_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"^(?P<token>[A-Za-z-]+|BREAKING CHANGE): (?P<value>.+)$")
+            .expect("Invalid regex")
+    })
+}
 
 /// Parser for Conventional Commits format
 pub struct ConventionalParser {
@@ -44,7 +49,7 @@ impl ConventionalParser {
 
     /// Parse a commit message
     fn parse_message(&self, message: &str, body: Option<&str>) -> Option<ParsedMessage> {
-        let caps = CONVENTIONAL_REGEX.captures(message)?;
+        let caps = conventional_regex().captures(message)?;
 
         let commit_type = caps.name("type")?.as_str().to_lowercase();
         let scope = caps.name("scope").map(|m| m.as_str().to_string());
@@ -81,7 +86,7 @@ impl ConventionalParser {
         let mut in_footer = false;
 
         for line in body.lines() {
-            if let Some(caps) = FOOTER_REGEX.captures(line) {
+            if let Some(caps) = footer_regex().captures(line) {
                 in_footer = true;
                 footers.push(Footer {
                     token: caps.name("token").unwrap().as_str().to_string(),
@@ -270,9 +275,7 @@ mod tests {
 
     #[test]
     fn test_should_include_with_excludes() {
-        let parser = ConventionalParser::with_config(
-            ParserConfig::default().exclude_type("chore"),
-        );
+        let parser = ConventionalParser::with_config(ParserConfig::default().exclude_type("chore"));
 
         let mut commit = make_commit("feat: feature");
         let parsed = parser.parse(&commit).unwrap();

@@ -124,9 +124,10 @@ impl CIGenerateCommand {
             if self.dry_run {
                 println!("{}", content);
             } else {
-                let output_path = self.output.clone().unwrap_or_else(|| {
-                    cwd.join(".github/workflows/canaveral.yml")
-                });
+                let output_path = self
+                    .output
+                    .clone()
+                    .unwrap_or_else(|| cwd.join(".github/workflows/canaveral.yml"));
                 if let Some(parent) = output_path.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
@@ -143,21 +144,23 @@ impl CIGenerateCommand {
         } else {
             // Traditional mode: use existing template generators
             let registry = CITemplateRegistry::new();
-            let template = registry.get(&self.platform)
-                .ok_or_else(|| anyhow::anyhow!(
+            let template = registry.get(&self.platform).ok_or_else(|| {
+                anyhow::anyhow!(
                     "Unsupported CI platform: {}. Available: {}",
                     self.platform,
                     registry.platform_names().join(", ")
-                ))?;
+                )
+            })?;
 
             let content = template.generate(&options)?;
 
             if self.dry_run {
                 println!("{}", content);
             } else {
-                let output_path = self.output.clone().unwrap_or_else(|| {
-                    cwd.join(template.config_path())
-                });
+                let output_path = self
+                    .output
+                    .clone()
+                    .unwrap_or_else(|| cwd.join(template.config_path()));
                 if let Some(parent) = output_path.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
@@ -187,7 +190,10 @@ impl CIRunCommand {
             "pull_request" | "pr" => &config.ci.on_pr,
             "push" => &config.ci.on_push_main,
             "tag" => &config.ci.on_tag,
-            other => anyhow::bail!("Unknown CI event: {}. Use pull_request, push, or tag.", other),
+            other => anyhow::bail!(
+                "Unknown CI event: {}. Use pull_request, push, or tag.",
+                other
+            ),
         };
 
         if !cli.quiet {
@@ -270,10 +276,7 @@ impl CIValidateCommand {
                     println!("  Config: {}", style(path.display()).dim());
                 }
                 println!("  Platform: {}", style(&config.ci.platform).cyan());
-                println!(
-                    "  PR tasks: {}",
-                    style(config.ci.on_pr.join(", ")).dim()
-                );
+                println!("  PR tasks: {}", style(config.ci.on_pr.join(", ")).dim());
                 println!(
                     "  Push tasks: {}",
                     style(config.ci.on_push_main.join(", ")).dim()

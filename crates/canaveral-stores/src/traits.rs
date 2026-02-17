@@ -62,7 +62,9 @@ pub trait NotarizationSupport: StoreAdapter {
     /// Full notarization workflow: submit, wait, staple
     async fn notarize(&self, path: &Path, timeout_secs: Option<u64>) -> Result<NotarizationResult> {
         let submission_id = self.submit_for_notarization(path).await?;
-        let result = self.wait_for_notarization(&submission_id, timeout_secs).await?;
+        let result = self
+            .wait_for_notarization(&submission_id, timeout_secs)
+            .await?;
 
         if result.status == NotarizationStatus::Accepted {
             self.staple(path).await?;

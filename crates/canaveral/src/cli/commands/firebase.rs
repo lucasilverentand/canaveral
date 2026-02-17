@@ -240,15 +240,14 @@ impl FirebaseCommand {
             anyhow::bail!("Artifact not found: {}", args.artifact.display());
         }
 
-        let mut firebase = self.get_firebase(
-            args.project_id.as_deref(),
-            args.app_id.as_deref(),
-        )?;
+        let mut firebase = self.get_firebase(args.project_id.as_deref(), args.app_id.as_deref())?;
 
         // Read release notes from file if specified
         let release_notes = if let Some(ref notes_file) = args.notes_file {
-            Some(std::fs::read_to_string(notes_file)
-                .map_err(|e| anyhow::anyhow!("Failed to read notes file: {}", e))?)
+            Some(
+                std::fs::read_to_string(notes_file)
+                    .map_err(|e| anyhow::anyhow!("Failed to read notes file: {}", e))?,
+            )
         } else {
             args.notes.clone()
         };
@@ -262,13 +261,19 @@ impl FirebaseCommand {
 
         if !cli.quiet && cli.format == OutputFormat::Text {
             println!();
-            println!("{}", style("Uploading to Firebase App Distribution...").bold());
+            println!(
+                "{}",
+                style("Uploading to Firebase App Distribution...").bold()
+            );
             println!("  File: {}", style(args.artifact.display()).cyan());
             if !args.groups.is_empty() {
                 println!("  Groups: {}", style(args.groups.join(", ")).dim());
             }
             if !args.testers.is_empty() {
-                println!("  Testers: {}", style(format!("{} recipients", args.testers.len())).dim());
+                println!(
+                    "  Testers: {}",
+                    style(format!("{} recipients", args.testers.len())).dim()
+                );
             }
             if args.dry_run {
                 println!("  {}", style("(DRY RUN)").yellow().bold());
@@ -281,10 +286,7 @@ impl FirebaseCommand {
         if cli.format == OutputFormat::Json {
             println!("{}", serde_json::to_string_pretty(&release)?);
         } else if !cli.quiet {
-            println!(
-                "{} Upload completed!",
-                style("✓").green().bold()
-            );
+            println!("{} Upload completed!", style("✓").green().bold());
             println!("  Version: {}", style(&release.display_version).cyan());
             println!("  Build: {}", style(&release.build_version).dim());
             if let Some(ref uri) = release.firebase_console_uri {
@@ -297,7 +299,11 @@ impl FirebaseCommand {
 
     async fn releases(&self, cmd: &ReleasesCommand, cli: &Cli) -> anyhow::Result<()> {
         match &cmd.subcommand {
-            ReleasesSubcommand::List { project_id, app_id, limit } => {
+            ReleasesSubcommand::List {
+                project_id,
+                app_id,
+                limit,
+            } => {
                 let mut firebase = self.get_firebase(project_id.as_deref(), app_id.as_deref())?;
                 let releases = firebase.list_releases(Some(*limit)).await?;
 
@@ -317,7 +323,11 @@ impl FirebaseCommand {
                 }
             }
 
-            ReleasesSubcommand::Get { name, project_id, app_id } => {
+            ReleasesSubcommand::Get {
+                name,
+                project_id,
+                app_id,
+            } => {
                 let mut firebase = self.get_firebase(project_id.as_deref(), app_id.as_deref())?;
                 let release = firebase.get_release(name).await?;
 
@@ -353,9 +363,16 @@ impl FirebaseCommand {
                 }
             }
 
-            GroupsSubcommand::Create { alias, display_name, project_id, app_id } => {
+            GroupsSubcommand::Create {
+                alias,
+                display_name,
+                project_id,
+                app_id,
+            } => {
                 let mut firebase = self.get_firebase(project_id.as_deref(), app_id.as_deref())?;
-                let group = firebase.create_group(alias, display_name.as_deref()).await?;
+                let group = firebase
+                    .create_group(alias, display_name.as_deref())
+                    .await?;
 
                 if cli.format == OutputFormat::Json {
                     println!("{}", serde_json::to_string_pretty(&group)?);
@@ -371,12 +388,20 @@ impl FirebaseCommand {
                 }
             }
 
-            GroupsSubcommand::Delete { alias, project_id, app_id, yes } => {
+            GroupsSubcommand::Delete {
+                alias,
+                project_id,
+                app_id,
+                yes,
+            } => {
                 if !yes && cli.format == OutputFormat::Text {
                     use dialoguer::Confirm;
 
                     let confirmed = Confirm::new()
-                        .with_prompt(format!("Are you sure you want to delete group '{}'?", alias))
+                        .with_prompt(format!(
+                            "Are you sure you want to delete group '{}'?",
+                            alias
+                        ))
                         .default(false)
                         .interact()?;
 
@@ -404,7 +429,12 @@ impl FirebaseCommand {
 
     async fn testers(&self, cmd: &TestersCommand, cli: &Cli) -> anyhow::Result<()> {
         match &cmd.subcommand {
-            TestersSubcommand::Add { emails, group, project_id, app_id } => {
+            TestersSubcommand::Add {
+                emails,
+                group,
+                project_id,
+                app_id,
+            } => {
                 if emails.is_empty() {
                     anyhow::bail!("At least one email is required");
                 }
@@ -426,14 +456,21 @@ impl FirebaseCommand {
                 }
             }
 
-            TestersSubcommand::Remove { emails, group, project_id, app_id } => {
+            TestersSubcommand::Remove {
+                emails,
+                group,
+                project_id,
+                app_id,
+            } => {
                 if emails.is_empty() {
                     anyhow::bail!("At least one email is required");
                 }
 
                 let mut firebase = self.get_firebase(project_id.as_deref(), app_id.as_deref())?;
                 let email_refs: Vec<&str> = emails.iter().map(|s| s.as_str()).collect();
-                firebase.remove_testers_from_group(group, &email_refs).await?;
+                firebase
+                    .remove_testers_from_group(group, &email_refs)
+                    .await?;
 
                 if !cli.quiet && cli.format == OutputFormat::Text {
                     println!(
@@ -469,7 +506,8 @@ impl FirebaseCommand {
             .or_else(|| std::env::var("FIREBASE_APP_ID").ok())
             .ok_or_else(|| anyhow::anyhow!("FIREBASE_APP_ID not set"))?;
 
-        let service_account = std::env::var("GOOGLE_APPLICATION_CREDENTIALS").ok()
+        let service_account = std::env::var("GOOGLE_APPLICATION_CREDENTIALS")
+            .ok()
             .or_else(|| std::env::var("FIREBASE_SERVICE_ACCOUNT").ok());
 
         let cli_token = std::env::var("FIREBASE_TOKEN").ok();
@@ -493,7 +531,10 @@ impl FirebaseCommand {
             style(&release.display_version).cyan()
         );
         println!("    Build: {}", style(&release.build_version).dim());
-        println!("    Created: {}", style(release.create_time.format("%Y-%m-%d %H:%M UTC")).dim());
+        println!(
+            "    Created: {}",
+            style(release.create_time.format("%Y-%m-%d %H:%M UTC")).dim()
+        );
         if let Some(ref notes) = release.release_notes {
             // Truncate long notes for display
             let display_notes = if notes.len() > 100 {

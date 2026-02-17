@@ -197,7 +197,10 @@ impl TeamVault {
             // Parse key to get public key
             if let Ok(identity) = key.parse::<age::x25519::Identity>() {
                 let public_key = identity.to_public().to_string();
-                members.values().find(|m| m.public_key == public_key).cloned()
+                members
+                    .values()
+                    .find(|m| m.public_key == public_key)
+                    .cloned()
             } else {
                 None
             }
@@ -266,7 +269,10 @@ impl TeamVault {
 
     /// Check if current user has a permission
     fn check_permission(&self, permission: Permission) -> Result<()> {
-        let member = self.current_member.as_ref().ok_or(VaultError::NoCurrentUser)?;
+        let member = self
+            .current_member
+            .as_ref()
+            .ok_or(VaultError::NoCurrentUser)?;
 
         if !member.role.has_permission(permission) {
             return Err(VaultError::PermissionDenied(format!(
@@ -335,7 +341,11 @@ impl TeamVault {
             .ok_or_else(|| VaultError::MemberNotFound(email.to_string()))?;
 
         // Don't allow removing the last admin
-        let admin_count = self.members.values().filter(|m| m.role == Role::Admin).count();
+        let admin_count = self
+            .members
+            .values()
+            .filter(|m| m.role == Role::Admin)
+            .count();
         if admin_count == 1 && self.members.get(&member_id).map(|m| m.role) == Some(Role::Admin) {
             return Err(VaultError::PermissionDenied(
                 "Cannot remove the last admin".to_string(),
@@ -378,7 +388,11 @@ impl TeamVault {
 
         // Don't allow demoting the last admin
         if old_role == Role::Admin && new_role != Role::Admin {
-            let admin_count = self.members.values().filter(|m| m.role == Role::Admin).count();
+            let admin_count = self
+                .members
+                .values()
+                .filter(|m| m.role == Role::Admin)
+                .count();
             if admin_count == 1 {
                 return Err(VaultError::PermissionDenied(
                     "Cannot demote the last admin".to_string(),
@@ -403,7 +417,10 @@ impl TeamVault {
 
         self.save()?;
 
-        info!("Changed role for {} from {} to {}", email, old_role, new_role);
+        info!(
+            "Changed role for {} from {} to {}",
+            email, old_role, new_role
+        );
 
         Ok(())
     }
@@ -473,7 +490,10 @@ impl TeamVault {
             .ok_or_else(|| VaultError::IdentityNotFound(id.to_string()))?;
 
         // Check if current member can access this identity
-        let member = self.current_member.as_ref().ok_or(VaultError::NoCurrentUser)?;
+        let member = self
+            .current_member
+            .as_ref()
+            .ok_or(VaultError::NoCurrentUser)?;
         if !identity.can_access(&member.role) {
             return Err(VaultError::PermissionDenied(format!(
                 "Role '{}' cannot access identity '{}'",

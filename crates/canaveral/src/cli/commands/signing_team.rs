@@ -5,10 +5,8 @@ use console::style;
 use std::path::PathBuf;
 use tracing::info;
 
-use canaveral_signing::team::{
-    generate_keypair, Role, TeamVault, CredentialData,
-};
 use canaveral_signing::identity::SigningIdentityType;
+use canaveral_signing::team::{generate_keypair, CredentialData, Role, TeamVault};
 
 use crate::cli::{Cli, OutputFormat};
 
@@ -315,7 +313,10 @@ impl TeamInitCommand {
                 println!("  {}", style("Public key (share with team):").underlined());
                 println!("  {}", style(&keypair.public_key).green());
                 println!();
-                println!("  {}", style("Private key (KEEP SECRET!):").underlined().red());
+                println!(
+                    "  {}",
+                    style("Private key (KEEP SECRET!):").underlined().red()
+                );
                 println!("  {}", &keypair.private_key);
                 println!();
                 println!("{}", style("Important:").yellow().bold());
@@ -360,7 +361,10 @@ impl KeygenCommand {
                     println!("  {}", style("Public key:").underlined());
                     println!("  {}", style(&keypair.public_key).green());
                     println!();
-                    println!("  {}", style("Private key (KEEP SECRET!):").underlined().red());
+                    println!(
+                        "  {}",
+                        style("Private key (KEEP SECRET!):").underlined().red()
+                    );
                     println!("  {}", &keypair.private_key);
                 }
             }
@@ -404,10 +408,7 @@ impl TeamStatusCommand {
                         member.role
                     );
                 } else {
-                    println!(
-                        "  Logged in:  {}",
-                        style("Not authenticated").yellow()
-                    );
+                    println!("  Logged in:  {}", style("Not authenticated").yellow());
                 }
             }
         }
@@ -686,10 +687,7 @@ impl IdentityExportCommand {
                         println!("  Password: (set)");
                     }
                     println!();
-                    println!(
-                        "  Use {} to save to file",
-                        style("--output <path>").cyan()
-                    );
+                    println!("  Use {} to save to file", style("--output <path>").cyan());
                 }
             }
         }
@@ -715,11 +713,7 @@ impl IdentityDeleteCommand {
         vault.delete_identity(&self.id)?;
 
         if !cli.quiet {
-            println!(
-                "{} Deleted {}",
-                style("✓").green(),
-                style(&self.id).cyan()
-            );
+            println!("{} Deleted {}", style("✓").green(), style(&self.id).cyan());
         }
 
         Ok(())

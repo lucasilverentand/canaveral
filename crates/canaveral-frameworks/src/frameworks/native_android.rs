@@ -41,13 +41,16 @@ impl NativeAndroidAdapter {
     }
 
     /// Run gradle command
-    fn run_gradle(&self, args: &[&str], path: &Path, env: &HashMap<String, String>) -> Result<std::process::Output> {
+    fn run_gradle(
+        &self,
+        args: &[&str],
+        path: &Path,
+        env: &HashMap<String, String>,
+    ) -> Result<std::process::Output> {
         let gradle = self.gradle_cmd(path);
 
         let mut cmd = Command::new(&gradle);
-        cmd.args(args)
-            .current_dir(path)
-            .envs(env);
+        cmd.args(args).current_dir(path).envs(env);
 
         // Ensure ANDROID_HOME is set
         if !env.contains_key("ANDROID_HOME") {
@@ -86,8 +89,8 @@ impl NativeAndroidAdapter {
 
     /// Parse version from build.gradle
     fn parse_gradle_version(&self, build_gradle: &Path) -> Result<VersionInfo> {
-        let content = std::fs::read_to_string(build_gradle)
-            .map_err(|e| FrameworkError::Context {
+        let content =
+            std::fs::read_to_string(build_gradle).map_err(|e| FrameworkError::Context {
                 context: "reading build.gradle".to_string(),
                 message: e.to_string(),
             })?;
@@ -134,8 +137,8 @@ impl NativeAndroidAdapter {
 
     /// Update version in build.gradle
     fn update_gradle_version(&self, build_gradle: &Path, version: &VersionInfo) -> Result<()> {
-        let mut content = std::fs::read_to_string(build_gradle)
-            .map_err(|e| FrameworkError::Context {
+        let mut content =
+            std::fs::read_to_string(build_gradle).map_err(|e| FrameworkError::Context {
                 context: "reading build.gradle".to_string(),
                 message: e.to_string(),
             })?;
@@ -153,13 +156,11 @@ impl NativeAndroidAdapter {
             Regex::new(r#"(versionName\s+)["'][^"']+["']"#).unwrap()
         };
 
-        let replacement = if is_kotlin {
-            format!("$1\"{}\"", version.version)
-        } else {
-            format!("$1\"{}\"", version.version)
-        };
+        let replacement = format!("$1\"{}\"", version.version);
 
-        content = version_regex.replace(&content, replacement.as_str()).to_string();
+        content = version_regex
+            .replace(&content, replacement.as_str())
+            .to_string();
 
         // Update versionCode if provided
         if let Some(build_number) = version.build_number {
@@ -174,14 +175,18 @@ impl NativeAndroidAdapter {
                 .to_string();
         }
 
-        std::fs::write(build_gradle, content)
-            .map_err(|e| FrameworkError::Io(e))?;
+        std::fs::write(build_gradle, content).map_err(FrameworkError::Io)?;
 
         Ok(())
     }
 
     /// Find built artifacts
-    fn find_artifacts(&self, path: &Path, profile: BuildProfile, flavor: Option<&str>) -> Vec<Artifact> {
+    fn find_artifacts(
+        &self,
+        path: &Path,
+        profile: BuildProfile,
+        flavor: Option<&str>,
+    ) -> Vec<Artifact> {
         let mut artifacts = Vec::new();
 
         // Build type directory name
@@ -201,22 +206,41 @@ impl NativeAndroidAdapter {
 
         // Add flavor-specific directories
         if let Some(flavor) = flavor {
-            output_dirs.insert(0, path.join(format!("app/build/outputs/apk/{}/{}", flavor, build_type)));
-            output_dirs.insert(1, path.join(format!("app/build/outputs/bundle/{}{}", flavor, if build_type == "release" { "Release" } else { "Debug" })));
+            output_dirs.insert(
+                0,
+                path.join(format!("app/build/outputs/apk/{}/{}", flavor, build_type)),
+            );
+            output_dirs.insert(
+                1,
+                path.join(format!(
+                    "app/build/outputs/bundle/{}{}",
+                    flavor,
+                    if build_type == "release" {
+                        "Release"
+                    } else {
+                        "Debug"
+                    }
+                )),
+            );
         }
 
         // Search for APKs
         for dir in &output_dirs {
             if dir.exists() {
                 for apk in self.find_files_with_extension(dir, "apk") {
-                    let filename = apk.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                    let filename = apk
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
                     // Skip test APKs
                     if filename.contains("androidTest") || filename.contains("-test-") {
                         continue;
                     }
-                    let metadata = ArtifactMetadata::new()
-                        .with_framework("native-android");
-                    artifacts.push(Artifact::new(&apk, ArtifactKind::Apk, Platform::Android).with_metadata(metadata));
+                    let metadata = ArtifactMetadata::new().with_framework("native-android");
+                    artifacts.push(
+                        Artifact::new(&apk, ArtifactKind::Apk, Platform::Android)
+                            .with_metadata(metadata),
+                    );
                 }
             }
         }
@@ -229,7 +253,10 @@ impl NativeAndroidAdapter {
                         let metadata = ArtifactMetadata::new()
                             .with_framework("native-android")
                             .with_signed(true);
-                        artifacts.push(Artifact::new(&aab, ArtifactKind::Aab, Platform::Android).with_metadata(metadata));
+                        artifacts.push(
+                            Artifact::new(&aab, ArtifactKind::Aab, Platform::Android)
+                                .with_metadata(metadata),
+                        );
                     }
                 }
             }
@@ -269,15 +296,17 @@ impl NativeAndroidAdapter {
                 // Create or update gradle.properties with signing info
                 let gradle_props_path = path.join("gradle.properties");
                 let mut props = if gradle_props_path.exists() {
-                    std::fs::read_to_string(&gradle_props_path)
-                        .map_err(|e| FrameworkError::Io(e))?
+                    std::fs::read_to_string(&gradle_props_path).map_err(FrameworkError::Io)?
                 } else {
                     String::new()
                 };
 
                 // Add signing properties if not present
                 if !props.contains("RELEASE_STORE_FILE") {
-                    props.push_str(&format!("\nRELEASE_STORE_FILE={}\n", keystore_path.display()));
+                    props.push_str(&format!(
+                        "\nRELEASE_STORE_FILE={}\n",
+                        keystore_path.display()
+                    ));
                 }
                 if !props.contains("RELEASE_KEY_ALIAS") {
                     if let Some(ref alias) = signing.key_alias {
@@ -286,8 +315,7 @@ impl NativeAndroidAdapter {
                 }
 
                 // Note: passwords should be passed via environment variables, not stored in properties
-                std::fs::write(&gradle_props_path, props)
-                    .map_err(|e| FrameworkError::Io(e))?;
+                std::fs::write(&gradle_props_path, props).map_err(FrameworkError::Io)?;
             }
         }
 
@@ -314,16 +342,15 @@ impl BuildAdapter for NativeAndroidAdapter {
     fn detect(&self, path: &Path) -> Detection {
         debug!(path = %path.display(), "detecting native Android project");
         // Look for build.gradle or build.gradle.kts
-        let has_gradle = file_exists(path, "build.gradle")
-            || file_exists(path, "build.gradle.kts");
+        let has_gradle = file_exists(path, "build.gradle") || file_exists(path, "build.gradle.kts");
 
         if !has_gradle {
             return Detection::No;
         }
 
         // Check for Android-specific files
-        let has_settings = file_exists(path, "settings.gradle")
-            || file_exists(path, "settings.gradle.kts");
+        let has_settings =
+            file_exists(path, "settings.gradle") || file_exists(path, "settings.gradle.kts");
         let has_app = path.join("app").is_dir();
 
         // Check for AndroidManifest.xml
@@ -385,10 +412,7 @@ impl BuildAdapter for NativeAndroidAdapter {
                 status = status.with_tool(ToolStatus::found("java", version));
             }
             Err(_) => {
-                status = status.with_tool(ToolStatus::missing(
-                    "java",
-                    "Install JDK 11 or later",
-                ));
+                status = status.with_tool(ToolStatus::missing("java", "Install JDK 11 or later"));
             }
         }
 
@@ -428,7 +452,8 @@ impl BuildAdapter for NativeAndroidAdapter {
                 ));
             }
             _ => {
-                status = status.with_tool(ToolStatus::found("gradlew", Some("wrapper".to_string())));
+                status =
+                    status.with_tool(ToolStatus::found("gradlew", Some("wrapper".to_string())));
             }
         }
 
@@ -448,7 +473,10 @@ impl BuildAdapter for NativeAndroidAdapter {
         Ok(status)
     }
 
-    #[instrument(skip(self, ctx), fields(framework = "native-android", platform = "android"))]
+    #[instrument(
+        skip(self, ctx),
+        fields(framework = "native-android", platform = "android")
+    )]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
         let path = &ctx.path;
         info!(profile = ?ctx.profile, flavor = ?ctx.flavor, "building native Android project");
@@ -465,9 +493,11 @@ impl BuildAdapter for NativeAndroidAdapter {
         // Build task name
         let task = if let Some(ref flavor) = ctx.flavor {
             // Capitalize flavor for task name
-            let cap_flavor = format!("{}{}",
+            let cap_flavor = format!(
+                "{}{}",
                 flavor.chars().next().unwrap().to_uppercase(),
-                &flavor[1..]);
+                &flavor[1..]
+            );
             format!("assemble{}{}", cap_flavor, build_type)
         } else {
             format!("assemble{}", build_type)
@@ -476,9 +506,11 @@ impl BuildAdapter for NativeAndroidAdapter {
         // Also build AAB for release builds
         let bundle_task = if matches!(ctx.profile, BuildProfile::Release | BuildProfile::Profile) {
             if let Some(ref flavor) = ctx.flavor {
-                let cap_flavor = format!("{}{}",
+                let cap_flavor = format!(
+                    "{}{}",
                     flavor.chars().next().unwrap().to_uppercase(),
-                    &flavor[1..]);
+                    &flavor[1..]
+                );
                 Some(format!("bundle{}{}", cap_flavor, build_type))
             } else {
                 Some(format!("bundle{}", build_type))
@@ -574,21 +606,23 @@ impl BuildAdapter for NativeAndroidAdapter {
     }
 
     fn get_version(&self, path: &Path) -> Result<VersionInfo> {
-        let build_gradle = self.find_app_build_gradle(path)
-            .ok_or_else(|| FrameworkError::Context {
-                context: "finding build.gradle".to_string(),
-                message: "app/build.gradle or app/build.gradle.kts not found".to_string(),
-            })?;
+        let build_gradle =
+            self.find_app_build_gradle(path)
+                .ok_or_else(|| FrameworkError::Context {
+                    context: "finding build.gradle".to_string(),
+                    message: "app/build.gradle or app/build.gradle.kts not found".to_string(),
+                })?;
 
         self.parse_gradle_version(&build_gradle)
     }
 
     fn set_version(&self, path: &Path, version: &VersionInfo) -> Result<()> {
-        let build_gradle = self.find_app_build_gradle(path)
-            .ok_or_else(|| FrameworkError::Context {
-                context: "finding build.gradle".to_string(),
-                message: "app/build.gradle or app/build.gradle.kts not found".to_string(),
-            })?;
+        let build_gradle =
+            self.find_app_build_gradle(path)
+                .ok_or_else(|| FrameworkError::Context {
+                    context: "finding build.gradle".to_string(),
+                    message: "app/build.gradle or app/build.gradle.kts not found".to_string(),
+                })?;
 
         self.update_gradle_version(&build_gradle, version)
     }
@@ -724,11 +758,16 @@ android {
         std::fs::write(&gradle_path, gradle_content).unwrap();
 
         let adapter = NativeAndroidAdapter::new();
-        adapter.update_gradle_version(&gradle_path, &VersionInfo {
-            version: "2.0.0".to_string(),
-            build_number: Some(42),
-            ..Default::default()
-        }).unwrap();
+        adapter
+            .update_gradle_version(
+                &gradle_path,
+                &VersionInfo {
+                    version: "2.0.0".to_string(),
+                    build_number: Some(42),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
 
         let updated = std::fs::read_to_string(&gradle_path).unwrap();
         assert!(updated.contains("versionName = \"2.0.0\""));

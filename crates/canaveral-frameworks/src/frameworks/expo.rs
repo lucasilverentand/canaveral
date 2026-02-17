@@ -73,19 +73,17 @@ impl ExpoAdapter {
         // Try app.json first
         let app_json_path = path.join("app.json");
         if app_json_path.exists() {
-            let content = std::fs::read_to_string(&app_json_path).map_err(|e| {
-                FrameworkError::Context {
+            let content =
+                std::fs::read_to_string(&app_json_path).map_err(|e| FrameworkError::Context {
                     context: "reading app.json".to_string(),
                     message: e.to_string(),
-                }
-            })?;
+                })?;
 
-            let wrapper: AppJsonWrapper = serde_json::from_str(&content).map_err(|e| {
-                FrameworkError::Context {
+            let wrapper: AppJsonWrapper =
+                serde_json::from_str(&content).map_err(|e| FrameworkError::Context {
                     context: "parsing app.json".to_string(),
                     message: e.to_string(),
-                }
-            })?;
+                })?;
 
             return Ok(wrapper.expo);
         }
@@ -105,19 +103,17 @@ impl ExpoAdapter {
 
     fn parse_package_json_version(&self, path: &Path) -> Result<AppConfig> {
         let package_json_path = path.join("package.json");
-        let content = std::fs::read_to_string(&package_json_path).map_err(|e| {
-            FrameworkError::Context {
+        let content =
+            std::fs::read_to_string(&package_json_path).map_err(|e| FrameworkError::Context {
                 context: "reading package.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
-        let pkg: PackageJson = serde_json::from_str(&content).map_err(|e| {
-            FrameworkError::Context {
+        let pkg: PackageJson =
+            serde_json::from_str(&content).map_err(|e| FrameworkError::Context {
                 context: "parsing package.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         Ok(AppConfig {
             name: pkg.name.clone(),
@@ -133,12 +129,11 @@ impl ExpoAdapter {
 
         // Read existing content to preserve other fields
         let existing: serde_json::Value = if app_json_path.exists() {
-            let content = std::fs::read_to_string(&app_json_path).map_err(|e| {
-                FrameworkError::Context {
+            let content =
+                std::fs::read_to_string(&app_json_path).map_err(|e| FrameworkError::Context {
                     context: "reading app.json".to_string(),
                     message: e.to_string(),
-                }
-            })?;
+                })?;
             serde_json::from_str(&content).unwrap_or(serde_json::json!({"expo": {}}))
         } else {
             serde_json::json!({"expo": {}})
@@ -169,12 +164,11 @@ impl ExpoAdapter {
             }
         }
 
-        let content = serde_json::to_string_pretty(&new_config).map_err(|e| {
-            FrameworkError::Context {
+        let content =
+            serde_json::to_string_pretty(&new_config).map_err(|e| FrameworkError::Context {
                 context: "serializing app.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         std::fs::write(&app_json_path, content).map_err(|e| FrameworkError::Context {
             context: "writing app.json".to_string(),
@@ -202,7 +196,14 @@ impl ExpoAdapter {
             BuildProfile::Profile => "preview",
         });
 
-        let mut args = vec!["build", "--platform", platform, "--profile", profile, "--non-interactive"];
+        let mut args = vec![
+            "build",
+            "--platform",
+            platform,
+            "--profile",
+            profile,
+            "--non-interactive",
+        ];
 
         // Local build option
         args.push("--local");
@@ -272,10 +273,7 @@ impl ExpoAdapter {
 
         // Add code signing if release
         if matches!(ctx.profile, BuildProfile::Release) {
-            args.extend_from_slice(&[
-                "CODE_SIGN_STYLE=Manual",
-                "-allowProvisioningUpdates",
-            ]);
+            args.extend_from_slice(&["CODE_SIGN_STYLE=Manual", "-allowProvisioningUpdates"]);
         }
 
         let output = Command::new("xcodebuild")
@@ -418,7 +416,12 @@ impl ExpoAdapter {
                         .map(|e| e == "xcworkspace")
                         .unwrap_or(false)
                     {
-                        let name = entry.path().file_stem().unwrap().to_string_lossy().to_string();
+                        let name = entry
+                            .path()
+                            .file_stem()
+                            .unwrap()
+                            .to_string_lossy()
+                            .to_string();
                         return Ok(name);
                     }
                 }
@@ -443,7 +446,12 @@ impl ExpoAdapter {
                 let ipa_dir = path.join("build/ios/ipa");
                 if let Ok(entries) = std::fs::read_dir(&ipa_dir) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "ipa").unwrap_or(false) {
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "ipa")
+                            .unwrap_or(false)
+                        {
                             let mut artifact =
                                 Artifact::new(entry.path(), ArtifactKind::Ipa, Platform::Ios);
                             artifact.metadata = ArtifactMetadata::new()
@@ -463,7 +471,12 @@ impl ExpoAdapter {
                 let app_dir = path.join("ios/build/Build/Products/Debug-iphonesimulator");
                 if let Ok(entries) = std::fs::read_dir(&app_dir) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "app").unwrap_or(false) {
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "app")
+                            .unwrap_or(false)
+                        {
                             let artifact =
                                 Artifact::new(entry.path(), ArtifactKind::App, Platform::Ios);
                             artifacts.push(artifact);
@@ -476,7 +489,12 @@ impl ExpoAdapter {
                 let aab_dir = path.join("android/app/build/outputs/bundle/release");
                 if let Ok(entries) = std::fs::read_dir(&aab_dir) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "aab").unwrap_or(false) {
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "aab")
+                            .unwrap_or(false)
+                        {
                             let artifact =
                                 Artifact::new(entry.path(), ArtifactKind::Aab, Platform::Android);
                             artifacts.push(artifact);
@@ -489,7 +507,12 @@ impl ExpoAdapter {
                     let apk_dir = path.join(format!("android/app/build/outputs/apk/{}", variant));
                     if let Ok(entries) = std::fs::read_dir(&apk_dir) {
                         for entry in entries.flatten() {
-                            if entry.path().extension().map(|e| e == "apk").unwrap_or(false) {
+                            if entry
+                                .path()
+                                .extension()
+                                .map(|e| e == "apk")
+                                .unwrap_or(false)
+                            {
                                 let artifact = Artifact::new(
                                     entry.path(),
                                     ArtifactKind::Apk,

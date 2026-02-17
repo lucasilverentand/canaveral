@@ -20,9 +20,7 @@ pub mod team;
 
 pub use error::{Result, SigningError};
 pub use identity::{SigningIdentity, SigningIdentityType};
-pub use provider::{
-    SignOptions, SignatureInfo, SignatureStatus, SigningProvider, VerifyOptions,
-};
+pub use provider::{SignOptions, SignatureInfo, SignatureStatus, SigningProvider, VerifyOptions};
 
 // Re-export providers
 pub use providers::gpg::GpgProvider;

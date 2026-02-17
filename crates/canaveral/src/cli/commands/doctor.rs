@@ -119,10 +119,22 @@ impl DoctorCommand {
         }
 
         // Calculate summary
-        let ok_count = checks.iter().filter(|c| c.status == CheckStatus::Ok).count();
-        let warn_count = checks.iter().filter(|c| c.status == CheckStatus::Warn).count();
-        let fail_count = checks.iter().filter(|c| c.status == CheckStatus::Fail).count();
-        let skip_count = checks.iter().filter(|c| c.status == CheckStatus::Skip).count();
+        let ok_count = checks
+            .iter()
+            .filter(|c| c.status == CheckStatus::Ok)
+            .count();
+        let warn_count = checks
+            .iter()
+            .filter(|c| c.status == CheckStatus::Warn)
+            .count();
+        let fail_count = checks
+            .iter()
+            .filter(|c| c.status == CheckStatus::Fail)
+            .count();
+        let skip_count = checks
+            .iter()
+            .filter(|c| c.status == CheckStatus::Skip)
+            .count();
 
         let summary = DoctorSummary {
             checks: checks.clone(),
@@ -199,7 +211,7 @@ impl DoctorCommand {
         // Check rustc
         match get_command_version("rustc", &["--version"]) {
             Some(version) => {
-                let status = if parse_rust_version(&version).map_or(false, |v| v >= (1, 75, 0)) {
+                let status = if parse_rust_version(&version).is_some_and(|v| v >= (1, 75, 0)) {
                     CheckStatus::Ok
                 } else {
                     CheckStatus::Warn
@@ -252,9 +264,11 @@ impl DoctorCommand {
         let mut results = Vec::new();
 
         // Filter by specific framework if requested
-        let check_flutter = self.framework.is_none() || self.framework == Some(FrameworkCheck::Flutter);
+        let check_flutter =
+            self.framework.is_none() || self.framework == Some(FrameworkCheck::Flutter);
         let check_expo = self.framework.is_none() || self.framework == Some(FrameworkCheck::Expo);
-        let check_rn = self.framework.is_none() || self.framework == Some(FrameworkCheck::ReactNative);
+        let check_rn =
+            self.framework.is_none() || self.framework == Some(FrameworkCheck::ReactNative);
         let check_tauri = self.framework.is_none() || self.framework == Some(FrameworkCheck::Tauri);
 
         // Flutter
@@ -276,7 +290,9 @@ impl DoctorCommand {
                         status: CheckStatus::Skip,
                         message: Some("Not installed".to_string()),
                         version: None,
-                        fix_suggestion: Some("Install Flutter from https://flutter.dev".to_string()),
+                        fix_suggestion: Some(
+                            "Install Flutter from https://flutter.dev".to_string(),
+                        ),
                     });
                 }
             }
@@ -498,7 +514,8 @@ impl DoctorCommand {
                     message: Some("ANDROID_HOME not set".to_string()),
                     version: None,
                     fix_suggestion: Some(
-                        "Set ANDROID_HOME environment variable to your Android SDK path".to_string(),
+                        "Set ANDROID_HOME environment variable to your Android SDK path"
+                            .to_string(),
                     ),
                 });
             }
@@ -544,7 +561,9 @@ impl DoctorCommand {
                     let output_str = String::from_utf8_lossy(&output.stdout);
                     let identity_count = output_str
                         .lines()
-                        .filter(|l| l.contains("iPhone") || l.contains("Apple") || l.contains("Mac"))
+                        .filter(|l| {
+                            l.contains("iPhone") || l.contains("Apple") || l.contains("Mac")
+                        })
                         .count();
 
                     if identity_count > 0 {
@@ -579,8 +598,8 @@ impl DoctorCommand {
             }
 
             // Check for provisioning profiles
-            let profiles_dir = dirs::home_dir()
-                .map(|h| h.join("Library/MobileDevice/Provisioning Profiles"));
+            let profiles_dir =
+                dirs::home_dir().map(|h| h.join("Library/MobileDevice/Provisioning Profiles"));
 
             if let Some(dir) = profiles_dir {
                 if dir.exists() {
@@ -642,7 +661,8 @@ impl DoctorCommand {
         // App Store Connect
         let asc_key_id = std::env::var("APP_STORE_CONNECT_API_KEY_ID").ok();
         let asc_issuer = std::env::var("APP_STORE_CONNECT_ISSUER_ID").ok();
-        let asc_key = std::env::var("APP_STORE_CONNECT_API_KEY").ok()
+        let asc_key = std::env::var("APP_STORE_CONNECT_API_KEY")
+            .ok()
             .or_else(|| std::env::var("APP_STORE_CONNECT_API_KEY_PATH").ok());
 
         if asc_key_id.is_some() && asc_issuer.is_some() && asc_key.is_some() {
@@ -677,15 +697,16 @@ impl DoctorCommand {
         }
 
         // Google Play Console
-        let gpc_key = std::env::var("GOOGLE_PLAY_SERVICE_ACCOUNT_KEY").ok()
+        let gpc_key = std::env::var("GOOGLE_PLAY_SERVICE_ACCOUNT_KEY")
+            .ok()
             .or_else(|| std::env::var("GOOGLE_PLAY_JSON_KEY").ok())
             .or_else(|| std::env::var("SUPPLY_JSON_KEY").ok());
 
         if gpc_key.is_some() {
             // Validate it's a valid path or JSON
-            let is_valid = gpc_key.as_ref().map_or(false, |k| {
-                PathBuf::from(k).exists() || k.trim().starts_with('{')
-            });
+            let is_valid = gpc_key
+                .as_ref()
+                .is_some_and(|k| PathBuf::from(k).exists() || k.trim().starts_with('{'));
 
             if is_valid {
                 results.push(CheckResult {
@@ -785,11 +806,7 @@ impl DoctorCommand {
             results.push(CheckResult {
                 name: "Git user config".to_string(),
                 status: CheckStatus::Ok,
-                message: Some(format!(
-                    "{} <{}>",
-                    user_name.unwrap(),
-                    user_email.unwrap()
-                )),
+                message: Some(format!("{} <{}>", user_name.unwrap(), user_email.unwrap())),
                 version: None,
                 fix_suggestion: None,
             });
@@ -1084,10 +1101,7 @@ mod tests {
             parse_rust_version("rustc 1.75.0 (82e1608df 2023-12-21)"),
             Some((1, 75, 0))
         );
-        assert_eq!(
-            parse_rust_version("rustc 1.76.0-nightly"),
-            Some((1, 76, 0))
-        );
+        assert_eq!(parse_rust_version("rustc 1.76.0-nightly"), Some((1, 76, 0)));
     }
 
     #[test]

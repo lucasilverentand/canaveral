@@ -291,16 +291,30 @@ impl MatchSync {
             SyncStorage::Git { url, branch } => {
                 Box::new(GitStorage::new(url.clone(), branch.clone()))
             }
-            SyncStorage::S3 { bucket, prefix, region } => {
-                Box::new(S3Storage::new(bucket.clone(), prefix.clone(), region.clone()))
-            }
+            SyncStorage::S3 {
+                bucket,
+                prefix,
+                region,
+            } => Box::new(S3Storage::new(
+                bucket.clone(),
+                prefix.clone(),
+                region.clone(),
+            )),
             SyncStorage::GoogleCloudStorage { bucket, prefix } => {
                 // GCS not yet implemented, use S3-compatible interface
-                Box::new(S3Storage::new(bucket.clone(), prefix.clone(), "auto".to_string()))
+                Box::new(S3Storage::new(
+                    bucket.clone(),
+                    prefix.clone(),
+                    "auto".to_string(),
+                ))
             }
             SyncStorage::AzureBlob { container, prefix } => {
                 // Azure not yet implemented, use S3-compatible interface
-                Box::new(S3Storage::new(container.clone(), prefix.clone(), "auto".to_string()))
+                Box::new(S3Storage::new(
+                    container.clone(),
+                    prefix.clone(),
+                    "auto".to_string(),
+                ))
             }
         };
 
@@ -333,11 +347,15 @@ impl MatchSync {
         let keypair = self.keypair.clone().unwrap_or_else(generate_keypair);
 
         // Encrypt and store manifest
-        let manifest_json = serde_json::to_string_pretty(&manifest)
-            .map_err(|e| SigningError::Configuration(format!("Failed to serialize manifest: {}", e)))?;
+        let manifest_json = serde_json::to_string_pretty(&manifest).map_err(|e| {
+            SigningError::Configuration(format!("Failed to serialize manifest: {}", e))
+        })?;
 
-        let encrypted = encrypt_data(manifest_json.as_bytes(), &[keypair.public_key.clone()])
-            .map_err(|e| SigningError::Configuration(format!("Failed to encrypt manifest: {}", e)))?;
+        let encrypted = encrypt_data(
+            manifest_json.as_bytes(),
+            std::slice::from_ref(&keypair.public_key),
+        )
+        .map_err(|e| SigningError::Configuration(format!("Failed to encrypt manifest: {}", e)))?;
 
         // Store manifest
         self.storage
@@ -355,8 +373,7 @@ impl MatchSync {
     /// Sync certificates and profiles from storage
     pub async fn sync(&self) -> Result<SyncManifest> {
         // Ensure cache directory exists
-        std::fs::create_dir_all(&self.cache_dir)
-            .map_err(|e| SigningError::Io(e))?;
+        std::fs::create_dir_all(&self.cache_dir).map_err(SigningError::Io)?;
 
         // Clone/pull storage
         self.storage.sync().await?;
@@ -391,15 +408,19 @@ impl MatchSync {
 
     /// Read manifest from storage
     async fn read_manifest(&self) -> Result<SyncManifest> {
-        let keypair = self.keypair.as_ref()
+        let keypair = self
+            .keypair
+            .as_ref()
             .ok_or_else(|| SigningError::Configuration("No encryption key provided".to_string()))?;
 
         let encrypted = self.storage.read("manifest.enc").await?;
-        let encrypted_str = String::from_utf8(encrypted)
-            .map_err(|e| SigningError::Configuration(format!("Invalid manifest encoding: {}", e)))?;
+        let encrypted_str = String::from_utf8(encrypted).map_err(|e| {
+            SigningError::Configuration(format!("Invalid manifest encoding: {}", e))
+        })?;
 
-        let decrypted = decrypt_data(&encrypted_str, &keypair.private_key)
-            .map_err(|e| SigningError::Configuration(format!("Failed to decrypt manifest: {}", e)))?;
+        let decrypted = decrypt_data(&encrypted_str, &keypair.private_key).map_err(|e| {
+            SigningError::Configuration(format!("Failed to decrypt manifest: {}", e))
+        })?;
 
         let manifest: SyncManifest = serde_json::from_slice(&decrypted)
             .map_err(|e| SigningError::Configuration(format!("Invalid manifest format: {}", e)))?;
@@ -409,54 +430,58 @@ impl MatchSync {
 
     /// Download and install a certificate
     async fn download_certificate(&self, cert: &StoredCertificate) -> Result<PathBuf> {
-        let keypair = self.keypair.as_ref()
+        let keypair = self
+            .keypair
+            .as_ref()
             .ok_or_else(|| SigningError::Configuration("No encryption key provided".to_string()))?;
 
         let encrypted = self.storage.read(&cert.path).await?;
-        let encrypted_str = String::from_utf8(encrypted)
-            .map_err(|e| SigningError::Configuration(format!("Invalid certificate encoding: {}", e)))?;
+        let encrypted_str = String::from_utf8(encrypted).map_err(|e| {
+            SigningError::Configuration(format!("Invalid certificate encoding: {}", e))
+        })?;
 
-        let decrypted = decrypt_data(&encrypted_str, &keypair.private_key)
-            .map_err(|e| SigningError::Configuration(format!("Failed to decrypt certificate: {}", e)))?;
+        let decrypted = decrypt_data(&encrypted_str, &keypair.private_key).map_err(|e| {
+            SigningError::Configuration(format!("Failed to decrypt certificate: {}", e))
+        })?;
 
         // Save to cache
-        let cache_path = self.cache_dir
+        let cache_path = self
+            .cache_dir
             .join("certs")
             .join(format!("{}_{}.p12", cert.cert_type, cert.fingerprint));
 
-        std::fs::create_dir_all(cache_path.parent().unwrap())
-            .map_err(|e| SigningError::Io(e))?;
+        std::fs::create_dir_all(cache_path.parent().unwrap()).map_err(SigningError::Io)?;
 
-        std::fs::write(&cache_path, &decrypted)
-            .map_err(|e| SigningError::Io(e))?;
+        std::fs::write(&cache_path, &decrypted).map_err(SigningError::Io)?;
 
         Ok(cache_path)
     }
 
     /// Download and install a profile
     async fn download_profile(&self, profile: &StoredProfile) -> Result<PathBuf> {
-        let keypair = self.keypair.as_ref()
+        let keypair = self
+            .keypair
+            .as_ref()
             .ok_or_else(|| SigningError::Configuration("No encryption key provided".to_string()))?;
 
         let encrypted = self.storage.read(&profile.path).await?;
         let encrypted_str = String::from_utf8(encrypted)
             .map_err(|e| SigningError::Configuration(format!("Invalid profile encoding: {}", e)))?;
 
-        let decrypted = decrypt_data(&encrypted_str, &keypair.private_key)
-            .map_err(|e| SigningError::Configuration(format!("Failed to decrypt profile: {}", e)))?;
+        let decrypted = decrypt_data(&encrypted_str, &keypair.private_key).map_err(|e| {
+            SigningError::Configuration(format!("Failed to decrypt profile: {}", e))
+        })?;
 
         // Save to provisioning profiles directory
         let profiles_dir = dirs::home_dir()
             .map(|h| h.join("Library/MobileDevice/Provisioning Profiles"))
             .unwrap_or_else(|| self.cache_dir.join("profiles"));
 
-        std::fs::create_dir_all(&profiles_dir)
-            .map_err(|e| SigningError::Io(e))?;
+        std::fs::create_dir_all(&profiles_dir).map_err(SigningError::Io)?;
 
         let profile_path = profiles_dir.join(format!("{}.mobileprovision", profile.uuid));
 
-        std::fs::write(&profile_path, &decrypted)
-            .map_err(|e| SigningError::Io(e))?;
+        std::fs::write(&profile_path, &decrypted).map_err(SigningError::Io)?;
 
         Ok(profile_path)
     }
@@ -469,15 +494,21 @@ impl MatchSync {
         metadata: StoredCertificate,
     ) -> Result<()> {
         if self.config.readonly {
-            return Err(SigningError::Configuration("Cannot upload in readonly mode".to_string()));
+            return Err(SigningError::Configuration(
+                "Cannot upload in readonly mode".to_string(),
+            ));
         }
 
-        let keypair = self.keypair.as_ref()
+        let keypair = self
+            .keypair
+            .as_ref()
             .ok_or_else(|| SigningError::Configuration("No encryption key provided".to_string()))?;
 
         // Encrypt certificate
-        let encrypted = encrypt_data(data, &[keypair.public_key.clone()])
-            .map_err(|e| SigningError::Configuration(format!("Failed to encrypt certificate: {}", e)))?;
+        let encrypted =
+            encrypt_data(data, std::slice::from_ref(&keypair.public_key)).map_err(|e| {
+                SigningError::Configuration(format!("Failed to encrypt certificate: {}", e))
+            })?;
 
         // Write to storage
         self.storage
@@ -490,11 +521,15 @@ impl MatchSync {
         manifest.last_sync = chrono::Utc::now().to_rfc3339();
 
         // Write updated manifest
-        let manifest_json = serde_json::to_string_pretty(&manifest)
-            .map_err(|e| SigningError::Configuration(format!("Failed to serialize manifest: {}", e)))?;
+        let manifest_json = serde_json::to_string_pretty(&manifest).map_err(|e| {
+            SigningError::Configuration(format!("Failed to serialize manifest: {}", e))
+        })?;
 
-        let encrypted_manifest = encrypt_data(manifest_json.as_bytes(), &[keypair.public_key.clone()])
-            .map_err(|e| SigningError::Configuration(format!("Failed to encrypt manifest: {}", e)))?;
+        let encrypted_manifest = encrypt_data(
+            manifest_json.as_bytes(),
+            std::slice::from_ref(&keypair.public_key),
+        )
+        .map_err(|e| SigningError::Configuration(format!("Failed to encrypt manifest: {}", e)))?;
 
         self.storage
             .write("manifest.enc", encrypted_manifest.as_bytes())
@@ -504,21 +539,23 @@ impl MatchSync {
     }
 
     /// Upload a profile to storage
-    pub async fn upload_profile(
-        &self,
-        data: &[u8],
-        metadata: StoredProfile,
-    ) -> Result<()> {
+    pub async fn upload_profile(&self, data: &[u8], metadata: StoredProfile) -> Result<()> {
         if self.config.readonly {
-            return Err(SigningError::Configuration("Cannot upload in readonly mode".to_string()));
+            return Err(SigningError::Configuration(
+                "Cannot upload in readonly mode".to_string(),
+            ));
         }
 
-        let keypair = self.keypair.as_ref()
+        let keypair = self
+            .keypair
+            .as_ref()
             .ok_or_else(|| SigningError::Configuration("No encryption key provided".to_string()))?;
 
         // Encrypt profile
-        let encrypted = encrypt_data(data, &[keypair.public_key.clone()])
-            .map_err(|e| SigningError::Configuration(format!("Failed to encrypt profile: {}", e)))?;
+        let encrypted =
+            encrypt_data(data, std::slice::from_ref(&keypair.public_key)).map_err(|e| {
+                SigningError::Configuration(format!("Failed to encrypt profile: {}", e))
+            })?;
 
         // Write to storage
         self.storage
@@ -531,11 +568,15 @@ impl MatchSync {
         manifest.last_sync = chrono::Utc::now().to_rfc3339();
 
         // Write updated manifest
-        let manifest_json = serde_json::to_string_pretty(&manifest)
-            .map_err(|e| SigningError::Configuration(format!("Failed to serialize manifest: {}", e)))?;
+        let manifest_json = serde_json::to_string_pretty(&manifest).map_err(|e| {
+            SigningError::Configuration(format!("Failed to serialize manifest: {}", e))
+        })?;
 
-        let encrypted_manifest = encrypt_data(manifest_json.as_bytes(), &[keypair.public_key.clone()])
-            .map_err(|e| SigningError::Configuration(format!("Failed to encrypt manifest: {}", e)))?;
+        let encrypted_manifest = encrypt_data(
+            manifest_json.as_bytes(),
+            std::slice::from_ref(&keypair.public_key),
+        )
+        .map_err(|e| SigningError::Configuration(format!("Failed to encrypt manifest: {}", e)))?;
 
         self.storage
             .write("manifest.enc", encrypted_manifest.as_bytes())
@@ -547,10 +588,14 @@ impl MatchSync {
     /// Remove all certificates and profiles (nuke)
     pub async fn nuke(&self, profile_type: Option<ProfileType>) -> Result<()> {
         if self.config.readonly {
-            return Err(SigningError::Configuration("Cannot nuke in readonly mode".to_string()));
+            return Err(SigningError::Configuration(
+                "Cannot nuke in readonly mode".to_string(),
+            ));
         }
 
-        let keypair = self.keypair.as_ref()
+        let keypair = self
+            .keypair
+            .as_ref()
             .ok_or_else(|| SigningError::Configuration("No encryption key provided".to_string()))?;
 
         let mut manifest = self.read_manifest().await?;
@@ -569,11 +614,15 @@ impl MatchSync {
         manifest.last_sync = chrono::Utc::now().to_rfc3339();
 
         // Write updated manifest
-        let manifest_json = serde_json::to_string_pretty(&manifest)
-            .map_err(|e| SigningError::Configuration(format!("Failed to serialize manifest: {}", e)))?;
+        let manifest_json = serde_json::to_string_pretty(&manifest).map_err(|e| {
+            SigningError::Configuration(format!("Failed to serialize manifest: {}", e))
+        })?;
 
-        let encrypted = encrypt_data(manifest_json.as_bytes(), &[keypair.public_key.clone()])
-            .map_err(|e| SigningError::Configuration(format!("Failed to encrypt manifest: {}", e)))?;
+        let encrypted = encrypt_data(
+            manifest_json.as_bytes(),
+            std::slice::from_ref(&keypair.public_key),
+        )
+        .map_err(|e| SigningError::Configuration(format!("Failed to encrypt manifest: {}", e)))?;
 
         self.storage
             .write("manifest.enc", encrypted.as_bytes())

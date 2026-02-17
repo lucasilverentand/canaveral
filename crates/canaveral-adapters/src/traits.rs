@@ -69,6 +69,17 @@ pub trait PackageAdapter: Send + Sync {
     /// Get the manifest filename(s) this adapter handles
     fn manifest_names(&self) -> &[&str];
 
+    /// Format source code (if applicable)
+    /// When `check` is true, verify formatting without applying changes.
+    fn fmt(&self, _path: &Path, _check: bool) -> Result<()> {
+        Ok(())
+    }
+
+    /// Run linter (if applicable)
+    fn lint(&self, _path: &Path) -> Result<()> {
+        Ok(())
+    }
+
     /// Build the package (if applicable)
     fn build(&self, _path: &Path) -> Result<()> {
         Ok(())

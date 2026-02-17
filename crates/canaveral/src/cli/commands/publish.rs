@@ -13,11 +13,10 @@ use canaveral_stores::{
     google_play::GooglePlayStore,
     microsoft::MicrosoftStore,
     registries::{
-        npm::{NpmRegistry, TagSupport},
         crates_io::CratesIoRegistry,
+        npm::{NpmRegistry, TagSupport},
     },
-    AppleStoreConfig, GooglePlayConfig, MicrosoftStoreConfig,
-    NpmConfig, CratesIoConfig,
+    AppleStoreConfig, CratesIoConfig, GooglePlayConfig, MicrosoftStoreConfig, NpmConfig,
     StoreAdapter, UploadOptions,
 };
 
@@ -251,9 +250,17 @@ impl NpmPublishCommand {
         if !cli.quiet {
             println!(
                 "{} {} to NPM{}",
-                if self.dry_run { style("Validating").yellow() } else { style("Publishing").cyan() },
+                if self.dry_run {
+                    style("Validating").yellow()
+                } else {
+                    style("Publishing").cyan()
+                },
                 style(self.artifact.display()).bold(),
-                if self.tag != "latest" { format!(" (tag: {})", self.tag) } else { String::new() }
+                if self.tag != "latest" {
+                    format!(" (tag: {})", self.tag)
+                } else {
+                    String::new()
+                }
             );
         }
 
@@ -274,7 +281,9 @@ impl NpmPublishCommand {
             // Extract package name from validation result
             let validation = registry.validate_artifact(&self.artifact).await?;
             if let Some(app_info) = validation.app_info {
-                registry.add_tag(&app_info.identifier, &app_info.version, &self.tag).await?;
+                registry
+                    .add_tag(&app_info.identifier, &app_info.version, &self.tag)
+                    .await?;
             }
         }
 
@@ -314,7 +323,11 @@ impl CratesPublishCommand {
         if !cli.quiet {
             println!(
                 "{} {} to Crates.io",
-                if self.dry_run { style("Validating").yellow() } else { style("Publishing").cyan() },
+                if self.dry_run {
+                    style("Validating").yellow()
+                } else {
+                    style("Publishing").cyan()
+                },
                 style(self.artifact.display()).bold()
             );
         }
@@ -374,7 +387,11 @@ impl ApplePublishCommand {
         if !cli.quiet {
             println!(
                 "{} {} to App Store Connect",
-                if self.dry_run { style("Validating").yellow() } else { style("Publishing").cyan() },
+                if self.dry_run {
+                    style("Validating").yellow()
+                } else {
+                    style("Publishing").cyan()
+                },
                 style(self.artifact.display()).bold()
             );
         }
@@ -424,16 +441,23 @@ impl GooglePlayPublishCommand {
         if !cli.quiet {
             println!(
                 "{} {} to Google Play ({})",
-                if self.dry_run { style("Validating").yellow() } else { style("Publishing").cyan() },
+                if self.dry_run {
+                    style("Validating").yellow()
+                } else {
+                    style("Publishing").cyan()
+                },
                 style(self.artifact.display()).bold(),
                 self.track
             );
         }
 
         // Parse release notes
-        let release_notes = self.release_notes.as_ref()
+        let release_notes = self
+            .release_notes
+            .as_ref()
             .map(|notes| {
-                notes.split(',')
+                notes
+                    .split(',')
                     .filter_map(|pair| {
                         let mut parts = pair.splitn(2, ':');
                         match (parts.next(), parts.next()) {
@@ -498,7 +522,11 @@ impl MicrosoftPublishCommand {
         if !cli.quiet {
             println!(
                 "{} {} to Microsoft Store",
-                if self.dry_run { style("Validating").yellow() } else { style("Publishing").cyan() },
+                if self.dry_run {
+                    style("Validating").yellow()
+                } else {
+                    style("Publishing").cyan()
+                },
                 style(self.artifact.display()).bold()
             );
             if let Some(flight) = &self.flight {
@@ -507,9 +535,12 @@ impl MicrosoftPublishCommand {
         }
 
         // Parse release notes
-        let release_notes = self.release_notes.as_ref()
+        let release_notes = self
+            .release_notes
+            .as_ref()
             .map(|notes| {
-                notes.split(',')
+                notes
+                    .split(',')
                     .filter_map(|pair| {
                         let mut parts = pair.splitn(2, ':');
                         match (parts.next(), parts.next()) {

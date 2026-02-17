@@ -22,6 +22,6 @@
 mod distribution;
 
 pub use distribution::{
-    Firebase, FirebaseConfig, FirebaseRelease, FirebaseUploadOptions,
-    TesterGroup, DistributionStatus, ReleaseInfo,
+    DistributionStatus, Firebase, FirebaseConfig, FirebaseRelease, FirebaseUploadOptions,
+    ReleaseInfo, TesterGroup,
 };

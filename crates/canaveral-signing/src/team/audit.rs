@@ -20,22 +20,35 @@ pub enum AuditAction {
     /// Member was removed
     MemberRemove { email: String },
     /// Member role was changed
-    MemberRoleChange { email: String, old_role: String, new_role: String },
+    MemberRoleChange {
+        email: String,
+        old_role: String,
+        new_role: String,
+    },
 
     /// Identity was imported
-    IdentityImport { identity_id: String, identity_type: String },
+    IdentityImport {
+        identity_id: String,
+        identity_type: String,
+    },
     /// Identity was exported
     IdentityExport { identity_id: String },
     /// Identity was deleted
     IdentityDelete { identity_id: String },
     /// Identity was used for signing
-    IdentitySign { identity_id: String, artifact: String },
+    IdentitySign {
+        identity_id: String,
+        artifact: String,
+    },
 
     /// Vault was synced
     VaultSync,
 
     /// Custom action
-    Custom { action: String, details: Option<String> },
+    Custom {
+        action: String,
+        details: Option<String>,
+    },
 }
 
 impl std::fmt::Display for AuditAction {
@@ -43,17 +56,37 @@ impl std::fmt::Display for AuditAction {
         match self {
             AuditAction::VaultInit => write!(f, "Vault initialized"),
             AuditAction::VaultModify => write!(f, "Vault settings modified"),
-            AuditAction::MemberAdd { email, role } => write!(f, "Member added: {} ({})", email, role),
-            AuditAction::MemberRemove { email } => write!(f, "Member removed: {}", email),
-            AuditAction::MemberRoleChange { email, old_role, new_role } => {
-                write!(f, "Role changed for {}: {} -> {}", email, old_role, new_role)
+            AuditAction::MemberAdd { email, role } => {
+                write!(f, "Member added: {} ({})", email, role)
             }
-            AuditAction::IdentityImport { identity_id, identity_type } => {
+            AuditAction::MemberRemove { email } => write!(f, "Member removed: {}", email),
+            AuditAction::MemberRoleChange {
+                email,
+                old_role,
+                new_role,
+            } => {
+                write!(
+                    f,
+                    "Role changed for {}: {} -> {}",
+                    email, old_role, new_role
+                )
+            }
+            AuditAction::IdentityImport {
+                identity_id,
+                identity_type,
+            } => {
                 write!(f, "Identity imported: {} ({})", identity_id, identity_type)
             }
-            AuditAction::IdentityExport { identity_id } => write!(f, "Identity exported: {}", identity_id),
-            AuditAction::IdentityDelete { identity_id } => write!(f, "Identity deleted: {}", identity_id),
-            AuditAction::IdentitySign { identity_id, artifact } => {
+            AuditAction::IdentityExport { identity_id } => {
+                write!(f, "Identity exported: {}", identity_id)
+            }
+            AuditAction::IdentityDelete { identity_id } => {
+                write!(f, "Identity deleted: {}", identity_id)
+            }
+            AuditAction::IdentitySign {
+                identity_id,
+                artifact,
+            } => {
                 write!(f, "Signed {} with {}", artifact, identity_id)
             }
             AuditAction::VaultSync => write!(f, "Vault synced"),
@@ -99,7 +132,9 @@ impl AuditEntry {
         let id = Uuid::new_v4();
         let timestamp = Utc::now();
         let actor = actor.into();
-        let machine = hostname::get().ok().map(|h| h.to_string_lossy().to_string());
+        let machine = hostname::get()
+            .ok()
+            .map(|h| h.to_string_lossy().to_string());
 
         // Compute hash
         let hash_input = format!(
@@ -178,10 +213,7 @@ impl AuditLog {
 
     /// Get entries for a specific actor
     pub fn entries_by_actor(&self, actor: &str) -> Vec<&AuditEntry> {
-        self.entries
-            .iter()
-            .filter(|e| e.actor == actor)
-            .collect()
+        self.entries.iter().filter(|e| e.actor == actor).collect()
     }
 
     /// Get entries for a specific identity
@@ -189,10 +221,14 @@ impl AuditLog {
         self.entries
             .iter()
             .filter(|e| match &e.action {
-                AuditAction::IdentityImport { identity_id: id, .. }
+                AuditAction::IdentityImport {
+                    identity_id: id, ..
+                }
                 | AuditAction::IdentityExport { identity_id: id }
                 | AuditAction::IdentityDelete { identity_id: id }
-                | AuditAction::IdentitySign { identity_id: id, .. } => id == identity_id,
+                | AuditAction::IdentitySign {
+                    identity_id: id, ..
+                } => id == identity_id,
                 _ => false,
             })
             .collect()

@@ -4,9 +4,9 @@ use clap::{Args, Subcommand};
 use console::style;
 use tracing::info;
 
+use canaveral_changelog::{CommitParser, ConventionalParser};
 use canaveral_core::config::load_config_or_default;
 use canaveral_git::GitRepo;
-use canaveral_changelog::{CommitParser, ConventionalParser};
 
 use crate::cli::{Cli, OutputFormat};
 
@@ -113,7 +113,9 @@ impl PrValidateCommand {
                     }
 
                     if non_conventional.is_empty() {
-                        passed.push("commit-format: all commits follow conventional format".to_string());
+                        passed.push(
+                            "commit-format: all commits follow conventional format".to_string(),
+                        );
                     } else if config.pr.require_conventional_commits {
                         failed.push(format!(
                             "commit-format: {} non-conventional commits found",
@@ -132,7 +134,8 @@ impl PrValidateCommand {
                     if latest_tag.is_some() {
                         passed.push("version-conflict: no version conflicts detected".to_string());
                     } else {
-                        passed.push("version-conflict: no existing tags (first release)".to_string());
+                        passed
+                            .push("version-conflict: no existing tags (first release)".to_string());
                     }
                 }
                 "tests" => {
@@ -263,10 +266,7 @@ impl PrPreviewCommand {
             println!("  Bump type:       {}", style(bump_type).yellow());
             println!("  Commits:         {}", commit_count);
             if has_breaking {
-                println!(
-                    "  {}",
-                    style("⚠ Contains breaking changes").red().bold()
-                );
+                println!("  {}", style("⚠ Contains breaking changes").red().bold());
             }
 
             let tag_format = &config.versioning.tag_format;
@@ -314,11 +314,7 @@ impl PrCheckConflictsCommand {
                 println!("  Latest tag: {}", style(&tag.name).yellow());
             }
             println!();
-            println!(
-                "  {} {}",
-                style("✓").green(),
-                "No version conflicts detected."
-            );
+            println!("  {} No version conflicts detected.", style("✓").green());
         }
 
         Ok(())

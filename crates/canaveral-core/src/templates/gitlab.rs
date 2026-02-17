@@ -75,7 +75,9 @@ impl GitLabCITemplate {
     fn generate_before_script(&self, options: &TemplateOptions) -> String {
         match options.package_type.as_deref() {
             Some("npm") => "  before_script:\n    - npm ci".to_string(),
-            Some("cargo") => "  before_script:\n    - rustup component add clippy rustfmt".to_string(),
+            Some("cargo") => {
+                "  before_script:\n    - rustup component add clippy rustfmt".to_string()
+            }
             Some("python") => r#"  before_script:
     - python -m venv .venv
     - source .venv/bin/activate
@@ -131,19 +133,17 @@ impl GitLabCITemplate {
     /// Generate release job
     fn generate_release_job(&self, options: &TemplateOptions) -> String {
         let publish_script = match options.package_type.as_deref() {
-            Some("npm") if options.include_publish => r#"    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+            Some("npm") if options.include_publish => {
+                r#"    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
     - npm publish"#
-                .to_string(),
-            Some("cargo") if options.include_publish => {
-                "    - cargo publish".to_string()
+                    .to_string()
             }
+            Some("cargo") if options.include_publish => "    - cargo publish".to_string(),
             Some("python") if options.include_publish => r#"    - pip install build twine
     - python -m build
     - twine upload dist/*"#
                 .to_string(),
-            Some("maven") if options.include_publish => {
-                "    - mvn deploy -P release".to_string()
-            }
+            Some("maven") if options.include_publish => "    - mvn deploy -P release".to_string(),
             _ => String::new(),
         };
 

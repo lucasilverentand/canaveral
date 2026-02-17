@@ -47,7 +47,8 @@ impl FlutterTestAdapter {
         // 00:03 +5 -1: test description (failure)
         // 00:03 +5 -1 ~1: test description (skipped)
 
-        let mut suites: std::collections::HashMap<String, Vec<TestCase>> = std::collections::HashMap::new();
+        let mut suites: std::collections::HashMap<String, Vec<TestCase>> =
+            std::collections::HashMap::new();
         let mut passed = 0;
         let mut failed = 0;
         let mut skipped = 0;
@@ -79,20 +80,26 @@ impl FlutterTestAdapter {
             for line in output.lines() {
                 if line.contains("All tests passed") {
                     // We don't have individual tests, create a placeholder
-                    suites.insert("tests".to_string(), vec![TestCase {
-                        name: "all_tests".to_string(),
-                        status: TestStatus::Passed,
-                        duration_ms,
-                        error: None,
-                    }]);
+                    suites.insert(
+                        "tests".to_string(),
+                        vec![TestCase {
+                            name: "all_tests".to_string(),
+                            status: TestStatus::Passed,
+                            duration_ms,
+                            error: None,
+                        }],
+                    );
                     passed = 1;
                 } else if line.contains("Some tests failed") || line.contains("FAILED") {
-                    suites.insert("tests".to_string(), vec![TestCase {
-                        name: "tests".to_string(),
-                        status: TestStatus::Failed,
-                        duration_ms,
-                        error: Some(output.to_string()),
-                    }]);
+                    suites.insert(
+                        "tests".to_string(),
+                        vec![TestCase {
+                            name: "tests".to_string(),
+                            status: TestStatus::Failed,
+                            duration_ms,
+                            error: Some(output.to_string()),
+                        }],
+                    );
                     failed = 1;
                 }
             }
@@ -134,8 +141,8 @@ impl FlutterTestAdapter {
         let mut lines_total = 0usize;
 
         for line in content.lines() {
-            if line.starts_with("SF:") {
-                current_file = Some(line[3..].to_string());
+            if let Some(rest) = line.strip_prefix("SF:") {
+                current_file = Some(rest.to_string());
                 lines_covered = 0;
                 lines_total = 0;
             } else if line.starts_with("DA:") {

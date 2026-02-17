@@ -14,7 +14,7 @@ use std::path::Path;
 use crate::context::TestContext;
 use crate::error::Result;
 use crate::registry::FrameworkRegistry;
-use crate::traits::{TestReport, TestAdapter};
+use crate::traits::{TestAdapter, TestReport};
 
 /// Run tests for a project
 ///

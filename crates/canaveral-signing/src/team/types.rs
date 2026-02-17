@@ -329,7 +329,10 @@ mod option_base64_serde {
     {
         let s: Option<String> = Option::deserialize(deserializer)?;
         match s {
-            Some(s) => STANDARD.decode(&s).map(Some).map_err(serde::de::Error::custom),
+            Some(s) => STANDARD
+                .decode(&s)
+                .map(Some)
+                .map_err(serde::de::Error::custom),
             None => Ok(None),
         }
     }
@@ -363,8 +366,7 @@ mod tests {
 
     #[test]
     fn test_credential_data() {
-        let cred = CredentialData::new(vec![1, 2, 3], "p12")
-            .with_password("secret");
+        let cred = CredentialData::new(vec![1, 2, 3], "p12").with_password("secret");
 
         assert_eq!(cred.format, "p12");
         assert_eq!(cred.password, Some("secret".to_string()));

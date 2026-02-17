@@ -155,12 +155,13 @@ impl Workspace {
             packages: Option<Vec<String>>,
         }
 
-        let config: PnpmWorkspace = serde_yaml::from_str(&content).unwrap_or(PnpmWorkspace {
-            packages: None,
-        });
+        let config: PnpmWorkspace =
+            serde_yaml::from_str(&content).unwrap_or(PnpmWorkspace { packages: None });
 
         let mut ws = Workspace::new(path.to_path_buf(), WorkspaceType::Pnpm);
-        ws.package_patterns = config.packages.unwrap_or_else(|| vec!["packages/*".to_string()]);
+        ws.package_patterns = config
+            .packages
+            .unwrap_or_else(|| vec!["packages/*".to_string()]);
         Ok(Some(ws))
     }
 
@@ -178,12 +179,13 @@ impl Workspace {
             packages: Option<Vec<String>>,
         }
 
-        let config: LernaConfig = serde_json::from_str(&content).unwrap_or(LernaConfig {
-            packages: None,
-        });
+        let config: LernaConfig =
+            serde_json::from_str(&content).unwrap_or(LernaConfig { packages: None });
 
         let mut ws = Workspace::new(path.to_path_buf(), WorkspaceType::Lerna);
-        ws.package_patterns = config.packages.unwrap_or_else(|| vec!["packages/*".to_string()]);
+        ws.package_patterns = config
+            .packages
+            .unwrap_or_else(|| vec!["packages/*".to_string()]);
         Ok(Some(ws))
     }
 
@@ -229,9 +231,8 @@ impl Workspace {
                 Object { packages: Vec<String> },
             }
 
-            let pkg: PackageJson = serde_json::from_str(&content).unwrap_or(PackageJson {
-                workspaces: None,
-            });
+            let pkg: PackageJson =
+                serde_json::from_str(&content).unwrap_or(PackageJson { workspaces: None });
 
             let patterns = match pkg.workspaces {
                 Some(WorkspacesField::Array(arr)) => arr,

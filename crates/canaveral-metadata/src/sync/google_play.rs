@@ -329,9 +329,7 @@ impl GooglePlayMetadataSync {
 
             if status == StatusCode::TOO_MANY_REQUESTS {
                 if retries >= MAX_RETRIES {
-                    return Err(MetadataError::RateLimited(
-                        "Too many requests".to_string(),
-                    ));
+                    return Err(MetadataError::RateLimited("Too many requests".to_string()));
                 }
 
                 let retry_after = response
@@ -411,9 +409,7 @@ impl GooglePlayMetadataSync {
             // Handle rate limiting
             if status == StatusCode::TOO_MANY_REQUESTS {
                 if retries >= MAX_RETRIES {
-                    return Err(MetadataError::RateLimited(
-                        "Too many requests".to_string(),
-                    ));
+                    return Err(MetadataError::RateLimited("Too many requests".to_string()));
                 }
 
                 let retry_after = response
@@ -499,15 +495,8 @@ impl GooglePlayMetadataSync {
     // ========================================================================
 
     /// Get all listings (localizations) for an app.
-    pub async fn get_listings(
-        &self,
-        package_name: &str,
-        edit_id: &str,
-    ) -> Result<Vec<Listing>> {
-        let endpoint = format!(
-            "/applications/{}/edits/{}/listings",
-            package_name, edit_id
-        );
+    pub async fn get_listings(&self, package_name: &str, edit_id: &str) -> Result<Vec<Listing>> {
+        let endpoint = format!("/applications/{}/edits/{}/listings", package_name, edit_id);
 
         let response: ListingsResponse = self.api_get(&endpoint).await?;
         Ok(response.listings.unwrap_or_default())
@@ -725,7 +714,9 @@ impl MetadataSync for GooglePlayMetadataSync {
                 }
 
                 let local_metadata = self.listing_to_local_metadata(listing);
-                metadata.localizations.insert(locale_str.clone(), local_metadata);
+                metadata
+                    .localizations
+                    .insert(locale_str.clone(), local_metadata);
 
                 debug!("Pulled metadata for locale: {}", locale_str);
             }
@@ -813,10 +804,14 @@ impl MetadataSync for GooglePlayMetadataSync {
                                 result.updated_fields.push(format!("{}/title", locale_str));
                             }
                             if short_desc_differs {
-                                result.updated_fields.push(format!("{}/short_description", locale_str));
+                                result
+                                    .updated_fields
+                                    .push(format!("{}/short_description", locale_str));
                             }
                             if full_desc_differs {
-                                result.updated_fields.push(format!("{}/full_description", locale_str));
+                                result
+                                    .updated_fields
+                                    .push(format!("{}/full_description", locale_str));
                             }
                         }
                     } else {
@@ -918,10 +913,7 @@ impl MetadataSync for GooglePlayMetadataSync {
     }
 
     async fn diff(&self, app_id: &str) -> Result<MetadataDiff> {
-        info!(
-            "Comparing metadata for {} with Google Play Console",
-            app_id
-        );
+        info!("Comparing metadata for {} with Google Play Console", app_id);
 
         let mut diff = MetadataDiff::default();
 
@@ -979,16 +971,15 @@ impl MetadataSync for GooglePlayMetadataSync {
                     }
 
                     // Compare video URL
-                    if Self::strings_differ(
-                        local_loc.video_url.as_deref(),
-                        remote.video.as_deref(),
-                    ) {
+                    if Self::strings_differ(local_loc.video_url.as_deref(), remote.video.as_deref())
+                    {
                         diff.changes.push(MetadataChange {
                             locale: locale_str.clone(),
                             field: "video_url".to_string(),
                             local_value: local_loc.video_url.clone(),
                             remote_value: remote.video.clone(),
-                            change_type: if local_loc.video_url.is_some() && remote.video.is_none() {
+                            change_type: if local_loc.video_url.is_some() && remote.video.is_none()
+                            {
                                 ChangeType::Added
                             } else if local_loc.video_url.is_none() && remote.video.is_some() {
                                 ChangeType::Removed

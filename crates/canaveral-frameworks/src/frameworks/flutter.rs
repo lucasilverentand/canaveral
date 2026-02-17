@@ -9,15 +9,13 @@ use async_trait::async_trait;
 use tracing::{debug, info, instrument};
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
+use crate::capabilities::Capabilities;
 #[cfg(test)]
 use crate::capabilities::Capability;
-use crate::capabilities::Capabilities;
 use crate::context::BuildContext;
 use crate::detection::{file_exists, Detection};
 use crate::error::{FrameworkError, Result};
-use crate::traits::{
-    BuildAdapter, Platform, PrerequisiteStatus, ToolStatus, VersionInfo,
-};
+use crate::traits::{BuildAdapter, Platform, PrerequisiteStatus, ToolStatus, VersionInfo};
 
 /// Flutter build adapter
 pub struct FlutterAdapter {
@@ -59,12 +57,11 @@ impl FlutterAdapter {
 
     fn parse_pubspec_version(&self, path: &Path) -> Result<VersionInfo> {
         let pubspec_path = path.join("pubspec.yaml");
-        let content = std::fs::read_to_string(&pubspec_path).map_err(|e| {
-            FrameworkError::Context {
+        let content =
+            std::fs::read_to_string(&pubspec_path).map_err(|e| FrameworkError::Context {
                 context: "reading pubspec.yaml".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         // Simple parsing - could use yaml parser for robustness
         let mut version = None;
@@ -247,7 +244,7 @@ impl BuildAdapter for FlutterAdapter {
         }
 
         // Execute build
-        let args_str: Vec<&str> = args.iter().map(|s| *s).collect();
+        let args_str: Vec<&str> = args.to_vec();
         let output = self.run_flutter(&args_str, &ctx.path)?;
 
         if !output.status.success() {
@@ -285,12 +282,11 @@ impl BuildAdapter for FlutterAdapter {
 
     fn set_version(&self, path: &Path, version: &VersionInfo) -> Result<()> {
         let pubspec_path = path.join("pubspec.yaml");
-        let content = std::fs::read_to_string(&pubspec_path).map_err(|e| {
-            FrameworkError::Context {
+        let content =
+            std::fs::read_to_string(&pubspec_path).map_err(|e| FrameworkError::Context {
                 context: "reading pubspec.yaml".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         // Build version string
         let version_str = if let Some(bn) = version.build_number {
@@ -345,12 +341,14 @@ impl FlutterAdapter {
                 let ipa_dir = path.join("build/ios/ipa");
                 if let Ok(entries) = std::fs::read_dir(&ipa_dir) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "ipa").unwrap_or(false) {
-                            let mut artifact = Artifact::new(
-                                entry.path(),
-                                ArtifactKind::Ipa,
-                                Platform::Ios,
-                            );
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "ipa")
+                            .unwrap_or(false)
+                        {
+                            let mut artifact =
+                                Artifact::new(entry.path(), ArtifactKind::Ipa, Platform::Ios);
                             artifact.metadata = ArtifactMetadata::new()
                                 .with_framework("flutter")
                                 .with_signed(true); // Flutter builds signed IPA
@@ -369,14 +367,15 @@ impl FlutterAdapter {
                 let bundle_dir = path.join("build/app/outputs/bundle/release");
                 if let Ok(entries) = std::fs::read_dir(&bundle_dir) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "aab").unwrap_or(false) {
-                            let mut artifact = Artifact::new(
-                                entry.path(),
-                                ArtifactKind::Aab,
-                                Platform::Android,
-                            );
-                            artifact.metadata = ArtifactMetadata::new()
-                                .with_framework("flutter");
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "aab")
+                            .unwrap_or(false)
+                        {
+                            let mut artifact =
+                                Artifact::new(entry.path(), ArtifactKind::Aab, Platform::Android);
+                            artifact.metadata = ArtifactMetadata::new().with_framework("flutter");
 
                             artifacts.push(artifact);
                         }
@@ -387,12 +386,14 @@ impl FlutterAdapter {
                 let apk_dir = path.join("build/app/outputs/flutter-apk");
                 if let Ok(entries) = std::fs::read_dir(&apk_dir) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "apk").unwrap_or(false) {
-                            let artifact = Artifact::new(
-                                entry.path(),
-                                ArtifactKind::Apk,
-                                Platform::Android,
-                            );
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "apk")
+                            .unwrap_or(false)
+                        {
+                            let artifact =
+                                Artifact::new(entry.path(), ArtifactKind::Apk, Platform::Android);
                             artifacts.push(artifact);
                         }
                     }
@@ -402,12 +403,14 @@ impl FlutterAdapter {
                 let app_path = path.join("build/macos/Build/Products/Release");
                 if let Ok(entries) = std::fs::read_dir(&app_path) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "app").unwrap_or(false) {
-                            let artifact = Artifact::new(
-                                entry.path(),
-                                ArtifactKind::MacApp,
-                                Platform::MacOs,
-                            );
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "app")
+                            .unwrap_or(false)
+                        {
+                            let artifact =
+                                Artifact::new(entry.path(), ArtifactKind::MacApp, Platform::MacOs);
                             artifacts.push(artifact);
                         }
                     }
@@ -417,12 +420,14 @@ impl FlutterAdapter {
                 let exe_path = path.join("build/windows/x64/runner/Release");
                 if let Ok(entries) = std::fs::read_dir(&exe_path) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "exe").unwrap_or(false) {
-                            let artifact = Artifact::new(
-                                entry.path(),
-                                ArtifactKind::Exe,
-                                Platform::Windows,
-                            );
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "exe")
+                            .unwrap_or(false)
+                        {
+                            let artifact =
+                                Artifact::new(entry.path(), ArtifactKind::Exe, Platform::Windows);
                             artifacts.push(artifact);
                         }
                     }
@@ -432,22 +437,14 @@ impl FlutterAdapter {
                 let bundle_path = path.join("build/linux/x64/release/bundle");
                 if bundle_path.exists() {
                     // Linux produces a bundle directory, not a single file
-                    let artifact = Artifact::new(
-                        bundle_path,
-                        ArtifactKind::Other,
-                        Platform::Linux,
-                    );
+                    let artifact = Artifact::new(bundle_path, ArtifactKind::Other, Platform::Linux);
                     artifacts.push(artifact);
                 }
             }
             Platform::Web => {
                 let web_path = path.join("build/web");
                 if web_path.exists() {
-                    let artifact = Artifact::new(
-                        web_path,
-                        ArtifactKind::WebBuild,
-                        Platform::Web,
-                    );
+                    let artifact = Artifact::new(web_path, ArtifactKind::WebBuild, Platform::Web);
                     artifacts.push(artifact);
                 }
             }
@@ -487,11 +484,7 @@ dependencies:
         .unwrap();
 
         std::fs::create_dir_all(temp.path().join("lib")).unwrap();
-        std::fs::write(
-            temp.path().join("lib/main.dart"),
-            "void main() {}",
-        )
-        .unwrap();
+        std::fs::write(temp.path().join("lib/main.dart"), "void main() {}").unwrap();
     }
 
     #[test]

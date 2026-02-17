@@ -40,7 +40,9 @@ mod apple;
 mod google_play;
 
 pub use apple::{AppleMetadataSync, AppleSyncConfig};
-pub use google_play::{GooglePlayMetadataSync, GooglePlaySyncConfig, Listing, ListingUpdate, Image, image_types};
+pub use google_play::{
+    image_types, GooglePlayMetadataSync, GooglePlaySyncConfig, Image, Listing, ListingUpdate,
+};
 
 use crate::{Locale, Result};
 use async_trait::async_trait;
@@ -148,11 +150,17 @@ impl fmt::Display for PushResult {
         }
 
         if self.screenshots_uploaded > 0 {
-            parts.push(format!("{} screenshot(s) uploaded", self.screenshots_uploaded));
+            parts.push(format!(
+                "{} screenshot(s) uploaded",
+                self.screenshots_uploaded
+            ));
         }
 
         if self.screenshots_removed > 0 {
-            parts.push(format!("{} screenshot(s) removed", self.screenshots_removed));
+            parts.push(format!(
+                "{} screenshot(s) removed",
+                self.screenshots_removed
+            ));
         }
 
         write!(f, "{}", parts.join(", "))
@@ -365,14 +373,19 @@ mod tests {
         assert!(diff.is_empty());
         assert!(!diff.has_changes());
 
-        diff.changes.push(MetadataChange::added("en-US", "name", "My App".to_string()));
+        diff.changes
+            .push(MetadataChange::added("en-US", "name", "My App".to_string()));
         diff.changes.push(MetadataChange::modified(
             "en-US",
             "description",
             "New desc".to_string(),
             "Old desc".to_string(),
         ));
-        diff.changes.push(MetadataChange::removed("de-DE", "subtitle", "Old subtitle".to_string()));
+        diff.changes.push(MetadataChange::removed(
+            "de-DE",
+            "subtitle",
+            "Old subtitle".to_string(),
+        ));
 
         assert_eq!(diff.len(), 3);
         assert!(diff.has_changes());

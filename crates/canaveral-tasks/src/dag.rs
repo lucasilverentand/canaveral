@@ -201,10 +201,7 @@ impl TaskDag {
 
     /// Compute execution waves (groups of tasks that can run in parallel)
     #[instrument(skip_all, fields(node_count = nodes.len()))]
-    fn compute_waves(
-        nodes: &HashMap<TaskId, TaskNode>,
-        sorted: &[TaskId],
-    ) -> Vec<Vec<TaskId>> {
+    fn compute_waves(nodes: &HashMap<TaskId, TaskNode>, sorted: &[TaskId]) -> Vec<Vec<TaskId>> {
         let mut wave_map: HashMap<TaskId, usize> = HashMap::new();
 
         for id in sorted {
@@ -274,7 +271,8 @@ impl TaskDag {
                         .command
                         .as_deref()
                         .unwrap_or("<framework adapter>");
-                    let deps: Vec<String> = node.dependencies.iter().map(|d| d.to_string()).collect();
+                    let deps: Vec<String> =
+                        node.dependencies.iter().map(|d| d.to_string()).collect();
                     if deps.is_empty() {
                         plan.push_str(&format!("  {} -> {}\n", id, cmd));
                     } else {
@@ -419,7 +417,9 @@ mod tests {
         // core:test depends on core:build (same-package dep)
         let core_test = TaskId::new("core", "test");
         let core_test_node = dag.get(&core_test).unwrap();
-        assert!(core_test_node.dependencies.contains(&TaskId::new("core", "build")));
+        assert!(core_test_node
+            .dependencies
+            .contains(&TaskId::new("core", "build")));
     }
 
     #[test]
@@ -428,12 +428,7 @@ mod tests {
         let pipeline = create_pipeline();
         let packages = vec!["core".to_string()];
 
-        let result = TaskDag::build(
-            &graph,
-            &pipeline,
-            &["nonexistent".to_string()],
-            &packages,
-        );
+        let result = TaskDag::build(&graph, &pipeline, &["nonexistent".to_string()], &packages);
 
         assert!(result.is_err());
     }

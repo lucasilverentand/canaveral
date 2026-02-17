@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::context::TestReporter;
 use crate::error::{FrameworkError, Result};
-use crate::traits::{TestReport, TestStatus, TestSuite, TestCase, CoverageReport};
+use crate::traits::{CoverageReport, TestCase, TestReport, TestStatus, TestSuite};
 
 /// Output format for test reports
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,10 +78,14 @@ impl From<&TestReport> for TestReportOutput {
 
 impl From<&TestSuite> for TestSuiteOutput {
     fn from(suite: &TestSuite) -> Self {
-        let failures = suite.tests.iter()
+        let failures = suite
+            .tests
+            .iter()
             .filter(|t| t.status == TestStatus::Failed)
             .count();
-        let skipped = suite.tests.iter()
+        let skipped = suite
+            .tests
+            .iter()
             .filter(|t| t.status == TestStatus::Skipped)
             .count();
 
@@ -113,12 +117,8 @@ impl From<&TestCase> for TestCaseOutput {
 
 impl From<&CoverageReport> for CoverageOutput {
     fn from(coverage: &CoverageReport) -> Self {
-        let lines_covered: usize = coverage.files.iter()
-            .map(|f| f.lines_covered)
-            .sum();
-        let lines_total: usize = coverage.files.iter()
-            .map(|f| f.lines_total)
-            .sum();
+        let lines_covered: usize = coverage.files.iter().map(|f| f.lines_covered).sum();
+        let lines_total: usize = coverage.files.iter().map(|f| f.lines_total).sum();
 
         Self {
             line_coverage: coverage.line_coverage,
@@ -148,7 +148,7 @@ impl ReportGenerator {
     pub fn generate_pretty(report: &TestReport) -> String {
         let mut output = String::new();
 
-        output.push_str("\n");
+        output.push('\n');
         output.push_str("═══════════════════════════════════════════════════════════════\n");
         output.push_str("                         TEST RESULTS\n");
         output.push_str("═══════════════════════════════════════════════════════════════\n\n");
@@ -175,7 +175,7 @@ impl ReportGenerator {
                     }
                 }
             }
-            output.push_str("\n");
+            output.push('\n');
         }
 
         output.push_str("═══════════════════════════════════════════════════════════════\n");
@@ -192,7 +192,7 @@ impl ReportGenerator {
             if let Some(branch) = coverage.branch_coverage {
                 output.push_str(&format!(", {:.1}% branches", branch * 100.0));
             }
-            output.push_str("\n");
+            output.push('\n');
         }
 
         output.push_str("═══════════════════════════════════════════════════════════════\n");
@@ -261,9 +261,7 @@ impl ReportGenerator {
 
         // Output summary to workflow step summary if available
         if report.failed > 0 {
-            output.push_str(&format!(
-                "::set-output name=test-result::failure\n"
-            ));
+            output.push_str("::set-output name=test-result::failure\n");
         } else {
             output.push_str("::set-output name=test-result::success\n");
         }
@@ -272,17 +270,12 @@ impl ReportGenerator {
     }
 
     /// Write report to file
-    pub fn write_to_file(
-        report: &TestReport,
-        format: TestReporter,
-        path: &Path,
-    ) -> Result<()> {
+    pub fn write_to_file(report: &TestReport, format: TestReporter, path: &Path) -> Result<()> {
         let content = Self::generate(report, format);
-        let mut file = std::fs::File::create(path)
-            .map_err(|e| FrameworkError::Context {
-                context: "creating report file".to_string(),
-                message: e.to_string(),
-            })?;
+        let mut file = std::fs::File::create(path).map_err(|e| FrameworkError::Context {
+            context: "creating report file".to_string(),
+            message: e.to_string(),
+        })?;
 
         file.write_all(content.as_bytes())
             .map_err(|e| FrameworkError::Context {
@@ -335,9 +328,7 @@ pub struct JUnitFailure {
 
 impl From<&TestReport> for JUnitReport {
     fn from(report: &TestReport) -> Self {
-        let testsuites: Vec<JUnitTestSuite> = report.suites.iter()
-            .map(|s| s.into())
-            .collect();
+        let testsuites: Vec<JUnitTestSuite> = report.suites.iter().map(|s| s.into()).collect();
 
         Self {
             name: "Test Results".to_string(),
@@ -353,10 +344,14 @@ impl From<&TestReport> for JUnitReport {
 
 impl From<&TestSuite> for JUnitTestSuite {
     fn from(suite: &TestSuite) -> Self {
-        let failures = suite.tests.iter()
+        let failures = suite
+            .tests
+            .iter()
             .filter(|t| t.status == TestStatus::Failed)
             .count();
-        let skipped = suite.tests.iter()
+        let skipped = suite
+            .tests
+            .iter()
             .filter(|t| t.status == TestStatus::Skipped)
             .count();
 
@@ -367,7 +362,9 @@ impl From<&TestSuite> for JUnitTestSuite {
             errors: 0,
             skipped,
             time: suite.duration_ms as f64 / 1000.0,
-            testcases: suite.tests.iter()
+            testcases: suite
+                .tests
+                .iter()
                 .map(|t| JUnitTestCase::from_test(t, &suite.name))
                 .collect(),
         }
@@ -382,7 +379,10 @@ impl JUnitTestCase {
             time: test.duration_ms as f64 / 1000.0,
             failure: if test.status == TestStatus::Failed {
                 Some(JUnitFailure {
-                    message: test.error.clone().unwrap_or_else(|| "Test failed".to_string()),
+                    message: test
+                        .error
+                        .clone()
+                        .unwrap_or_else(|| "Test failed".to_string()),
                     type_name: "AssertionError".to_string(),
                     content: test.error.clone().unwrap_or_default(),
                 })
@@ -483,32 +483,30 @@ mod tests {
             failed: 2,
             skipped: 1,
             duration_ms: 1234,
-            suites: vec![
-                TestSuite {
-                    name: "unit_tests".to_string(),
-                    duration_ms: 500,
-                    tests: vec![
-                        TestCase {
-                            name: "test_add".to_string(),
-                            status: TestStatus::Passed,
-                            duration_ms: 10,
-                            error: None,
-                        },
-                        TestCase {
-                            name: "test_subtract".to_string(),
-                            status: TestStatus::Failed,
-                            duration_ms: 15,
-                            error: Some("Expected 5, got 3".to_string()),
-                        },
-                        TestCase {
-                            name: "test_pending".to_string(),
-                            status: TestStatus::Skipped,
-                            duration_ms: 0,
-                            error: None,
-                        },
-                    ],
-                },
-            ],
+            suites: vec![TestSuite {
+                name: "unit_tests".to_string(),
+                duration_ms: 500,
+                tests: vec![
+                    TestCase {
+                        name: "test_add".to_string(),
+                        status: TestStatus::Passed,
+                        duration_ms: 10,
+                        error: None,
+                    },
+                    TestCase {
+                        name: "test_subtract".to_string(),
+                        status: TestStatus::Failed,
+                        duration_ms: 15,
+                        error: Some("Expected 5, got 3".to_string()),
+                    },
+                    TestCase {
+                        name: "test_pending".to_string(),
+                        status: TestStatus::Skipped,
+                        duration_ms: 0,
+                        error: None,
+                    },
+                ],
+            }],
             coverage: None,
         }
     }

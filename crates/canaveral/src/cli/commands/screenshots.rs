@@ -200,7 +200,10 @@ impl ScreenshotsCommand {
             ScreenshotsSubcommand::Devices(_) => "devices",
             ScreenshotsSubcommand::Init(_) => "init",
         };
-        info!(subcommand = subcommand_name, "executing screenshots command");
+        info!(
+            subcommand = subcommand_name,
+            "executing screenshots command"
+        );
         let runtime = tokio::runtime::Runtime::new()?;
         runtime.block_on(self.execute_async(cli))
     }
@@ -231,18 +234,12 @@ impl CaptureCommand {
                 "  Devices: {}",
                 style(config.devices.len().to_string()).cyan()
             );
-            println!(
-                "  Locales: {}",
-                style(config.locales.join(", ")).cyan()
-            );
+            println!("  Locales: {}", style(config.locales.join(", ")).cyan());
             println!(
                 "  Screens: {}",
                 style(config.screens.len().to_string()).cyan()
             );
-            println!(
-                "  Output: {}",
-                style(config.output_dir.display()).cyan()
-            );
+            println!("  Output: {}", style(config.output_dir.display()).cyan());
             if self.dry_run {
                 println!("  {}", style("(DRY RUN)").yellow().bold());
             }
@@ -347,10 +344,7 @@ impl CaptureCommand {
 
                 Ok(matching
                     .into_iter()
-                    .map(|s| {
-                        DeviceConfig::ios(&s.name, (1290, 2796))
-                            .with_simulator(&s.udid)
-                    })
+                    .map(|s| DeviceConfig::ios(&s.name, (1290, 2796)).with_simulator(&s.udid))
                     .collect())
             }
         }
@@ -395,8 +389,11 @@ impl FrameCommand {
             let output = self.output.clone().unwrap_or_else(|| {
                 let stem = self.input.file_stem().unwrap_or_default();
                 let ext = self.input.extension().unwrap_or_default();
-                self.input
-                    .with_file_name(format!("{}_framed.{}", stem.to_string_lossy(), ext.to_string_lossy()))
+                self.input.with_file_name(format!(
+                    "{}_framed.{}",
+                    stem.to_string_lossy(),
+                    ext.to_string_lossy()
+                ))
             });
 
             if !cli.quiet && cli.format == OutputFormat::Text {
@@ -413,9 +410,10 @@ impl FrameCommand {
                 println!("{} Framed screenshot saved", style("✓").green());
             }
         } else if self.input.is_dir() {
-            let output_dir = self.output.clone().unwrap_or_else(|| {
-                self.input.join("framed")
-            });
+            let output_dir = self
+                .output
+                .clone()
+                .unwrap_or_else(|| self.input.join("framed"));
 
             std::fs::create_dir_all(&output_dir)?;
 
@@ -424,7 +422,10 @@ impl FrameCommand {
                 let entry = entry?;
                 let path = entry.path();
 
-                if path.extension().map_or(false, |e| e == "png" || e == "jpg" || e == "jpeg") {
+                if path
+                    .extension()
+                    .is_some_and(|e| e == "png" || e == "jpg" || e == "jpeg")
+                {
                     let filename = path.file_name().unwrap_or_default();
                     let output = output_dir.join(filename);
 
@@ -515,14 +516,8 @@ impl DevicesCommand {
         // Presets
         if !cli.quiet && cli.format == OutputFormat::Text {
             println!("{}", style("Device Presets:").bold().underlined());
-            println!(
-                "  {} - All required iPhone sizes",
-                style("iphones").cyan()
-            );
-            println!(
-                "  {} - All required iPad sizes",
-                style("ipads").cyan()
-            );
+            println!("  {} - All required iPhone sizes", style("iphones").cyan());
+            println!("  {} - All required iPad sizes", style("ipads").cyan());
             println!(
                 "  {} - iPhone 16 Pro Max (6.9\")",
                 style("iphone-16-pro-max").cyan()
@@ -535,14 +530,8 @@ impl DevicesCommand {
                 "  {} - iPhone 8 Plus (5.5\")",
                 style("iphone-8-plus").cyan()
             );
-            println!(
-                "  {} - iPad Pro 12.9\"",
-                style("ipad-pro-12.9").cyan()
-            );
-            println!(
-                "  {} - iPad Pro 11\"",
-                style("ipad-pro-11").cyan()
-            );
+            println!("  {} - iPad Pro 12.9\"", style("ipad-pro-12.9").cyan());
+            println!("  {} - iPad Pro 11\"", style("ipad-pro-11").cyan());
             println!();
         }
 

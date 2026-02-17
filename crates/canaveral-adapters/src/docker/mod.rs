@@ -77,9 +77,11 @@ impl DockerAdapter {
                 for line in content.lines() {
                     let line = line.trim();
                     if line.starts_with("LABEL") {
-                        if let Some(version) = Self::extract_label(&line, "version") {
-                            let name = Self::extract_label(&line, "name")
-                                .or_else(|| Self::extract_label(&line, "org.opencontainers.image.title"))
+                        if let Some(version) = Self::extract_label(line, "version") {
+                            let name = Self::extract_label(line, "name")
+                                .or_else(|| {
+                                    Self::extract_label(line, "org.opencontainers.image.title")
+                                })
                                 .unwrap_or_else(|| {
                                     path.file_name()
                                         .map(|n| n.to_string_lossy().to_string())
@@ -117,10 +119,7 @@ impl DockerAdapter {
                         .as_str()
                         .map(|s| s.replace('@', "").replace('/', "-"))
                         .unwrap_or_else(|| "app".to_string());
-                    let version = json["version"]
-                        .as_str()
-                        .unwrap_or("0.0.0")
-                        .to_string();
+                    let version = json["version"].as_str().unwrap_or("0.0.0").to_string();
                     return Ok((name, version));
                 }
             }
@@ -141,10 +140,7 @@ impl DockerAdapter {
         if let Some(pos) = line.find(&pattern) {
             let rest = &line[pos + pattern.len()..];
             let value = if rest.starts_with('"') {
-                rest.trim_start_matches('"')
-                    .split('"')
-                    .next()
-                    .unwrap_or("")
+                rest.trim_start_matches('"').split('"').next().unwrap_or("")
             } else {
                 rest.split_whitespace().next().unwrap_or("")
             };
@@ -203,11 +199,9 @@ impl DockerAdapter {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(AdapterError::PublishFailed(format!(
-                "Failed to push {}: {}",
-                tag, stderr
-            ))
-            .into());
+            return Err(
+                AdapterError::PublishFailed(format!("Failed to push {}: {}", tag, stderr)).into(),
+            );
         }
 
         Ok(())
@@ -457,8 +451,11 @@ impl PackageAdapter for DockerAdapter {
             .output();
 
         if let Ok(output) = build_check {
-            if !output.status.success() && !String::from_utf8_lossy(&output.stderr).contains("unknown flag") {
-                result.add_warning("Dockerfile may have issues (run 'docker build' to see details)");
+            if !output.status.success()
+                && !String::from_utf8_lossy(&output.stderr).contains("unknown flag")
+            {
+                result
+                    .add_warning("Dockerfile may have issues (run 'docker build' to see details)");
             }
         }
 
@@ -468,8 +465,7 @@ impl PackageAdapter for DockerAdapter {
     fn check_auth(&self, credentials: &mut CredentialProvider) -> Result<bool> {
         debug!(adapter = "docker", "checking authentication");
         // Check if docker login has been done
-        let config_path = dirs::home_dir()
-            .map(|h| h.join(".docker").join("config.json"));
+        let config_path = dirs::home_dir().map(|h| h.join(".docker").join("config.json"));
 
         if let Some(path) = config_path {
             if path.exists() {
@@ -490,6 +486,35 @@ impl PackageAdapter for DockerAdapter {
         Ok(false)
     }
 
+    fn lint(&self, path: &Path) -> Result<()> {
+        let dockerfile = self.dockerfile_path(path);
+        if !dockerfile.exists() {
+            return Ok(());
+        }
+
+        let output = Command::new("hadolint")
+            .arg(&dockerfile)
+            .current_dir(path)
+            .output();
+
+        match output {
+            Ok(out) if !out.status.success() => {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                Err(AdapterError::CommandFailed {
+                    command: "hadolint".to_string(),
+                    reason: format!("{}{}", stdout, stderr),
+                }
+                .into())
+            }
+            Err(_) => {
+                // hadolint not installed, skip silently
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
     fn build(&self, path: &Path) -> Result<()> {
         let (name, version) = self.parse_image_info(path)?;
         let tag = format!("{}:{}", name, version);
@@ -501,7 +526,13 @@ impl PackageAdapter for DockerAdapter {
         let (name, _) = self.parse_image_info(path)?;
 
         let output = Command::new("docker")
-            .args(["image", "prune", "-f", "--filter", &format!("label=name={}", name)])
+            .args([
+                "image",
+                "prune",
+                "-f",
+                "--filter",
+                &format!("label=name={}", name),
+            ])
             .output()
             .map_err(|e| AdapterError::CommandFailed {
                 command: "docker image prune".to_string(),
@@ -577,15 +608,17 @@ LABEL org.opencontainers.image.title="myapp"
 
     #[test]
     fn test_with_tags() {
-        let adapter = DockerAdapter::new()
-            .with_tags(vec!["latest".to_string(), "stable".to_string()]);
+        let adapter =
+            DockerAdapter::new().with_tags(vec!["latest".to_string(), "stable".to_string()]);
         assert_eq!(adapter.additional_tags, vec!["latest", "stable"]);
     }
 
     #[test]
     fn test_with_registries() {
-        let adapter = DockerAdapter::new()
-            .with_registries(vec!["gcr.io/myproject".to_string(), "ghcr.io/myorg".to_string()]);
+        let adapter = DockerAdapter::new().with_registries(vec![
+            "gcr.io/myproject".to_string(),
+            "ghcr.io/myorg".to_string(),
+        ]);
         assert_eq!(adapter.registries.len(), 2);
     }
 }

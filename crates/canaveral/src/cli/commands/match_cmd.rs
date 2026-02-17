@@ -191,7 +191,9 @@ impl InitCommand {
         // Create storage configuration
         let storage = match self.storage {
             StorageType::Git => {
-                let url = self.git_url.as_ref()
+                let url = self
+                    .git_url
+                    .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("Git URL required for git storage"))?;
                 SyncStorage::Git {
                     url: url.clone(),
@@ -199,7 +201,9 @@ impl InitCommand {
                 }
             }
             StorageType::S3 => {
-                let bucket = self.bucket.as_ref()
+                let bucket = self
+                    .bucket
+                    .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("Bucket required for S3 storage"))?;
                 SyncStorage::S3 {
                     bucket: bucket.clone(),
@@ -208,7 +212,9 @@ impl InitCommand {
                 }
             }
             StorageType::Gcs => {
-                let bucket = self.bucket.as_ref()
+                let bucket = self
+                    .bucket
+                    .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("Bucket required for GCS storage"))?;
                 SyncStorage::GoogleCloudStorage {
                     bucket: bucket.clone(),
@@ -216,7 +222,9 @@ impl InitCommand {
                 }
             }
             StorageType::Azure => {
-                let container = self.bucket.as_ref()
+                let container = self
+                    .bucket
+                    .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("Container required for Azure storage"))?;
                 SyncStorage::AzureBlob {
                     container: container.clone(),
@@ -259,8 +267,7 @@ impl InitCommand {
         std::fs::write(&config_file, &config_yaml)?;
 
         // Initialize storage
-        let sync = MatchSync::new(config)?
-            .with_keypair(keypair);
+        let sync = MatchSync::new(config)?.with_keypair(keypair);
         sync.init().await?;
 
         if !cli.quiet && cli.format == OutputFormat::Text {
@@ -312,7 +319,9 @@ impl SyncCommand {
         let private_key = std::fs::read_to_string(&self.keyfile)
             .map_err(|_| anyhow::anyhow!("Key file not found: {}", self.keyfile.display()))?;
 
-        let public_key = config.encryption_key.clone()
+        let public_key = config
+            .encryption_key
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("No encryption key in config"))?;
 
         let keypair = canaveral_signing::team::KeyPair {
@@ -323,7 +332,10 @@ impl SyncCommand {
         if !cli.quiet && cli.format == OutputFormat::Text {
             println!();
             println!("{}", style("Syncing certificates and profiles...").bold());
-            println!("  Profile type: {}", style(format!("{:?}", self.profile_type)).cyan());
+            println!(
+                "  Profile type: {}",
+                style(format!("{:?}", self.profile_type)).cyan()
+            );
             if self.readonly {
                 println!("  Mode: {}", style("read-only").yellow());
             }
@@ -331,8 +343,7 @@ impl SyncCommand {
         }
 
         // Run sync
-        let sync = MatchSync::new(config)?
-            .with_keypair(keypair);
+        let sync = MatchSync::new(config)?.with_keypair(keypair);
         let manifest = sync.sync().await?;
 
         // Output results
@@ -413,7 +424,9 @@ impl NukeCommand {
 
         // Load keypair
         let private_key = std::fs::read_to_string(&self.keyfile)?;
-        let public_key = config.encryption_key.clone()
+        let public_key = config
+            .encryption_key
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("No encryption key in config"))?;
 
         let keypair = canaveral_signing::team::KeyPair {
@@ -427,17 +440,13 @@ impl NukeCommand {
         }
 
         // Run nuke
-        let sync = MatchSync::new(config)?
-            .with_keypair(keypair);
+        let sync = MatchSync::new(config)?.with_keypair(keypair);
         sync.nuke(self.profile_type.map(|p| p.into())).await?;
 
         if !cli.quiet && cli.format == OutputFormat::Text {
             println!("{} Certificates and profiles removed", style("✓").green());
             println!();
-            println!(
-                "Run {} to regenerate",
-                style("canaveral match sync").cyan()
-            );
+            println!("Run {} to regenerate", style("canaveral match sync").cyan());
         }
 
         Ok(())
@@ -456,7 +465,9 @@ impl StatusCommand {
         let private_key = std::fs::read_to_string(&self.keyfile)
             .map_err(|_| anyhow::anyhow!("Key file not found: {}", self.keyfile.display()))?;
 
-        let public_key = config.encryption_key.clone()
+        let public_key = config
+            .encryption_key
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("No encryption key in config"))?;
 
         let keypair = canaveral_signing::team::KeyPair {
@@ -474,8 +485,7 @@ impl StatusCommand {
         }
 
         // Read manifest
-        let sync = MatchSync::new(config)?
-            .with_keypair(keypair);
+        let sync = MatchSync::new(config)?.with_keypair(keypair);
         let manifest = sync.sync().await?;
 
         if cli.format == OutputFormat::Json {

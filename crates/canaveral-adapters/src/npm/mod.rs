@@ -124,12 +124,10 @@ impl PackageAdapter for NpmAdapter {
             cmd.arg("--otp").arg(otp);
         }
 
-        let output = cmd
-            .output()
-            .map_err(|e| AdapterError::CommandFailed {
-                command: "npm publish".to_string(),
-                reason: e.to_string(),
-            })?;
+        let output = cmd.output().map_err(|e| AdapterError::CommandFailed {
+            command: "npm publish".to_string(),
+            reason: e.to_string(),
+        })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -169,7 +167,10 @@ impl PackageAdapter for NpmAdapter {
 
         // Validate version is valid semver
         if semver::Version::parse(&manifest.version).is_err() {
-            result.add_error(format!("Version '{}' is not valid semver", manifest.version));
+            result.add_error(format!(
+                "Version '{}' is not valid semver",
+                manifest.version
+            ));
         }
 
         // Check for required fields
@@ -186,7 +187,9 @@ impl PackageAdapter for NpmAdapter {
         if manifest.files.is_none() {
             let npmignore = path.join(".npmignore");
             if !npmignore.exists() {
-                result.add_warning("No 'files' field or .npmignore - entire directory will be published");
+                result.add_warning(
+                    "No 'files' field or .npmignore - entire directory will be published",
+                );
             }
         }
 
@@ -201,22 +204,87 @@ impl PackageAdapter for NpmAdapter {
         }
 
         // Fallback: try `npm whoami` to check if logged in
-        let output = Command::new("npm")
-            .args(["whoami"])
-            .output()
-            .map_err(|e| AdapterError::CommandFailed {
+        let output = Command::new("npm").args(["whoami"]).output().map_err(|e| {
+            AdapterError::CommandFailed {
                 command: "npm whoami".to_string(),
                 reason: e.to_string(),
-            })?;
+            }
+        })?;
 
         Ok(output.status.success())
+    }
+
+    fn fmt(&self, path: &Path, check: bool) -> Result<()> {
+        let manifest = PackageJson::load(&self.manifest_path(path))?;
+        let script = if check { "format:check" } else { "format" };
+
+        // Try format/format:check first, fall back to prettier
+        if manifest
+            .scripts
+            .as_ref()
+            .is_some_and(|s| s.contains_key(script))
+        {
+            let output = Command::new("npm")
+                .args(["run", script])
+                .current_dir(path)
+                .output()
+                .map_err(|e| AdapterError::CommandFailed {
+                    command: format!("npm run {}", script),
+                    reason: e.to_string(),
+                })?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(AdapterError::CommandFailed {
+                    command: format!("npm run {}", script),
+                    reason: stderr.to_string(),
+                }
+                .into());
+            }
+        }
+
+        Ok(())
+    }
+
+    fn lint(&self, path: &Path) -> Result<()> {
+        let manifest = PackageJson::load(&self.manifest_path(path))?;
+
+        if manifest
+            .scripts
+            .as_ref()
+            .is_some_and(|s| s.contains_key("lint"))
+        {
+            let output = Command::new("npm")
+                .args(["run", "lint"])
+                .current_dir(path)
+                .output()
+                .map_err(|e| AdapterError::CommandFailed {
+                    command: "npm run lint".to_string(),
+                    reason: e.to_string(),
+                })?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(AdapterError::CommandFailed {
+                    command: "npm run lint".to_string(),
+                    reason: stderr.to_string(),
+                }
+                .into());
+            }
+        }
+
+        Ok(())
     }
 
     fn build(&self, path: &Path) -> Result<()> {
         // Check if there's a build script
         let manifest = PackageJson::load(&self.manifest_path(path))?;
 
-        if manifest.scripts.as_ref().is_some_and(|s| s.contains_key("build")) {
+        if manifest
+            .scripts
+            .as_ref()
+            .is_some_and(|s| s.contains_key("build"))
+        {
             let output = Command::new("npm")
                 .args(["run", "build"])
                 .current_dir(path)
@@ -242,7 +310,11 @@ impl PackageAdapter for NpmAdapter {
     fn test(&self, path: &Path) -> Result<()> {
         let manifest = PackageJson::load(&self.manifest_path(path))?;
 
-        if manifest.scripts.as_ref().is_some_and(|s| s.contains_key("test")) {
+        if manifest
+            .scripts
+            .as_ref()
+            .is_some_and(|s| s.contains_key("test"))
+        {
             let output = Command::new("npm")
                 .args(["test"])
                 .current_dir(path)

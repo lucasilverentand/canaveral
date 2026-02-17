@@ -4,9 +4,9 @@ use clap::Args;
 use console::style;
 use tracing::info;
 
+use canaveral_adapters::detect_packages;
 use canaveral_core::config::{load_config_from_dir, validation::validate_config};
 use canaveral_git::GitRepo;
-use canaveral_adapters::detect_packages;
 
 use crate::cli::{Cli, OutputFormat};
 
@@ -25,7 +25,11 @@ pub struct ValidateCommand {
 impl ValidateCommand {
     /// Execute the validate command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
-        info!(config_only = self.config_only, strict = self.strict, "executing validate command");
+        info!(
+            config_only = self.config_only,
+            strict = self.strict,
+            "executing validate command"
+        );
         let cwd = std::env::current_dir()?;
 
         let mut errors: Vec<String> = Vec::new();
@@ -85,10 +89,7 @@ impl ValidateCommand {
                         match repo.has_remote(&cfg.git.remote) {
                             Ok(true) => {}
                             Ok(false) => {
-                                warnings.push(format!(
-                                    "Remote '{}' not found",
-                                    cfg.git.remote
-                                ));
+                                warnings.push(format!("Remote '{}' not found", cfg.git.remote));
                             }
                             Err(e) => {
                                 errors.push(format!("Remote check: {}", e));
@@ -116,7 +117,7 @@ impl ValidateCommand {
 
         // If strict, promote warnings to errors
         if self.strict {
-            errors.extend(warnings.drain(..));
+            errors.append(&mut warnings);
         }
 
         // Output

@@ -8,8 +8,10 @@ use crate::MetadataError;
 /// Supported publishing platforms (app stores and package registries).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum Platform {
     /// Apple App Store (iOS, macOS, tvOS, watchOS).
+    #[default]
     Apple,
     /// Google Play Store (Android).
     GooglePlay,
@@ -19,12 +21,6 @@ pub enum Platform {
     Crates,
     /// Python Package Index (PyPI).
     PyPI,
-}
-
-impl Default for Platform {
-    fn default() -> Self {
-        Platform::Apple
-    }
 }
 
 /// A locale identifier with validation.
@@ -134,21 +130,17 @@ impl std::fmt::Display for Locale {
 /// Types of media assets for app store listings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum AssetType {
     /// App icon.
     Icon,
     /// Screenshot image.
+    #[default]
     Screenshot,
     /// Video preview.
     Preview,
     /// Feature graphic (Google Play).
     FeatureGraphic,
-}
-
-impl Default for AssetType {
-    fn default() -> Self {
-        AssetType::Screenshot
-    }
 }
 
 /// Dimensions for a media asset.

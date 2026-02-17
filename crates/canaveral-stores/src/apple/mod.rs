@@ -20,8 +20,8 @@ mod testflight;
 pub use connect::AppStoreConnect;
 pub use notarize::Notarizer;
 pub use testflight::{
-    TestFlight, TestFlightBuild, BuildProcessingState, BuildAudienceType,
-    BetaGroup, BetaTester, TesterInviteType, BetaAppReviewSubmission, BetaReviewState,
+    BetaAppReviewSubmission, BetaGroup, BetaReviewState, BetaTester, BuildAudienceType,
+    BuildProcessingState, TestFlight, TestFlightBuild, TesterInviteType,
 };
 
 use tracing::{debug, instrument};
@@ -122,10 +122,8 @@ async fn extract_app_bundle_info(path: &Path) -> Result<AppInfo> {
     if dict.contains_key("MinimumOSVersion") {
         platforms.push("iOS".to_string());
     }
-    if dict.contains_key("UIDeviceFamily") {
-        if !platforms.contains(&"iOS".to_string()) {
-            platforms.push("iOS".to_string());
-        }
+    if dict.contains_key("UIDeviceFamily") && !platforms.contains(&"iOS".to_string()) {
+        platforms.push("iOS".to_string());
     }
     if platforms.is_empty() {
         platforms.push("macOS".to_string());
@@ -176,9 +174,7 @@ async fn extract_pkg_info(path: &Path) -> Result<AppInfo> {
         .and_then(|s| s.to_str())
         .unwrap_or("Unknown");
 
-    let size = std::fs::metadata(path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
     Ok(AppInfo {
         identifier: format!("pkg.{}", filename.replace(' ', ".")),
@@ -195,8 +191,7 @@ async fn extract_pkg_info(path: &Path) -> Result<AppInfo> {
 /// Extract info from a .dmg disk image
 async fn extract_dmg_info(path: &Path) -> Result<AppInfo> {
     // Mount the DMG temporarily to inspect contents
-    let temp_mount = tempfile::tempdir()
-        .map_err(|e| StoreError::Io(e))?;
+    let temp_mount = tempfile::tempdir().map_err(StoreError::Io)?;
 
     let mount_output = Command::new("hdiutil")
         .args([
@@ -212,7 +207,10 @@ async fn extract_dmg_info(path: &Path) -> Result<AppInfo> {
         .map_err(|e| StoreError::CommandFailed(format!("hdiutil attach failed: {}", e)))?;
 
     if !mount_output.status.success() {
-        let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Unknown");
+        let filename = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Unknown");
         let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
         return Ok(AppInfo {
@@ -254,7 +252,10 @@ async fn extract_dmg_info(path: &Path) -> Result<AppInfo> {
             Ok(info)
         }
         None => {
-            let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Unknown");
+            let filename = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("Unknown");
             let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
             Ok(AppInfo {
@@ -280,7 +281,8 @@ async fn extract_zip_info(path: &Path) -> Result<AppInfo> {
     // First pass: find the Info.plist index
     let mut plist_index: Option<usize> = None;
     for i in 0..archive.len() {
-        let file = archive.by_index(i)
+        let file = archive
+            .by_index(i)
             .map_err(|e| StoreError::InvalidArtifact(format!("Failed to read zip entry: {}", e)))?;
 
         let name = file.name().to_string();
@@ -294,15 +296,18 @@ async fn extract_zip_info(path: &Path) -> Result<AppInfo> {
 
     // Second pass: extract and parse the Info.plist if found
     if let Some(i) = plist_index {
-        let mut file = archive.by_index(i)
+        let mut file = archive
+            .by_index(i)
             .map_err(|e| StoreError::InvalidArtifact(format!("Failed to read zip entry: {}", e)))?;
 
         let mut contents = Vec::new();
         std::io::Read::read_to_end(&mut file, &mut contents)?;
         drop(file); // Explicitly drop the borrow
 
-        let plist: plist::Value = plist::from_reader(std::io::Cursor::new(&contents))
-            .map_err(|e| StoreError::InvalidArtifact(format!("Failed to parse Info.plist: {}", e)))?;
+        let plist: plist::Value =
+            plist::from_reader(std::io::Cursor::new(&contents)).map_err(|e| {
+                StoreError::InvalidArtifact(format!("Failed to parse Info.plist: {}", e))
+            })?;
 
         if let Some(dict) = plist.as_dictionary() {
             let bundle_id = dict
@@ -344,7 +349,10 @@ async fn extract_zip_info(path: &Path) -> Result<AppInfo> {
     }
 
     // Fallback
-    let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Unknown");
+    let filename = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Unknown");
     let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
     Ok(AppInfo {

@@ -4,7 +4,7 @@ use std::path::Path;
 
 use canaveral_core::error::{AdapterError, Result};
 use serde::Deserialize;
-use toml_edit::{DocumentMut, value};
+use toml_edit::{value, DocumentMut};
 
 /// Cargo.toml structure (for reading)
 #[derive(Debug, Clone, Deserialize)]
@@ -65,8 +65,7 @@ impl CargoToml {
         let content = std::fs::read_to_string(path)
             .map_err(|_| AdapterError::ManifestNotFound(path.to_path_buf()))?;
 
-        toml::from_str(&content)
-            .map_err(|e| AdapterError::ManifestParseError(e.to_string()).into())
+        toml::from_str(&content).map_err(|e| AdapterError::ManifestParseError(e.to_string()).into())
     }
 
     /// Update version in Cargo.toml (preserves formatting using toml_edit)
@@ -74,9 +73,9 @@ impl CargoToml {
         let content = std::fs::read_to_string(path)
             .map_err(|_| AdapterError::ManifestNotFound(path.to_path_buf()))?;
 
-        let mut doc: DocumentMut = content.parse().map_err(|e: toml_edit::TomlError| {
-            AdapterError::ManifestParseError(e.to_string())
-        })?;
+        let mut doc: DocumentMut = content
+            .parse()
+            .map_err(|e: toml_edit::TomlError| AdapterError::ManifestParseError(e.to_string()))?;
 
         // Update the version field
         if let Some(package) = doc.get_mut("package") {

@@ -248,18 +248,12 @@ mod tests {
     fn test_compare() {
         let strategy = SemVerStrategy::new();
 
-        assert_eq!(
-            strategy.compare("1.0.0", "1.0.1").unwrap(),
-            Ordering::Less
-        );
+        assert_eq!(strategy.compare("1.0.0", "1.0.1").unwrap(), Ordering::Less);
         assert_eq!(
             strategy.compare("1.1.0", "1.0.1").unwrap(),
             Ordering::Greater
         );
-        assert_eq!(
-            strategy.compare("1.0.0", "1.0.0").unwrap(),
-            Ordering::Equal
-        );
+        assert_eq!(strategy.compare("1.0.0", "1.0.0").unwrap(), Ordering::Equal);
         assert_eq!(
             strategy.compare("1.0.0-alpha", "1.0.0").unwrap(),
             Ordering::Less

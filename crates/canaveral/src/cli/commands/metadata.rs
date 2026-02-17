@@ -2,9 +2,9 @@
 
 use clap::{Args, Subcommand, ValueEnum};
 use console::style;
-use tracing::info;
 use std::io::Write;
 use std::path::PathBuf;
+use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_metadata::{
@@ -313,10 +313,7 @@ impl InitCommand {
                     .init(Platform::Apple, &self.app_id, &locales)
                     .await?;
                 if !cli.quiet {
-                    println!(
-                        "  Platform: {}",
-                        style("Apple App Store").green()
-                    );
+                    println!("  Platform: {}", style("Apple App Store").green());
                 }
             }
             TargetPlatform::GooglePlay => {
@@ -324,10 +321,7 @@ impl InitCommand {
                     .init(Platform::GooglePlay, &self.app_id, &locales)
                     .await?;
                 if !cli.quiet {
-                    println!(
-                        "  Platform: {}",
-                        style("Google Play Store").green()
-                    );
+                    println!("  Platform: {}", style("Google Play Store").green());
                 }
             }
             TargetPlatform::Both => {
@@ -361,7 +355,9 @@ impl InitCommand {
                 println!();
                 println!(
                     "{}",
-                    style("Metadata directory initialized successfully!").green().bold()
+                    style("Metadata directory initialized successfully!")
+                        .green()
+                        .bold()
                 );
                 println!();
                 println!("Next steps:");
@@ -394,9 +390,7 @@ impl ValidateCommand {
             .path
             .clone()
             .unwrap_or_else(|| config.metadata.storage.path.clone());
-        let strict = self
-            .strict
-            .unwrap_or(config.metadata.validation.strict);
+        let strict = self.strict.unwrap_or(config.metadata.validation.strict);
 
         // Create storage backend
         let storage = FastlaneStorage::new(&metadata_path);
@@ -443,22 +437,20 @@ impl ValidateCommand {
                 validator.validate(&metadata)
             }
             TargetPlatform::Both => {
-                anyhow::bail!("Please specify a single platform for validation (apple or google-play)");
+                anyhow::bail!(
+                    "Please specify a single platform for validation (apple or google-play)"
+                );
             }
         };
 
         // Handle auto-fix if requested
-        if self.fix && !result.is_valid() {
-            if !cli.quiet {
-                println!();
-                println!(
-                    "{}",
-                    style("Auto-fix is not yet implemented for metadata issues.").yellow()
-                );
-                println!(
-                    "Please review the issues below and fix them manually."
-                );
-            }
+        if self.fix && !result.is_valid() && !cli.quiet {
+            println!();
+            println!(
+                "{}",
+                style("Auto-fix is not yet implemented for metadata issues.").yellow()
+            );
+            println!("Please review the issues below and fix them manually.");
         }
 
         // Output results
@@ -479,7 +471,12 @@ impl ValidateCommand {
         Ok(())
     }
 
-    fn print_results(&self, cli: &Cli, result: &ValidationResult, _strict: bool) -> anyhow::Result<()> {
+    fn print_results(
+        &self,
+        cli: &Cli,
+        result: &ValidationResult,
+        _strict: bool,
+    ) -> anyhow::Result<()> {
         match cli.format {
             OutputFormat::Json => {
                 let output = serde_json::json!({
@@ -502,21 +499,14 @@ impl ValidateCommand {
                 println!();
 
                 if result.is_clean() {
-                    println!(
-                        "{}",
-                        style("All validations passed!").green().bold()
-                    );
+                    println!("{}", style("All validations passed!").green().bold());
                     return Ok(());
                 }
 
                 // Print errors
                 let errors = result.errors();
                 if !errors.is_empty() {
-                    println!(
-                        "{} ({} found)",
-                        style("Errors").red().bold(),
-                        errors.len()
-                    );
+                    println!("{} ({} found)", style("Errors").red().bold(), errors.len());
                     for issue in errors {
                         println!(
                             "  {} {}: {}",
@@ -525,11 +515,7 @@ impl ValidateCommand {
                             issue.message
                         );
                         if let Some(ref suggestion) = issue.suggestion {
-                            println!(
-                                "    {} {}",
-                                style("Suggestion:").dim(),
-                                suggestion
-                            );
+                            println!("    {} {}", style("Suggestion:").dim(), suggestion);
                         }
                     }
                     println!();
@@ -551,11 +537,7 @@ impl ValidateCommand {
                             issue.message
                         );
                         if let Some(ref suggestion) = issue.suggestion {
-                            println!(
-                                "    {} {}",
-                                style("Suggestion:").dim(),
-                                suggestion
-                            );
+                            println!("    {} {}", style("Suggestion:").dim(), suggestion);
                         }
                     }
                     println!();
@@ -564,11 +546,7 @@ impl ValidateCommand {
                 // Print info
                 let infos = result.infos();
                 if !infos.is_empty() && cli.verbose {
-                    println!(
-                        "{} ({} found)",
-                        style("Info").blue().bold(),
-                        infos.len()
-                    );
+                    println!("{} ({} found)", style("Info").blue().bold(), infos.len());
                     for issue in infos {
                         println!(
                             "  {} {}: {}",
@@ -582,10 +560,7 @@ impl ValidateCommand {
 
                 // Summary
                 if result.is_valid() {
-                    println!(
-                        "{}",
-                        style("Validation passed with warnings.").yellow()
-                    );
+                    println!("{}", style("Validation passed with warnings.").yellow());
                 } else {
                     println!(
                         "{}",
@@ -685,7 +660,10 @@ impl ExportCommand {
     }
 
     /// Export Apple metadata to CSV format (localized text fields)
-    fn export_apple_csv(&self, metadata: &canaveral_metadata::AppleMetadata) -> anyhow::Result<String> {
+    fn export_apple_csv(
+        &self,
+        metadata: &canaveral_metadata::AppleMetadata,
+    ) -> anyhow::Result<String> {
         let mut csv_output = String::new();
 
         // CSV header
@@ -717,7 +695,10 @@ impl ExportCommand {
     }
 
     /// Export Google Play metadata to CSV format (localized text fields)
-    fn export_google_play_csv(&self, metadata: &canaveral_metadata::GooglePlayMetadata) -> anyhow::Result<String> {
+    fn export_google_play_csv(
+        &self,
+        metadata: &canaveral_metadata::GooglePlayMetadata,
+    ) -> anyhow::Result<String> {
         let mut csv_output = String::new();
 
         // CSV header
@@ -950,13 +931,8 @@ impl ListLocalesCommand {
             OutputFormat::Text => {
                 println!();
                 if locale_info.is_empty() {
-                    println!(
-                        "{}",
-                        style("No locales found.").yellow()
-                    );
-                    println!(
-                        "Run `canaveral metadata init` to create the metadata structure."
-                    );
+                    println!("{}", style("No locales found.").yellow());
+                    println!("Run `canaveral metadata init` to create the metadata structure.");
                 } else {
                     println!(
                         "{} ({} found)",
@@ -1243,15 +1219,15 @@ impl ScreenshotsAddCommand {
         // Get device type based on platform
         let device_type = match self.platform {
             SinglePlatform::Apple => {
-                let device = self
-                    .apple_device
-                    .ok_or_else(|| anyhow::anyhow!("--apple-device is required for Apple platform"))?;
+                let device = self.apple_device.ok_or_else(|| {
+                    anyhow::anyhow!("--apple-device is required for Apple platform")
+                })?;
                 DeviceType::Apple(device)
             }
             SinglePlatform::GooglePlay => {
-                let device = self
-                    .google_device
-                    .ok_or_else(|| anyhow::anyhow!("--google-device is required for Google Play platform"))?;
+                let device = self.google_device.ok_or_else(|| {
+                    anyhow::anyhow!("--google-device is required for Google Play platform")
+                })?;
                 DeviceType::GooglePlay(device)
             }
         };
@@ -1308,7 +1284,9 @@ impl ScreenshotsAddCommand {
 
         // Validate dimensions and warn if invalid
         let validation_result = match self.platform {
-            SinglePlatform::Apple => validate_apple_screenshot_file(&self.file, device_type.as_dir_name()),
+            SinglePlatform::Apple => {
+                validate_apple_screenshot_file(&self.file, device_type.as_dir_name())
+            }
             SinglePlatform::GooglePlay => {
                 validate_google_play_screenshot_file(&self.file, device_type.as_dir_name())
             }
@@ -1316,11 +1294,7 @@ impl ScreenshotsAddCommand {
 
         if !validation_result.is_valid() {
             for error in validation_result.errors() {
-                eprintln!(
-                    "{} {}",
-                    style("Warning:").yellow().bold(),
-                    error.message
-                );
+                eprintln!("{} {}", style("Warning:").yellow().bold(), error.message);
                 if let Some(ref suggestion) = error.suggestion {
                     eprintln!("  {}", style(suggestion).dim());
                 }
@@ -1350,18 +1324,9 @@ impl ScreenshotsAddCommand {
                 style("Added").green().bold(),
                 style(dest_path.display()).dim()
             );
-            println!(
-                "  Dimensions: {}x{}",
-                dimensions.width, dimensions.height
-            );
-            println!(
-                "  Locale:     {}",
-                locale.code()
-            );
-            println!(
-                "  Device:     {}",
-                device_type.as_dir_name()
-            );
+            println!("  Dimensions: {}x{}", dimensions.width, dimensions.height);
+            println!("  Locale:     {}", locale.code());
+            println!("  Device:     {}", device_type.as_dir_name());
         }
 
         match cli.format {
@@ -1397,15 +1362,15 @@ impl ScreenshotsRemoveCommand {
         // Get device type based on platform
         let device_type = match self.platform {
             SinglePlatform::Apple => {
-                let device = self
-                    .apple_device
-                    .ok_or_else(|| anyhow::anyhow!("--apple-device is required for Apple platform"))?;
+                let device = self.apple_device.ok_or_else(|| {
+                    anyhow::anyhow!("--apple-device is required for Apple platform")
+                })?;
                 DeviceType::Apple(device)
             }
             SinglePlatform::GooglePlay => {
-                let device = self
-                    .google_device
-                    .ok_or_else(|| anyhow::anyhow!("--google-device is required for Google Play platform"))?;
+                let device = self.google_device.ok_or_else(|| {
+                    anyhow::anyhow!("--google-device is required for Google Play platform")
+                })?;
                 DeviceType::GooglePlay(device)
             }
         };
@@ -1454,10 +1419,7 @@ impl ScreenshotsRemoveCommand {
         renumber_screenshots(&screenshots_dir).await?;
 
         if !cli.quiet {
-            println!(
-                "{}",
-                style("Re-numbered remaining screenshots.").dim()
-            );
+            println!("{}", style("Re-numbered remaining screenshots.").dim());
         }
 
         match cli.format {
@@ -1501,10 +1463,7 @@ impl ScreenshotsListCommand {
 
         if !screenshots_base.exists() {
             if !cli.quiet {
-                println!(
-                    "{}",
-                    style("No screenshots directory found.").yellow()
-                );
+                println!("{}", style("No screenshots directory found.").yellow());
             }
             return Ok(());
         }
@@ -1619,10 +1578,7 @@ impl ScreenshotsListCommand {
             }
             OutputFormat::Text => {
                 if all_locales.is_empty() {
-                    println!(
-                        "{}",
-                        style("No screenshots found.").yellow()
-                    );
+                    println!("{}", style("No screenshots found.").yellow());
                 } else {
                     println!(
                         "{} for {}",
@@ -1693,10 +1649,7 @@ impl ScreenshotsValidateCommand {
 
         if !screenshots_base.exists() {
             if !cli.quiet {
-                println!(
-                    "{}",
-                    style("No screenshots directory found.").yellow()
-                );
+                println!("{}", style("No screenshots directory found.").yellow());
             }
             return Ok(());
         }
@@ -1804,11 +1757,7 @@ impl ScreenshotsValidateCommand {
 
                             println!(
                                 "  {} {}/{}/{}: {}",
-                                severity_style,
-                                locale_code,
-                                device_type,
-                                filename,
-                                issue.message
+                                severity_style, locale_code, device_type, filename, issue.message
                             );
 
                             if let Some(ref suggestion) = issue.suggestion {
@@ -1919,7 +1868,11 @@ impl AppleAuthOptions {
         let key_path = self
             .api_key_path
             .clone()
-            .or_else(|| std::env::var("APP_STORE_CONNECT_KEY_PATH").ok().map(PathBuf::from))
+            .or_else(|| {
+                std::env::var("APP_STORE_CONNECT_KEY_PATH")
+                    .ok()
+                    .map(PathBuf::from)
+            })
             .ok_or_else(|| {
                 anyhow::anyhow!(
                     "Missing API Key Path. Provide --api-key-path or set APP_STORE_CONNECT_KEY_PATH"
@@ -1927,7 +1880,11 @@ impl AppleAuthOptions {
             })?;
 
         let api_private_key = std::fs::read_to_string(&key_path).map_err(|e| {
-            anyhow::anyhow!("Failed to read API key file '{}': {}", key_path.display(), e)
+            anyhow::anyhow!(
+                "Failed to read API key file '{}': {}",
+                key_path.display(),
+                e
+            )
         })?;
 
         Ok(AppleSyncConfig {
@@ -2160,10 +2117,7 @@ impl SyncPullCommand {
             }
             OutputFormat::Text => {
                 println!();
-                println!(
-                    "{}",
-                    style("Metadata pulled successfully!").green().bold()
-                );
+                println!("{}", style("Metadata pulled successfully!").green().bold());
             }
         }
 
@@ -2246,17 +2200,9 @@ impl SyncPushCommand {
                 println!();
                 if result.has_changes() {
                     if self.dry_run {
-                        println!(
-                            "{} {}",
-                            style("Would push:").yellow().bold(),
-                            result
-                        );
+                        println!("{} {}", style("Would push:").yellow().bold(), result);
                     } else {
-                        println!(
-                            "{} {}",
-                            style("Pushed:").green().bold(),
-                            result
-                        );
+                        println!("{} {}", style("Pushed:").green().bold(), result);
                     }
 
                     if !result.updated_locales.is_empty() {
@@ -2275,10 +2221,7 @@ impl SyncPushCommand {
                         }
                     }
                 } else {
-                    println!(
-                        "{}",
-                        style("No changes to push.").dim()
-                    );
+                    println!("{}", style("No changes to push.").dim());
                 }
             }
         }
@@ -2327,7 +2270,10 @@ impl DiffCommand {
         // Filter by locales if specified
         let locales = parse_locales(&self.locales)?;
         let filtered_diff = if let Some(ref filter_locales) = locales {
-            let filter_codes: Vec<String> = filter_locales.iter().map(|l| l.code().to_string()).collect();
+            let filter_codes: Vec<String> = filter_locales
+                .iter()
+                .map(|l| l.code().to_string())
+                .collect();
             MetadataDiff {
                 changes: diff
                     .changes
@@ -2381,7 +2327,9 @@ fn parse_locales(locales_str: &str) -> anyhow::Result<Option<Vec<Locale>>> {
         .map(Locale::new)
         .collect();
 
-    Ok(Some(locales.map_err(|e| anyhow::anyhow!("Invalid locale: {}", e))?))
+    Ok(Some(
+        locales.map_err(|e| anyhow::anyhow!("Invalid locale: {}", e))?,
+    ))
 }
 
 /// Print a diff in a nice format with colors

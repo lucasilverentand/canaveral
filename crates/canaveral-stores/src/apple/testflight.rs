@@ -45,21 +45,22 @@ impl TestFlight {
 
     /// Create from environment variables
     pub fn from_env() -> Result<Self> {
-        let api_key_id = std::env::var("APP_STORE_CONNECT_API_KEY_ID")
-            .map_err(|_| StoreError::ConfigurationError(
-                "APP_STORE_CONNECT_API_KEY_ID not set".to_string()
-            ))?;
+        let api_key_id = std::env::var("APP_STORE_CONNECT_API_KEY_ID").map_err(|_| {
+            StoreError::ConfigurationError("APP_STORE_CONNECT_API_KEY_ID not set".to_string())
+        })?;
 
-        let api_issuer_id = std::env::var("APP_STORE_CONNECT_ISSUER_ID")
-            .map_err(|_| StoreError::ConfigurationError(
-                "APP_STORE_CONNECT_ISSUER_ID not set".to_string()
-            ))?;
+        let api_issuer_id = std::env::var("APP_STORE_CONNECT_ISSUER_ID").map_err(|_| {
+            StoreError::ConfigurationError("APP_STORE_CONNECT_ISSUER_ID not set".to_string())
+        })?;
 
         let api_key = std::env::var("APP_STORE_CONNECT_API_KEY")
             .or_else(|_| std::env::var("APP_STORE_CONNECT_API_KEY_PATH"))
-            .map_err(|_| StoreError::ConfigurationError(
-                "APP_STORE_CONNECT_API_KEY or APP_STORE_CONNECT_API_KEY_PATH not set".to_string()
-            ))?;
+            .map_err(|_| {
+                StoreError::ConfigurationError(
+                    "APP_STORE_CONNECT_API_KEY or APP_STORE_CONNECT_API_KEY_PATH not set"
+                        .to_string(),
+                )
+            })?;
 
         let team_id = std::env::var("APP_STORE_CONNECT_TEAM_ID").ok();
 
@@ -96,8 +97,9 @@ impl TestFlight {
 
         // Read the private key
         let key_content = if Path::new(&self.config.api_key).exists() {
-            std::fs::read_to_string(&self.config.api_key)
-                .map_err(|e| StoreError::ConfigurationError(format!("Failed to read API key: {}", e)))?
+            std::fs::read_to_string(&self.config.api_key).map_err(|e| {
+                StoreError::ConfigurationError(format!("Failed to read API key: {}", e))
+            })?
         } else {
             self.config.api_key.clone()
         };
@@ -128,7 +130,8 @@ impl TestFlight {
 
         debug!("API request: {} {}", method, url);
 
-        let mut request = self.client
+        let mut request = self
+            .client
             .request(method, &url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json");
@@ -164,7 +167,8 @@ impl TestFlight {
 
         debug!("API request (no content): {} {}", method, url);
 
-        let mut request = self.client
+        let mut request = self
+            .client
             .request(method, &url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json");
@@ -204,9 +208,13 @@ impl TestFlight {
         }
 
         let endpoint = format!("/apps?filter[bundleId]={}", bundle_id);
-        let response: AppsResponse = self.api_request(reqwest::Method::GET, &endpoint, None).await?;
+        let response: AppsResponse = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
-        response.data.first()
+        response
+            .data
+            .first()
             .map(|app| app.id.clone())
             .ok_or_else(|| StoreError::AppNotFound(bundle_id.to_string()))
     }
@@ -251,26 +259,36 @@ impl TestFlight {
             app_id, limit
         );
 
-        let response: BuildsResponse = self.api_request(reqwest::Method::GET, &endpoint, None).await?;
+        let response: BuildsResponse = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
-        let builds = response.data.into_iter().map(|b| {
-            TestFlightBuild {
+        let builds = response
+            .data
+            .into_iter()
+            .map(|b| TestFlightBuild {
                 id: b.id,
                 version: b.attributes.version,
-                uploaded_at: b.attributes.uploaded_date
+                uploaded_at: b
+                    .attributes
+                    .uploaded_date
                     .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
                     .map(|d| d.with_timezone(&Utc)),
-                expires_at: b.attributes.expiration_date
+                expires_at: b
+                    .attributes
+                    .expiration_date
                     .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
                     .map(|d| d.with_timezone(&Utc)),
                 expired: b.attributes.expired,
                 processing_state: BuildProcessingState::from_str(&b.attributes.processing_state),
-                audience_type: b.attributes.build_audience_type
+                audience_type: b
+                    .attributes
+                    .build_audience_type
                     .map(|s| BuildAudienceType::from_str(&s))
                     .unwrap_or(BuildAudienceType::Internal),
                 uses_non_exempt_encryption: b.attributes.uses_non_exempt_encryption,
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(builds)
     }
@@ -302,21 +320,29 @@ impl TestFlight {
         }
 
         let endpoint = format!("/builds/{}", build_id);
-        let response: BuildResponse = self.api_request(reqwest::Method::GET, &endpoint, None).await?;
+        let response: BuildResponse = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
         let b = response.data;
         Ok(TestFlightBuild {
             id: b.id,
             version: b.attributes.version,
-            uploaded_at: b.attributes.uploaded_date
+            uploaded_at: b
+                .attributes
+                .uploaded_date
                 .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
                 .map(|d| d.with_timezone(&Utc)),
-            expires_at: b.attributes.expiration_date
+            expires_at: b
+                .attributes
+                .expiration_date
                 .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
                 .map(|d| d.with_timezone(&Utc)),
             expired: b.attributes.expired,
             processing_state: BuildProcessingState::from_str(&b.attributes.processing_state),
-            audience_type: b.attributes.build_audience_type
+            audience_type: b
+                .attributes
+                .build_audience_type
                 .map(|s| BuildAudienceType::from_str(&s))
                 .unwrap_or(BuildAudienceType::Internal),
             uses_non_exempt_encryption: b.attributes.uses_non_exempt_encryption,
@@ -340,7 +366,8 @@ impl TestFlight {
         });
 
         let endpoint = format!("/builds/{}", build_id);
-        self.api_request_no_content(reqwest::Method::PATCH, &endpoint, Some(body)).await
+        self.api_request_no_content(reqwest::Method::PATCH, &endpoint, Some(body))
+            .await
     }
 
     /// Expire a build (remove from TestFlight)
@@ -356,7 +383,8 @@ impl TestFlight {
         });
 
         let endpoint = format!("/builds/{}", build_id);
-        self.api_request_no_content(reqwest::Method::PATCH, &endpoint, Some(body)).await
+        self.api_request_no_content(reqwest::Method::PATCH, &endpoint, Some(body))
+            .await
     }
 
     // -------------------------------------------------------------------------
@@ -389,18 +417,22 @@ impl TestFlight {
         }
 
         let endpoint = format!("/betaGroups?filter[app]={}", app_id);
-        let response: GroupsResponse = self.api_request(reqwest::Method::GET, &endpoint, None).await?;
+        let response: GroupsResponse = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
-        let groups = response.data.into_iter().map(|g| {
-            BetaGroup {
+        let groups = response
+            .data
+            .into_iter()
+            .map(|g| BetaGroup {
                 id: g.id,
                 name: g.attributes.name,
                 is_internal: g.attributes.is_internal_group,
                 public_link_enabled: g.attributes.public_link_enabled.unwrap_or(false),
                 public_link: g.attributes.public_link,
                 public_link_limit: g.attributes.public_link_limit,
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(groups)
     }
@@ -448,11 +480,9 @@ impl TestFlight {
             }
         });
 
-        let response: CreateResponse = self.api_request(
-            reqwest::Method::POST,
-            "/betaGroups",
-            Some(body),
-        ).await?;
+        let response: CreateResponse = self
+            .api_request(reqwest::Method::POST, "/betaGroups", Some(body))
+            .await?;
 
         Ok(BetaGroup {
             id: response.data.id,
@@ -467,28 +497,29 @@ impl TestFlight {
     /// Delete a beta group
     pub async fn delete_beta_group(&mut self, group_id: &str) -> Result<()> {
         let endpoint = format!("/betaGroups/{}", group_id);
-        self.api_request_no_content(reqwest::Method::DELETE, &endpoint, None).await
+        self.api_request_no_content(reqwest::Method::DELETE, &endpoint, None)
+            .await
     }
 
     /// Add builds to a beta group
-    pub async fn add_builds_to_group(
-        &mut self,
-        group_id: &str,
-        build_ids: &[&str],
-    ) -> Result<()> {
-        let builds: Vec<_> = build_ids.iter().map(|id| {
-            serde_json::json!({
-                "type": "builds",
-                "id": id
+    pub async fn add_builds_to_group(&mut self, group_id: &str, build_ids: &[&str]) -> Result<()> {
+        let builds: Vec<_> = build_ids
+            .iter()
+            .map(|id| {
+                serde_json::json!({
+                    "type": "builds",
+                    "id": id
+                })
             })
-        }).collect();
+            .collect();
 
         let body = serde_json::json!({
             "data": builds
         });
 
         let endpoint = format!("/betaGroups/{}/relationships/builds", group_id);
-        self.api_request_no_content(reqwest::Method::POST, &endpoint, Some(body)).await
+        self.api_request_no_content(reqwest::Method::POST, &endpoint, Some(body))
+            .await
     }
 
     /// Remove builds from a beta group
@@ -497,19 +528,23 @@ impl TestFlight {
         group_id: &str,
         build_ids: &[&str],
     ) -> Result<()> {
-        let builds: Vec<_> = build_ids.iter().map(|id| {
-            serde_json::json!({
-                "type": "builds",
-                "id": id
+        let builds: Vec<_> = build_ids
+            .iter()
+            .map(|id| {
+                serde_json::json!({
+                    "type": "builds",
+                    "id": id
+                })
             })
-        }).collect();
+            .collect();
 
         let body = serde_json::json!({
             "data": builds
         });
 
         let endpoint = format!("/betaGroups/{}/relationships/builds", group_id);
-        self.api_request_no_content(reqwest::Method::DELETE, &endpoint, Some(body)).await
+        self.api_request_no_content(reqwest::Method::DELETE, &endpoint, Some(body))
+            .await
     }
 
     // -------------------------------------------------------------------------
@@ -548,17 +583,21 @@ impl TestFlight {
             format!("/betaTesters?filter[apps]={}", app_id)
         };
 
-        let response: TestersResponse = self.api_request(reqwest::Method::GET, &endpoint, None).await?;
+        let response: TestersResponse = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
-        let testers = response.data.into_iter().map(|t| {
-            BetaTester {
+        let testers = response
+            .data
+            .into_iter()
+            .map(|t| BetaTester {
                 id: t.id,
                 email: t.attributes.email,
                 first_name: t.attributes.first_name,
                 last_name: t.attributes.last_name,
                 invite_type: TesterInviteType::from_str(&t.attributes.invite_type),
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(testers)
     }
@@ -592,12 +631,15 @@ impl TestFlight {
             invite_type: String,
         }
 
-        let groups: Vec<_> = group_ids.iter().map(|id| {
-            serde_json::json!({
-                "type": "betaGroups",
-                "id": id
+        let groups: Vec<_> = group_ids
+            .iter()
+            .map(|id| {
+                serde_json::json!({
+                    "type": "betaGroups",
+                    "id": id
+                })
             })
-        }).collect();
+            .collect();
 
         let mut attributes = serde_json::json!({
             "email": email
@@ -622,11 +664,9 @@ impl TestFlight {
             }
         });
 
-        let response: CreateResponse = self.api_request(
-            reqwest::Method::POST,
-            "/betaTesters",
-            Some(body),
-        ).await?;
+        let response: CreateResponse = self
+            .api_request(reqwest::Method::POST, "/betaTesters", Some(body))
+            .await?;
 
         Ok(BetaTester {
             id: response.data.id,
@@ -640,7 +680,8 @@ impl TestFlight {
     /// Remove a beta tester
     pub async fn remove_tester(&mut self, tester_id: &str) -> Result<()> {
         let endpoint = format!("/betaTesters/{}", tester_id);
-        self.api_request_no_content(reqwest::Method::DELETE, &endpoint, None).await
+        self.api_request_no_content(reqwest::Method::DELETE, &endpoint, None)
+            .await
     }
 
     /// Add a tester to groups
@@ -649,19 +690,23 @@ impl TestFlight {
         tester_id: &str,
         group_ids: &[&str],
     ) -> Result<()> {
-        let groups: Vec<_> = group_ids.iter().map(|id| {
-            serde_json::json!({
-                "type": "betaGroups",
-                "id": id
+        let groups: Vec<_> = group_ids
+            .iter()
+            .map(|id| {
+                serde_json::json!({
+                    "type": "betaGroups",
+                    "id": id
+                })
             })
-        }).collect();
+            .collect();
 
         let body = serde_json::json!({
             "data": groups
         });
 
         let endpoint = format!("/betaTesters/{}/relationships/betaGroups", tester_id);
-        self.api_request_no_content(reqwest::Method::POST, &endpoint, Some(body)).await
+        self.api_request_no_content(reqwest::Method::POST, &endpoint, Some(body))
+            .await
     }
 
     /// Remove a tester from groups
@@ -670,19 +715,23 @@ impl TestFlight {
         tester_id: &str,
         group_ids: &[&str],
     ) -> Result<()> {
-        let groups: Vec<_> = group_ids.iter().map(|id| {
-            serde_json::json!({
-                "type": "betaGroups",
-                "id": id
+        let groups: Vec<_> = group_ids
+            .iter()
+            .map(|id| {
+                serde_json::json!({
+                    "type": "betaGroups",
+                    "id": id
+                })
             })
-        }).collect();
+            .collect();
 
         let body = serde_json::json!({
             "data": groups
         });
 
         let endpoint = format!("/betaTesters/{}/relationships/betaGroups", tester_id);
-        self.api_request_no_content(reqwest::Method::DELETE, &endpoint, Some(body)).await
+        self.api_request_no_content(reqwest::Method::DELETE, &endpoint, Some(body))
+            .await
     }
 
     // -------------------------------------------------------------------------
@@ -727,17 +776,22 @@ impl TestFlight {
             }
         });
 
-        let response: SubmissionResponse = self.api_request(
-            reqwest::Method::POST,
-            "/betaAppReviewSubmissions",
-            Some(body),
-        ).await?;
+        let response: SubmissionResponse = self
+            .api_request(
+                reqwest::Method::POST,
+                "/betaAppReviewSubmissions",
+                Some(body),
+            )
+            .await?;
 
         Ok(BetaAppReviewSubmission {
             id: response.data.id,
             build_id: build_id.to_string(),
             state: BetaReviewState::from_str(&response.data.attributes.beta_review_state),
-            submitted_at: response.data.attributes.submitted_date
+            submitted_at: response
+                .data
+                .attributes
+                .submitted_date
                 .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
                 .map(|d| d.with_timezone(&Utc)),
         })
@@ -783,9 +837,13 @@ impl TestFlight {
         }
 
         let endpoint = format!("/betaAppReviewSubmissions/{}?include=build", submission_id);
-        let response: SubmissionResponse = self.api_request(reqwest::Method::GET, &endpoint, None).await?;
+        let response: SubmissionResponse = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
-        let build_id = response.data.relationships
+        let build_id = response
+            .data
+            .relationships
             .map(|r| r.build.data.id)
             .unwrap_or_default();
 
@@ -793,7 +851,10 @@ impl TestFlight {
             id: response.data.id,
             build_id,
             state: BetaReviewState::from_str(&response.data.attributes.beta_review_state),
-            submitted_at: response.data.attributes.submitted_date
+            submitted_at: response
+                .data
+                .attributes
+                .submitted_date
                 .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
                 .map(|d| d.with_timezone(&Utc)),
         })
@@ -841,11 +902,9 @@ impl TestFlight {
             id: String,
         }
 
-        let details_response: BetaDetailsResponse = self.api_request(
-            reqwest::Method::GET,
-            &endpoint,
-            None,
-        ).await?;
+        let details_response: BetaDetailsResponse = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
         // Get existing localizations
         let loc_endpoint = format!(
@@ -853,14 +912,16 @@ impl TestFlight {
             details_response.data.id
         );
 
-        let loc_response: LocalizationsResponse = self.api_request(
-            reqwest::Method::GET,
-            &loc_endpoint,
-            None,
-        ).await.unwrap_or(LocalizationsResponse { data: vec![] });
+        let loc_response: LocalizationsResponse = self
+            .api_request(reqwest::Method::GET, &loc_endpoint, None)
+            .await
+            .unwrap_or(LocalizationsResponse { data: vec![] });
 
         // Find or create localization
-        let existing = loc_response.data.iter().find(|l| l.attributes.locale == locale);
+        let existing = loc_response
+            .data
+            .iter()
+            .find(|l| l.attributes.locale == locale);
 
         if let Some(loc) = existing {
             // Update existing
@@ -875,7 +936,8 @@ impl TestFlight {
             });
 
             let update_endpoint = format!("/betaBuildLocalizations/{}", loc.id);
-            self.api_request_no_content(reqwest::Method::PATCH, &update_endpoint, Some(body)).await?;
+            self.api_request_no_content(reqwest::Method::PATCH, &update_endpoint, Some(body))
+                .await?;
         } else {
             // Create new
             let body = serde_json::json!({
@@ -896,7 +958,12 @@ impl TestFlight {
                 }
             });
 
-            self.api_request_no_content(reqwest::Method::POST, "/betaBuildLocalizations", Some(body)).await?;
+            self.api_request_no_content(
+                reqwest::Method::POST,
+                "/betaBuildLocalizations",
+                Some(body),
+            )
+            .await?;
         }
 
         info!("Set 'What's New' for build {} in {}", build_id, locale);
@@ -1058,20 +1125,38 @@ mod tests {
 
     #[test]
     fn test_build_processing_state() {
-        assert_eq!(BuildProcessingState::from_str("PROCESSING"), BuildProcessingState::Processing);
-        assert_eq!(BuildProcessingState::from_str("VALID"), BuildProcessingState::Valid);
-        assert_eq!(BuildProcessingState::from_str("invalid"), BuildProcessingState::Invalid);
+        assert_eq!(
+            BuildProcessingState::from_str("PROCESSING"),
+            BuildProcessingState::Processing
+        );
+        assert_eq!(
+            BuildProcessingState::from_str("VALID"),
+            BuildProcessingState::Valid
+        );
+        assert_eq!(
+            BuildProcessingState::from_str("invalid"),
+            BuildProcessingState::Invalid
+        );
     }
 
     #[test]
     fn test_beta_review_state() {
-        assert_eq!(BetaReviewState::from_str("APPROVED"), BetaReviewState::Approved);
-        assert_eq!(BetaReviewState::from_str("IN_REVIEW"), BetaReviewState::InReview);
+        assert_eq!(
+            BetaReviewState::from_str("APPROVED"),
+            BetaReviewState::Approved
+        );
+        assert_eq!(
+            BetaReviewState::from_str("IN_REVIEW"),
+            BetaReviewState::InReview
+        );
     }
 
     #[test]
     fn test_tester_invite_type() {
         assert_eq!(TesterInviteType::from_str("EMAIL"), TesterInviteType::Email);
-        assert_eq!(TesterInviteType::from_str("PUBLIC_LINK"), TesterInviteType::PublicLink);
+        assert_eq!(
+            TesterInviteType::from_str("PUBLIC_LINK"),
+            TesterInviteType::PublicLink
+        );
     }
 }

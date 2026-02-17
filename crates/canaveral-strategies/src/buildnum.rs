@@ -74,7 +74,6 @@ impl BuildNumberStrategy {
         let now = Local::now();
         (now.year() as u64 * 10000) + (now.month() as u64 * 100) + now.day() as u64
     }
-
 }
 
 impl Default for BuildNumberStrategy {
@@ -95,15 +94,20 @@ impl VersionStrategy for BuildNumberStrategy {
         match &self.format {
             BuildNumberFormat::Simple => {
                 let build: u64 = version.parse().map_err(|_| {
-                    VersionError::ParseFailed(version.to_string(), "Invalid build number".to_string())
+                    VersionError::ParseFailed(
+                        version.to_string(),
+                        "Invalid build number".to_string(),
+                    )
                 })?;
                 Ok(VersionComponents::new(0, 0, build))
             }
             BuildNumberFormat::WithBase { .. } => {
                 if parts.len() < 3 {
-                    return Err(VersionError::InvalidFormat(
-                        format!("Expected MAJOR.MINOR.BUILD, got: {}", version)
-                    ).into());
+                    return Err(VersionError::InvalidFormat(format!(
+                        "Expected MAJOR.MINOR.BUILD, got: {}",
+                        version
+                    ))
+                    .into());
                 }
                 let major: u64 = parts[0].parse().map_err(|_| {
                     VersionError::ParseFailed(version.to_string(), "Invalid major".to_string())
@@ -118,9 +122,11 @@ impl VersionStrategy for BuildNumberStrategy {
             }
             BuildNumberFormat::DateBuild => {
                 if parts.len() < 2 {
-                    return Err(VersionError::InvalidFormat(
-                        format!("Expected YYYYMMDD.BUILD, got: {}", version)
-                    ).into());
+                    return Err(VersionError::InvalidFormat(format!(
+                        "Expected YYYYMMDD.BUILD, got: {}",
+                        version
+                    ))
+                    .into());
                 }
                 let date: u64 = parts[0].parse().map_err(|_| {
                     VersionError::ParseFailed(version.to_string(), "Invalid date".to_string())
@@ -133,9 +139,11 @@ impl VersionStrategy for BuildNumberStrategy {
             }
             BuildNumberFormat::FullDate { .. } => {
                 if parts.len() < 4 {
-                    return Err(VersionError::InvalidFormat(
-                        format!("Expected MAJOR.MINOR.YYYYMMDD.BUILD, got: {}", version)
-                    ).into());
+                    return Err(VersionError::InvalidFormat(format!(
+                        "Expected MAJOR.MINOR.YYYYMMDD.BUILD, got: {}",
+                        version
+                    ))
+                    .into());
                 }
                 let major: u64 = parts[0].parse().map_err(|_| {
                     VersionError::ParseFailed(version.to_string(), "Invalid major".to_string())
@@ -159,9 +167,7 @@ impl VersionStrategy for BuildNumberStrategy {
 
     fn format(&self, components: &VersionComponents) -> String {
         match &self.format {
-            BuildNumberFormat::Simple => {
-                components.patch.to_string()
-            }
+            BuildNumberFormat::Simple => components.patch.to_string(),
             BuildNumberFormat::WithBase { major, minor } => {
                 format!("{}.{}.{}", major, minor, components.patch)
             }
@@ -169,7 +175,9 @@ impl VersionStrategy for BuildNumberStrategy {
                 format!("{}.{}", components.major, components.patch)
             }
             BuildNumberFormat::FullDate { major, minor } => {
-                let date = components.build.as_deref()
+                let date = components
+                    .build
+                    .as_deref()
                     .and_then(|d| d.parse::<u64>().ok())
                     .unwrap_or_else(Self::date_number);
                 format!("{}.{}.{}.{}", major, minor, date, components.patch)
@@ -180,9 +188,7 @@ impl VersionStrategy for BuildNumberStrategy {
     #[instrument(skip(self), fields(strategy = "buildnum", current_build = current.patch))]
     fn bump(&self, current: &VersionComponents, _bump_type: BumpType) -> Result<VersionComponents> {
         match &self.format {
-            BuildNumberFormat::Simple => {
-                Ok(VersionComponents::new(0, 0, current.patch + 1))
-            }
+            BuildNumberFormat::Simple => Ok(VersionComponents::new(0, 0, current.patch + 1)),
             BuildNumberFormat::WithBase { major, minor } => {
                 Ok(VersionComponents::new(*major, *minor, current.patch + 1))
             }
@@ -198,7 +204,9 @@ impl VersionStrategy for BuildNumberStrategy {
             }
             BuildNumberFormat::FullDate { major, minor } => {
                 let today = Self::date_number();
-                let current_date = current.build.as_deref()
+                let current_date = current
+                    .build
+                    .as_deref()
                     .and_then(|d| d.parse::<u64>().ok())
                     .unwrap_or(0);
 
@@ -215,7 +223,12 @@ impl VersionStrategy for BuildNumberStrategy {
         }
     }
 
-    fn determine_bump_type(&self, _is_breaking: bool, _is_feature: bool, _is_fix: bool) -> BumpType {
+    fn determine_bump_type(
+        &self,
+        _is_breaking: bool,
+        _is_feature: bool,
+        _is_fix: bool,
+    ) -> BumpType {
         // Build numbers always increment
         BumpType::Patch
     }
@@ -234,23 +247,37 @@ impl VersionStrategy for BuildNumberStrategy {
             BuildNumberFormat::WithBase { .. } => {
                 let va = self.parse(a)?;
                 let vb = self.parse(b)?;
-                Ok(va.major.cmp(&vb.major)
+                Ok(va
+                    .major
+                    .cmp(&vb.major)
                     .then(va.minor.cmp(&vb.minor))
                     .then(va.patch.cmp(&vb.patch)))
             }
             BuildNumberFormat::DateBuild => {
                 let va = self.parse(a)?;
                 let vb = self.parse(b)?;
-                Ok(va.major.cmp(&vb.major) // date
+                Ok(va
+                    .major
+                    .cmp(&vb.major) // date
                     .then(va.patch.cmp(&vb.patch))) // build
             }
             BuildNumberFormat::FullDate { .. } => {
                 let va = self.parse(a)?;
                 let vb = self.parse(b)?;
-                let date_a = va.build.as_deref().and_then(|d| d.parse::<u64>().ok()).unwrap_or(0);
-                let date_b = vb.build.as_deref().and_then(|d| d.parse::<u64>().ok()).unwrap_or(0);
+                let date_a = va
+                    .build
+                    .as_deref()
+                    .and_then(|d| d.parse::<u64>().ok())
+                    .unwrap_or(0);
+                let date_b = vb
+                    .build
+                    .as_deref()
+                    .and_then(|d| d.parse::<u64>().ok())
+                    .unwrap_or(0);
 
-                Ok(va.major.cmp(&vb.major)
+                Ok(va
+                    .major
+                    .cmp(&vb.major)
                     .then(va.minor.cmp(&vb.minor))
                     .then(date_a.cmp(&date_b))
                     .then(va.patch.cmp(&vb.patch)))

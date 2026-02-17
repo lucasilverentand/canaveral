@@ -83,7 +83,8 @@ impl MicrosoftStore {
         // Request new token
         let token_url = format!("{}/{}/oauth2/token", LOGIN_URL, self.config.tenant_id);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&token_url)
             .form(&[
                 ("grant_type", "client_credentials"),
@@ -121,7 +122,8 @@ impl MicrosoftStore {
         let token = self.get_access_token().await?;
         let url = format!("{}{}", API_BASE_URL, endpoint);
 
-        let mut request = self.client
+        let mut request = self
+            .client
             .request(method.clone(), &url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json");
@@ -151,11 +153,9 @@ impl MicrosoftStore {
     async fn create_submission(&self) -> Result<SubmissionInfo> {
         let endpoint = format!("/applications/{}/submissions", self.config.app_id);
 
-        let response: SubmissionResponse = self.api_request(
-            reqwest::Method::POST,
-            &endpoint,
-            None,
-        ).await?;
+        let response: SubmissionResponse = self
+            .api_request(reqwest::Method::POST, &endpoint, None)
+            .await?;
 
         Ok(SubmissionInfo {
             id: response.id,
@@ -171,11 +171,9 @@ impl MicrosoftStore {
             self.config.app_id, flight_id
         );
 
-        let response: SubmissionResponse = self.api_request(
-            reqwest::Method::POST,
-            &endpoint,
-            None,
-        ).await?;
+        let response: SubmissionResponse = self
+            .api_request(reqwest::Method::POST, &endpoint, None)
+            .await?;
 
         Ok(SubmissionInfo {
             id: response.id,
@@ -191,7 +189,8 @@ impl MicrosoftStore {
         let file_content = tokio::fs::read(path).await?;
 
         // Azure Blob Storage requires specific headers for block blob upload
-        let response = self.client
+        let response = self
+            .client
             .put(upload_url)
             .header("x-ms-blob-type", "BlockBlob")
             .header("Content-Type", "application/octet-stream")
@@ -202,7 +201,8 @@ impl MicrosoftStore {
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
             return Err(StoreError::UploadFailed(format!(
-                "Azure Blob upload failed: {}", error_text
+                "Azure Blob upload failed: {}",
+                error_text
             )));
         }
 
@@ -223,11 +223,9 @@ impl MicrosoftStore {
         );
 
         // Get current submission data
-        let current: serde_json::Value = self.api_request(
-            reqwest::Method::GET,
-            &endpoint,
-            None,
-        ).await?;
+        let current: serde_json::Value = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
         // Build updated submission
         let filename = package_path
@@ -268,11 +266,9 @@ impl MicrosoftStore {
             }
         }
 
-        let _: serde_json::Value = self.api_request(
-            reqwest::Method::PUT,
-            &endpoint,
-            Some(updated),
-        ).await?;
+        let _: serde_json::Value = self
+            .api_request(reqwest::Method::PUT, &endpoint, Some(updated))
+            .await?;
 
         Ok(())
     }
@@ -284,11 +280,9 @@ impl MicrosoftStore {
             self.config.app_id, submission_id
         );
 
-        let _: serde_json::Value = self.api_request(
-            reqwest::Method::POST,
-            &endpoint,
-            None,
-        ).await?;
+        let _: serde_json::Value = self
+            .api_request(reqwest::Method::POST, &endpoint, None)
+            .await?;
 
         Ok(())
     }
@@ -300,11 +294,9 @@ impl MicrosoftStore {
             self.config.app_id, submission_id
         );
 
-        let response: StatusResponse = self.api_request(
-            reqwest::Method::GET,
-            &endpoint,
-            None,
-        ).await?;
+        let response: StatusResponse = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
         Ok(SubmissionStatus {
             status: response.status,
@@ -330,16 +322,18 @@ impl MicrosoftStore {
             friendly_name: String,
         }
 
-        let response: FlightsResponse = self.api_request(
-            reqwest::Method::GET,
-            &endpoint,
-            None,
-        ).await?;
+        let response: FlightsResponse = self
+            .api_request(reqwest::Method::GET, &endpoint, None)
+            .await?;
 
-        Ok(response.value.into_iter().map(|f| FlightInfo {
-            id: f.flight_id,
-            name: f.friendly_name,
-        }).collect())
+        Ok(response
+            .value
+            .into_iter()
+            .map(|f| FlightInfo {
+                id: f.flight_id,
+                name: f.friendly_name,
+            })
+            .collect())
     }
 
     /// Extract app info from MSIX/APPX package
@@ -352,23 +346,23 @@ impl MicrosoftStore {
             .map_err(|e| StoreError::InvalidArtifact(format!("Invalid MSIX/APPX: {}", e)))?;
 
         // Look for AppxManifest.xml
-        let manifest_index = (0..archive.len())
-            .find(|&i| {
-                archive.by_index(i)
-                    .map(|f| f.name().eq_ignore_ascii_case("AppxManifest.xml"))
-                    .unwrap_or(false)
-            });
+        let manifest_index = (0..archive.len()).find(|&i| {
+            archive
+                .by_index(i)
+                .map(|f| f.name().eq_ignore_ascii_case("AppxManifest.xml"))
+                .unwrap_or(false)
+        });
 
         if let Some(index) = manifest_index {
-            let mut manifest_file = archive.by_index(index)
-                .map_err(|e| StoreError::InvalidArtifact(format!("Failed to read manifest: {}", e)))?;
+            let mut manifest_file = archive.by_index(index).map_err(|e| {
+                StoreError::InvalidArtifact(format!("Failed to read manifest: {}", e))
+            })?;
 
             let mut contents = String::new();
             std::io::Read::read_to_string(&mut manifest_file, &mut contents)?;
 
             // Parse basic info from XML (simplified parsing)
-            let identity_name = extract_xml_attr(&contents, "Identity", "Name")
-                .unwrap_or_default();
+            let identity_name = extract_xml_attr(&contents, "Identity", "Name").unwrap_or_default();
             let version = extract_xml_attr(&contents, "Identity", "Version")
                 .unwrap_or_else(|| "0.0.0.0".to_string());
             let display_name = extract_xml_value(&contents, "DisplayName");
@@ -388,7 +382,10 @@ impl MicrosoftStore {
         }
 
         // Fallback
-        let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Unknown");
+        let filename = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Unknown");
         let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
         Ok(AppInfo {
@@ -520,12 +517,16 @@ impl StoreAdapter for MicrosoftStore {
         let mut warnings = Vec::new();
 
         // Check file extension
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_lowercase();
 
-        if !matches!(ext.as_str(), "msix" | "msixbundle" | "appx" | "appxbundle" | "msixupload" | "appxupload") {
+        if !matches!(
+            ext.as_str(),
+            "msix" | "msixbundle" | "appx" | "appxbundle" | "msixupload" | "appxupload"
+        ) {
             errors.push(ValidationError {
                 code: "INVALID_FORMAT".to_string(),
                 message: format!("Unsupported file format: .{}", ext),
@@ -568,10 +569,12 @@ impl StoreAdapter for MicrosoftStore {
         let validation = self.validate_artifact(path).await?;
         if !validation.valid {
             return Err(StoreError::ValidationFailed(
-                validation.errors.iter()
+                validation
+                    .errors
+                    .iter()
                     .map(|e| e.message.clone())
                     .collect::<Vec<_>>()
-                    .join("; ")
+                    .join("; "),
             ));
         }
 
@@ -589,12 +592,15 @@ impl StoreAdapter for MicrosoftStore {
 
         // Create submission
         info!("Creating submission...");
-        let submission = if let Some(flight) = options.track.as_ref()
+        let submission = if let Some(flight) = options
+            .track
+            .as_ref()
             .or(self.config.default_flight.as_ref())
         {
             // Find flight ID by name
             let flights = self.list_flights().await?;
-            let flight_info = flights.iter()
+            let flight_info = flights
+                .iter()
                 .find(|f| f.name.eq_ignore_ascii_case(flight))
                 .ok_or_else(|| StoreError::AppNotFound(format!("Flight '{}' not found", flight)))?;
             self.create_flight_submission(&flight_info.id).await?
@@ -604,11 +610,13 @@ impl StoreAdapter for MicrosoftStore {
 
         // Update submission with package info
         info!("Updating submission...");
-        self.update_submission(&submission.id, path, &options.release_notes).await?;
+        self.update_submission(&submission.id, path, &options.release_notes)
+            .await?;
 
         // Upload package to Azure Blob Storage
         info!("Uploading package...");
-        self.upload_package(&submission.file_upload_url, path).await?;
+        self.upload_package(&submission.file_upload_url, path)
+            .await?;
 
         // Commit submission
         info!("Committing submission...");
@@ -679,7 +687,14 @@ impl StoreAdapter for MicrosoftStore {
     }
 
     fn supported_extensions(&self) -> &[&str] {
-        &["msix", "msixbundle", "appx", "appxbundle", "msixupload", "appxupload"]
+        &[
+            "msix",
+            "msixbundle",
+            "appx",
+            "appxbundle",
+            "msixupload",
+            "appxupload",
+        ]
     }
 }
 
@@ -692,11 +707,17 @@ impl TrackSupport for MicrosoftStore {
         Ok(tracks)
     }
 
-    async fn promote_build(&self, _build_id: &str, _from_track: &str, _to_track: &str) -> Result<()> {
+    async fn promote_build(
+        &self,
+        _build_id: &str,
+        _from_track: &str,
+        _to_track: &str,
+    ) -> Result<()> {
         // Microsoft Store doesn't support direct promotion between flights
         // Would need to create a new submission on the target track
         Err(StoreError::Other(
-            "Microsoft Store doesn't support direct promotion. Create a new submission instead.".to_string()
+            "Microsoft Store doesn't support direct promotion. Create a new submission instead."
+                .to_string(),
         ))
     }
 }
@@ -708,19 +729,35 @@ mod tests {
     #[test]
     fn test_extract_xml_attr() {
         let xml = r#"<Identity Name="MyApp" Version="1.0.0.0" Publisher="CN=Test"/>"#;
-        assert_eq!(extract_xml_attr(xml, "Identity", "Name"), Some("MyApp".to_string()));
-        assert_eq!(extract_xml_attr(xml, "Identity", "Version"), Some("1.0.0.0".to_string()));
+        assert_eq!(
+            extract_xml_attr(xml, "Identity", "Name"),
+            Some("MyApp".to_string())
+        );
+        assert_eq!(
+            extract_xml_attr(xml, "Identity", "Version"),
+            Some("1.0.0.0".to_string())
+        );
     }
 
     #[test]
     fn test_extract_xml_value() {
         let xml = r#"<DisplayName>My Application</DisplayName>"#;
-        assert_eq!(extract_xml_value(xml, "DisplayName"), Some("My Application".to_string()));
+        assert_eq!(
+            extract_xml_value(xml, "DisplayName"),
+            Some("My Application".to_string())
+        );
     }
 
     #[test]
     fn test_supported_extensions() {
-        let extensions = &["msix", "msixbundle", "appx", "appxbundle", "msixupload", "appxupload"];
+        let extensions = &[
+            "msix",
+            "msixbundle",
+            "appx",
+            "appxbundle",
+            "msixupload",
+            "appxupload",
+        ];
         assert!(extensions.contains(&"msix"));
         assert!(extensions.contains(&"appxbundle"));
     }

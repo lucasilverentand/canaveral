@@ -61,12 +61,11 @@ impl ReactNativeAdapter {
 
     fn parse_package_json(&self, path: &Path) -> Result<PackageJson> {
         let package_json_path = path.join("package.json");
-        let content = std::fs::read_to_string(&package_json_path).map_err(|e| {
-            FrameworkError::Context {
+        let content =
+            std::fs::read_to_string(&package_json_path).map_err(|e| FrameworkError::Context {
                 context: "reading package.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         serde_json::from_str(&content).map_err(|e| FrameworkError::Context {
             context: "parsing package.json".to_string(),
@@ -76,29 +75,26 @@ impl ReactNativeAdapter {
 
     fn write_package_json_version(&self, path: &Path, version: &str) -> Result<()> {
         let package_json_path = path.join("package.json");
-        let content = std::fs::read_to_string(&package_json_path).map_err(|e| {
-            FrameworkError::Context {
+        let content =
+            std::fs::read_to_string(&package_json_path).map_err(|e| FrameworkError::Context {
                 context: "reading package.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
-        let mut json: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
-            FrameworkError::Context {
+        let mut json: serde_json::Value =
+            serde_json::from_str(&content).map_err(|e| FrameworkError::Context {
                 context: "parsing package.json".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         if let Some(obj) = json.as_object_mut() {
             obj.insert("version".to_string(), serde_json::json!(version));
         }
 
-        let updated =
-            serde_json::to_string_pretty(&json).map_err(|e| FrameworkError::Context {
-                context: "serializing package.json".to_string(),
-                message: e.to_string(),
-            })?;
+        let updated = serde_json::to_string_pretty(&json).map_err(|e| FrameworkError::Context {
+            context: "serializing package.json".to_string(),
+            message: e.to_string(),
+        })?;
 
         std::fs::write(&package_json_path, updated).map_err(|e| FrameworkError::Context {
             context: "writing package.json".to_string(),
@@ -175,7 +171,11 @@ impl ReactNativeAdapter {
         if let Ok(entries) = std::fs::read_dir(ios_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map(|e| e == "xcworkspace").unwrap_or(false) {
+                if path
+                    .extension()
+                    .map(|e| e == "xcworkspace")
+                    .unwrap_or(false)
+                {
                     let name = path.file_stem().unwrap().to_string_lossy().to_string();
                     return Ok((path, name));
                 }
@@ -369,7 +369,12 @@ impl ReactNativeAdapter {
                 let ipa_dir = path.join("build/ios/ipa");
                 if let Ok(entries) = std::fs::read_dir(&ipa_dir) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "ipa").unwrap_or(false) {
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "ipa")
+                            .unwrap_or(false)
+                        {
                             let mut artifact =
                                 Artifact::new(entry.path(), ArtifactKind::Ipa, Platform::Ios);
                             artifact.metadata = ArtifactMetadata::new()
@@ -417,7 +422,12 @@ impl ReactNativeAdapter {
                 let aab_dir = path.join("android/app/build/outputs/bundle/release");
                 if let Ok(entries) = std::fs::read_dir(&aab_dir) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().map(|e| e == "aab").unwrap_or(false) {
+                        if entry
+                            .path()
+                            .extension()
+                            .map(|e| e == "aab")
+                            .unwrap_or(false)
+                        {
                             let mut artifact =
                                 Artifact::new(entry.path(), ArtifactKind::Aab, Platform::Android);
                             artifact.metadata =
@@ -429,11 +439,15 @@ impl ReactNativeAdapter {
 
                 // Check for APK
                 for variant in ["debug", "release"] {
-                    let apk_dir =
-                        path.join(format!("android/app/build/outputs/apk/{}", variant));
+                    let apk_dir = path.join(format!("android/app/build/outputs/apk/{}", variant));
                     if let Ok(entries) = std::fs::read_dir(&apk_dir) {
                         for entry in entries.flatten() {
-                            if entry.path().extension().map(|e| e == "apk").unwrap_or(false) {
+                            if entry
+                                .path()
+                                .extension()
+                                .map(|e| e == "apk")
+                                .unwrap_or(false)
+                            {
                                 let artifact = Artifact::new(
                                     entry.path(),
                                     ArtifactKind::Apk,
@@ -514,12 +528,13 @@ impl ReactNativeAdapter {
         let common_paths = ["Info.plist", "*/Info.plist"];
 
         for pattern in common_paths {
-            for entry in glob::glob(&ios_dir.join(pattern).to_string_lossy()).into_iter().flatten()
+            for path in glob::glob(&ios_dir.join(pattern).to_string_lossy())
+                .into_iter()
+                .flatten()
+                .flatten()
             {
-                if let Ok(path) = entry {
-                    if path.is_file() {
-                        return Ok(path);
-                    }
+                if path.is_file() {
+                    return Ok(path);
                 }
             }
         }
@@ -545,12 +560,11 @@ impl ReactNativeAdapter {
             });
         }
 
-        let content = std::fs::read_to_string(&build_gradle).map_err(|e| {
-            FrameworkError::Context {
+        let content =
+            std::fs::read_to_string(&build_gradle).map_err(|e| FrameworkError::Context {
                 context: "reading build.gradle".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         // Update versionName
         let re_version = regex::Regex::new(r#"versionName\s+"[^"]*""#).unwrap();
@@ -576,17 +590,12 @@ impl ReactNativeAdapter {
         Ok(())
     }
 
-    fn update_android_version_kts(
-        &self,
-        build_gradle: &Path,
-        version: &VersionInfo,
-    ) -> Result<()> {
-        let content = std::fs::read_to_string(build_gradle).map_err(|e| {
-            FrameworkError::Context {
+    fn update_android_version_kts(&self, build_gradle: &Path, version: &VersionInfo) -> Result<()> {
+        let content =
+            std::fs::read_to_string(build_gradle).map_err(|e| FrameworkError::Context {
                 context: "reading build.gradle.kts".to_string(),
                 message: e.to_string(),
-            }
-        })?;
+            })?;
 
         // Update versionName
         let re_version = regex::Regex::new(r#"versionName\s*=\s*"[^"]*""#).unwrap();
@@ -775,7 +784,9 @@ impl BuildAdapter for ReactNativeAdapter {
         let version = pkg.version.unwrap_or_else(|| "1.0.0".to_string());
 
         // Try to get build number from native projects
-        let build_number: Option<u64> = self.get_ios_build_number(path).or_else(|| self.get_android_version_code(path));
+        let build_number: Option<u64> = self
+            .get_ios_build_number(path)
+            .or_else(|| self.get_android_version_code(path));
 
         Ok(VersionInfo {
             version,
@@ -808,7 +819,11 @@ impl ReactNativeAdapter {
         let info_plist = self.find_info_plist(&ios_dir).ok()?;
 
         let output = Command::new("/usr/libexec/PlistBuddy")
-            .args(["-c", "Print :CFBundleVersion", info_plist.to_string_lossy().as_ref()])
+            .args([
+                "-c",
+                "Print :CFBundleVersion",
+                info_plist.to_string_lossy().as_ref(),
+            ])
             .output()
             .ok()?;
 
@@ -847,7 +862,11 @@ mod tests {
         std::fs::create_dir_all(temp.path().join("ios")).unwrap();
         std::fs::create_dir_all(temp.path().join("android")).unwrap();
 
-        std::fs::write(temp.path().join("index.js"), "import { AppRegistry } from 'react-native';").unwrap();
+        std::fs::write(
+            temp.path().join("index.js"),
+            "import { AppRegistry } from 'react-native';",
+        )
+        .unwrap();
     }
 
     #[test]

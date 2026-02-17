@@ -5,6 +5,7 @@ use crate::identity::{SigningIdentity, SigningIdentityType};
 use crate::provider::{
     SignOptions, SignatureInfo, SignatureStatus, SignerInfo, SigningProvider, VerifyOptions,
 };
+use std::cmp::Reverse;
 use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
@@ -50,7 +51,7 @@ impl AndroidProvider {
                         .filter(|e| e.path().is_dir())
                         .collect();
 
-                    versions.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+                    versions.sort_by_key(|v| Reverse(v.file_name()));
 
                     if let Some(latest) = versions.first() {
                         let apksigner = latest.path().join("apksigner");
@@ -79,21 +80,29 @@ impl AndroidProvider {
 
     /// Get apksigner path or return error
     fn get_apksigner(&self) -> Result<&str> {
-        self.apksigner_path.as_deref().ok_or_else(|| SigningError::ToolNotFound {
-            tool: "apksigner".to_string(),
-            hint: "Install Android SDK build-tools or set ANDROID_HOME".to_string(),
-        })
+        self.apksigner_path
+            .as_deref()
+            .ok_or_else(|| SigningError::ToolNotFound {
+                tool: "apksigner".to_string(),
+                hint: "Install Android SDK build-tools or set ANDROID_HOME".to_string(),
+            })
     }
 
     /// List keys in a keystore using keytool
     #[allow(dead_code)]
-    async fn list_keystore_keys(&self, keystore_path: &str, password: &str) -> Result<Vec<SigningIdentity>> {
+    async fn list_keystore_keys(
+        &self,
+        keystore_path: &str,
+        password: &str,
+    ) -> Result<Vec<SigningIdentity>> {
         let output = Command::new(&self.keytool_path)
             .args([
                 "-list",
                 "-v",
-                "-keystore", keystore_path,
-                "-storepass", password,
+                "-keystore",
+                keystore_path,
+                "-storepass",
+                password,
             ])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -138,11 +147,8 @@ impl AndroidProvider {
             }
             // SHA256 fingerprint: "SHA256: AB:CD:..."
             else if line.starts_with("SHA256:") {
-                current_fingerprint = Some(
-                    line.trim_start_matches("SHA256:")
-                        .trim()
-                        .replace(':', "")
-                );
+                current_fingerprint =
+                    Some(line.trim_start_matches("SHA256:").trim().replace(':', ""));
             }
         }
 
@@ -233,13 +239,15 @@ impl SigningProvider for AndroidProvider {
             return Ok(());
         }
 
-        let keystore = identity.keychain.as_ref().ok_or_else(|| {
-            SigningError::ConfigError("Keystore path not specified".to_string())
-        })?;
+        let keystore = identity
+            .keychain
+            .as_ref()
+            .ok_or_else(|| SigningError::ConfigError("Keystore path not specified".to_string()))?;
 
-        let key_alias = identity.key_alias.as_ref().ok_or_else(|| {
-            SigningError::ConfigError("Key alias not specified".to_string())
-        })?;
+        let key_alias = identity
+            .key_alias
+            .as_ref()
+            .ok_or_else(|| SigningError::ConfigError("Key alias not specified".to_string()))?;
 
         let ks_pass = options.keystore_password.as_ref().ok_or_else(|| {
             SigningError::ConfigError("Keystore password not specified".to_string())
@@ -253,10 +261,14 @@ impl SigningProvider for AndroidProvider {
 
         let mut args = vec![
             "sign",
-            "--ks", keystore,
-            "--ks-key-alias", key_alias,
-            "--ks-pass", &ks_pass_arg,
-            "--key-pass", &key_pass_arg,
+            "--ks",
+            keystore,
+            "--ks-key-alias",
+            key_alias,
+            "--ks-pass",
+            &ks_pass_arg,
+            "--key-pass",
+            &key_pass_arg,
         ];
 
         if options.verbose {
@@ -282,7 +294,11 @@ impl SigningProvider for AndroidProvider {
             });
         }
 
-        info!("Signed {} with Android key {}", artifact.display(), key_alias);
+        info!(
+            "Signed {} with Android key {}",
+            artifact.display(),
+            key_alias
+        );
         Ok(())
     }
 

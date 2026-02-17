@@ -60,10 +60,7 @@ impl CompletionsCommand {
             generate(shell, &mut cmd, "canaveral", &mut file);
 
             if !cli.quiet {
-                println!(
-                    "Completions written to {}",
-                    output_path.display()
-                );
+                println!("Completions written to {}", output_path.display());
             }
         } else {
             generate(shell, &mut cmd, "canaveral", &mut io::stdout());
@@ -82,7 +79,10 @@ mod tests {
         assert!(matches!(Shell::from(ShellType::Bash), Shell::Bash));
         assert!(matches!(Shell::from(ShellType::Zsh), Shell::Zsh));
         assert!(matches!(Shell::from(ShellType::Fish), Shell::Fish));
-        assert!(matches!(Shell::from(ShellType::PowerShell), Shell::PowerShell));
+        assert!(matches!(
+            Shell::from(ShellType::PowerShell),
+            Shell::PowerShell
+        ));
         assert!(matches!(Shell::from(ShellType::Elvish), Shell::Elvish));
     }
 }

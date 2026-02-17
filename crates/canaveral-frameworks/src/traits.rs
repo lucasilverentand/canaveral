@@ -44,7 +44,7 @@ impl Platform {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "ios" => Some(Self::Ios),
             "android" => Some(Self::Android),
@@ -422,15 +422,14 @@ mod tests {
 
         for platform in platforms {
             let s = platform.as_str();
-            let parsed = Platform::from_str(s);
+            let parsed = Platform::parse(s);
             assert_eq!(parsed, Some(platform));
         }
     }
 
     #[test]
     fn test_version_info_builder() {
-        let info = VersionInfo::new("1.2.3")
-            .with_build_number(42);
+        let info = VersionInfo::new("1.2.3").with_build_number(42);
 
         assert_eq!(info.version, "1.2.3");
         assert_eq!(info.build_number, Some(42));

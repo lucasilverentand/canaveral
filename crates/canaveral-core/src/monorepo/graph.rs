@@ -108,7 +108,9 @@ impl DependencyGraph {
     }
 
     /// Perform topological sort using Kahn's algorithm
-    fn topological_sort(nodes: &HashMap<String, PackageNode>) -> Result<(Vec<String>, Vec<Vec<String>>)> {
+    fn topological_sort(
+        nodes: &HashMap<String, PackageNode>,
+    ) -> Result<(Vec<String>, Vec<Vec<String>>)> {
         let mut in_degree: HashMap<String, usize> = HashMap::new();
         let mut queue: VecDeque<String> = VecDeque::new();
         let mut sorted: Vec<String> = Vec::new();
@@ -306,11 +308,7 @@ impl DependencyGraph {
     /// Validate that the graph has no cycles
     pub fn validate(&self) -> Result<()> {
         if self.has_cycles() {
-            let cycle_desc: Vec<String> = self
-                .cycles
-                .iter()
-                .map(|c| c.join(" -> "))
-                .collect();
+            let cycle_desc: Vec<String> = self.cycles.iter().map(|c| c.join(" -> ")).collect();
 
             return Err(WorkflowError::ValidationFailed(format!(
                 "Circular dependencies detected: {}",

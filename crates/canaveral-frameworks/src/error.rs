@@ -11,23 +11,15 @@ pub type Result<T> = std::result::Result<T, FrameworkError>;
 pub enum FrameworkError {
     /// No framework detected for the project
     #[error("No framework detected at {path}. Supported frameworks: {supported}")]
-    NoFrameworkDetected {
-        path: PathBuf,
-        supported: String,
-    },
+    NoFrameworkDetected { path: PathBuf, supported: String },
 
     /// Multiple frameworks detected, disambiguation required
     #[error("Multiple frameworks detected: {frameworks:?}. Please specify with --framework")]
-    AmbiguousFramework {
-        frameworks: Vec<String>,
-    },
+    AmbiguousFramework { frameworks: Vec<String> },
 
     /// Framework tool not installed
     #[error("Required tool '{tool}' not found. {install_hint}")]
-    ToolNotFound {
-        tool: String,
-        install_hint: String,
-    },
+    ToolNotFound { tool: String, install_hint: String },
 
     /// Build failed
     #[error("Build failed for {platform}: {message}")]
@@ -48,21 +40,15 @@ pub enum FrameworkError {
 
     /// Screenshot capture failed
     #[error("Screenshot capture failed: {message}")]
-    ScreenshotFailed {
-        message: String,
-    },
+    ScreenshotFailed { message: String },
 
     /// Artifact not found after build
     #[error("Expected artifact not found at {expected_path}")]
-    ArtifactNotFound {
-        expected_path: PathBuf,
-    },
+    ArtifactNotFound { expected_path: PathBuf },
 
     /// Invalid configuration
     #[error("Invalid configuration: {message}")]
-    InvalidConfig {
-        message: String,
-    },
+    InvalidConfig { message: String },
 
     /// Command execution failed
     #[error("Command failed: {command}")]
@@ -82,16 +68,11 @@ pub enum FrameworkError {
 
     /// Platform not supported
     #[error("Platform '{platform}' not supported by {framework}")]
-    UnsupportedPlatform {
-        platform: String,
-        framework: String,
-    },
+    UnsupportedPlatform { platform: String, framework: String },
 
     /// Version parsing error
     #[error("Failed to parse version: {message}")]
-    VersionParseError {
-        message: String,
-    },
+    VersionParseError { message: String },
 
     /// IO error
     #[error("IO error: {0}")]
@@ -103,16 +84,11 @@ pub enum FrameworkError {
 
     /// Timeout
     #[error("Operation timed out after {seconds}s")]
-    Timeout {
-        seconds: u64,
-    },
+    Timeout { seconds: u64 },
 
     /// Generic error with context
     #[error("{context}: {message}")]
-    Context {
-        context: String,
-        message: String,
-    },
+    Context { context: String, message: String },
 }
 
 impl FrameworkError {

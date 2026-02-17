@@ -31,7 +31,11 @@ impl ReleaseNotesGenerator {
     /// Generate release notes from commits
     #[instrument(skip(self, commits), fields(commit_count = commits.len()))]
     pub fn generate(&self, version: &str, commits: &[CommitInfo]) -> ReleaseNotes {
-        info!(version, commit_count = commits.len(), "generating release notes");
+        info!(
+            version,
+            commit_count = commits.len(),
+            "generating release notes"
+        );
         let parsed: Vec<ParsedCommit> = commits
             .iter()
             .filter_map(|c| self.parser.parse(c))
@@ -201,7 +205,11 @@ impl ReleaseNotesGenerator {
             parts.push(format!(
                 "{} breaking change{}",
                 notes.breaking_changes.len(),
-                if notes.breaking_changes.len() == 1 { "" } else { "s" }
+                if notes.breaking_changes.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                }
             ));
         }
         if !notes.features.is_empty() {
@@ -228,7 +236,10 @@ impl ReleaseNotesGenerator {
 
     fn format_entry(&self, output: &mut String, entry: &NoteEntry) {
         if let Some(scope) = &entry.scope {
-            output.push_str(&format!("- **{}**: {} ({})\n", scope, entry.description, entry.hash));
+            output.push_str(&format!(
+                "- **{}**: {} ({})\n",
+                scope, entry.description, entry.hash
+            ));
         } else {
             output.push_str(&format!("- {} ({})\n", entry.description, entry.hash));
         }
@@ -380,8 +391,10 @@ mod tests {
 
     #[test]
     fn test_contributors() {
-        let mut config = ReleaseNotesConfig::default();
-        config.include_contributors = true;
+        let config = ReleaseNotesConfig {
+            include_contributors: true,
+            ..Default::default()
+        };
         let generator = ReleaseNotesGenerator::new(config);
 
         let commits = vec![make_commit("feat: add feature")];

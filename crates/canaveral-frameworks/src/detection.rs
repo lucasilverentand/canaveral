@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_detection_ordering() {
-        let mut detections = vec![
+        let mut detections = [
             Detection::Maybe(40),
             Detection::Yes(90),
             Detection::No,

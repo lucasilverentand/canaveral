@@ -88,20 +88,17 @@ pub struct PackageJson {
 impl PackageJson {
     /// Load package.json from path
     pub fn load(path: &Path) -> Result<Self> {
-        let content = std::fs::read_to_string(path).map_err(|_| {
-            AdapterError::ManifestNotFound(path.to_path_buf())
-        })?;
+        let content = std::fs::read_to_string(path)
+            .map_err(|_| AdapterError::ManifestNotFound(path.to_path_buf()))?;
 
-        serde_json::from_str(&content).map_err(|e| {
-            AdapterError::ManifestParseError(e.to_string()).into()
-        })
+        serde_json::from_str(&content)
+            .map_err(|e| AdapterError::ManifestParseError(e.to_string()).into())
     }
 
     /// Save package.json to path
     pub fn save(&self, path: &Path) -> Result<()> {
-        let content = serde_json::to_string_pretty(self).map_err(|e| {
-            AdapterError::ManifestUpdateError(e.to_string())
-        })?;
+        let content = serde_json::to_string_pretty(self)
+            .map_err(|e| AdapterError::ManifestUpdateError(e.to_string()))?;
 
         // Ensure trailing newline
         let content = if content.ends_with('\n') {
@@ -110,9 +107,8 @@ impl PackageJson {
             format!("{}\n", content)
         };
 
-        std::fs::write(path, content).map_err(|e| {
-            AdapterError::ManifestUpdateError(e.to_string()).into()
-        })
+        std::fs::write(path, content)
+            .map_err(|e| AdapterError::ManifestUpdateError(e.to_string()).into())
     }
 }
 

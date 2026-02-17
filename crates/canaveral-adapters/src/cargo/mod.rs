@@ -52,9 +52,9 @@ impl PackageAdapter for CargoAdapter {
             return false;
         }
 
-        // Check if it's a package (not just a workspace)
+        // Match packages and workspace roots
         let found = if let Ok(toml) = CargoToml::load(&manifest) {
-            toml.package.is_some()
+            toml.package.is_some() || toml.workspace.is_some()
         } else {
             false
         };
@@ -70,28 +70,41 @@ impl PackageAdapter for CargoAdapter {
         let manifest_path = self.manifest_path(path);
         let manifest = CargoToml::load(&manifest_path)?;
 
-        let package = manifest.package.ok_or_else(|| {
-            AdapterError::ManifestParseError("No [package] section found".to_string())
-        })?;
-
-        Ok(PackageInfo {
-            name: package.name,
-            version: package.version,
-            package_type: "cargo".to_string(),
-            manifest_path,
-            private: package.publish.is_some_and(|p| !p),
-        })
+        if let Some(package) = manifest.package {
+            Ok(PackageInfo {
+                name: package.name,
+                version: package.version,
+                package_type: "cargo".to_string(),
+                manifest_path,
+                private: package.publish.is_some_and(|p| !p),
+            })
+        } else if manifest.workspace.is_some() {
+            // Workspace root without a package section
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "workspace".to_string());
+            Ok(PackageInfo {
+                name,
+                version: "0.0.0".to_string(),
+                package_type: "cargo".to_string(),
+                manifest_path,
+                private: true,
+            })
+        } else {
+            Err(AdapterError::ManifestParseError(
+                "No [package] or [workspace] section found".to_string(),
+            )
+            .into())
+        }
     }
 
     fn get_version(&self, path: &Path) -> Result<String> {
         let manifest = CargoToml::load(&self.manifest_path(path))?;
 
-        let version = manifest
-            .package
-            .map(|p| p.version)
-            .ok_or_else(|| {
-                AdapterError::ManifestParseError("No [package] section found".to_string())
-            })?;
+        let version = manifest.package.map(|p| p.version).ok_or_else(|| {
+            AdapterError::ManifestParseError("No [package] section found".to_string())
+        })?;
         debug!(adapter = "cargo", version = %version, "read version");
         Ok(version)
     }
@@ -123,7 +136,11 @@ impl PackageAdapter for CargoAdapter {
         }
 
         // Allow dirty (if specified)
-        if options.extra.get("allow_dirty").is_some_and(|v| v == "true") {
+        if options
+            .extra
+            .get("allow_dirty")
+            .is_some_and(|v| v == "true")
+        {
             cmd.arg("--allow-dirty");
         }
 
@@ -132,12 +149,10 @@ impl PackageAdapter for CargoAdapter {
             cmd.arg("--no-verify");
         }
 
-        let output = cmd
-            .output()
-            .map_err(|e| AdapterError::CommandFailed {
-                command: "cargo publish".to_string(),
-                reason: e.to_string(),
-            })?;
+        let output = cmd.output().map_err(|e| AdapterError::CommandFailed {
+            command: "cargo publish".to_string(),
+            reason: e.to_string(),
+        })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -179,7 +194,11 @@ impl PackageAdapter for CargoAdapter {
         }
 
         // Validate crate name (no uppercase, special chars)
-        if !package.name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_') {
+        if !package
+            .name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+        {
             result.add_error("Crate name must be lowercase alphanumeric with - or _");
         }
 
@@ -250,6 +269,59 @@ impl PackageAdapter for CargoAdapter {
         let alt_path = cargo_home.join("credentials");
 
         Ok(creds_path.exists() || alt_path.exists())
+    }
+
+    fn fmt(&self, path: &Path, check: bool) -> Result<()> {
+        let mut cmd = Command::new("cargo");
+        cmd.arg("fmt").arg("--all").current_dir(path);
+        if check {
+            cmd.args(["--", "--check"]);
+        }
+
+        let output = cmd.output().map_err(|e| AdapterError::CommandFailed {
+            command: "cargo fmt".to_string(),
+            reason: e.to_string(),
+        })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AdapterError::CommandFailed {
+                command: "cargo fmt".to_string(),
+                reason: stderr.to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
+    }
+
+    fn lint(&self, path: &Path) -> Result<()> {
+        let output = Command::new("cargo")
+            .args([
+                "clippy",
+                "--all-targets",
+                "--all-features",
+                "--",
+                "-D",
+                "warnings",
+            ])
+            .current_dir(path)
+            .output()
+            .map_err(|e| AdapterError::CommandFailed {
+                command: "cargo clippy".to_string(),
+                reason: e.to_string(),
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AdapterError::CommandFailed {
+                command: "cargo clippy".to_string(),
+                reason: stderr.to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
     }
 
     fn build(&self, path: &Path) -> Result<()> {
@@ -409,8 +481,8 @@ members = ["crates/*"]
         )
         .unwrap();
 
-        // Workspace without [package] should not be detected as a package
-        assert!(!adapter.detect(temp.path()));
+        // Workspace roots are detected (for fmt/lint/check support)
+        assert!(adapter.detect(temp.path()));
     }
 
     #[test]

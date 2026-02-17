@@ -189,7 +189,7 @@ impl ListCommand {
             .or(config.signing.provider.as_ref())
             .map(|p| p.parse::<ProviderType>())
             .transpose()?
-            .unwrap_or_else(|| {
+            .unwrap_or({
                 #[cfg(target_os = "macos")]
                 {
                     ProviderType::MacOS
@@ -216,7 +216,10 @@ impl ListCommand {
         let identities = provider.list_identities().await?;
 
         let identities: Vec<_> = if self.valid_only {
-            identities.into_iter().filter(|id| id.is_valid && !id.is_expired()).collect()
+            identities
+                .into_iter()
+                .filter(|id| id.is_valid && !id.is_expired())
+                .collect()
         } else {
             identities
         };
@@ -344,7 +347,12 @@ impl SignCommand {
         // Build sign options
         let options = SignOptions {
             entitlements: self.entitlements.clone().or_else(|| {
-                config.signing.macos.entitlements.as_ref().map(|p| p.to_string_lossy().to_string())
+                config
+                    .signing
+                    .macos
+                    .entitlements
+                    .as_ref()
+                    .map(|p| p.to_string_lossy().to_string())
             }),
             hardened_runtime: self.hardened_runtime || config.signing.macos.hardened_runtime,
             timestamp: self.timestamp,
@@ -355,21 +363,43 @@ impl SignCommand {
             detached: self.detached || config.signing.gpg.detached,
             armor: self.armor || config.signing.gpg.armor,
             keystore_password: std::env::var(
-                config.signing.android.keystore_password_env.as_deref().unwrap_or("ANDROID_KEYSTORE_PASSWORD")
-            ).ok(),
+                config
+                    .signing
+                    .android
+                    .keystore_password_env
+                    .as_deref()
+                    .unwrap_or("ANDROID_KEYSTORE_PASSWORD"),
+            )
+            .ok(),
             key_password: std::env::var(
-                config.signing.android.key_password_env.as_deref().unwrap_or("ANDROID_KEY_PASSWORD")
-            ).ok(),
+                config
+                    .signing
+                    .android
+                    .key_password_env
+                    .as_deref()
+                    .unwrap_or("ANDROID_KEY_PASSWORD"),
+            )
+            .ok(),
             passphrase: std::env::var(
-                config.signing.gpg.passphrase_env.as_deref().unwrap_or("GPG_PASSPHRASE")
-            ).ok(),
+                config
+                    .signing
+                    .gpg
+                    .passphrase_env
+                    .as_deref()
+                    .unwrap_or("GPG_PASSPHRASE"),
+            )
+            .ok(),
             ..Default::default()
         };
 
         if !cli.quiet {
             println!(
                 "{} {} with {}",
-                if self.dry_run { style("Would sign").yellow() } else { style("Signing").cyan() },
+                if self.dry_run {
+                    style("Would sign").yellow()
+                } else {
+                    style("Signing").cyan()
+                },
                 style(self.artifact.display()).bold(),
                 style(&identity.name).green()
             );
@@ -506,7 +536,7 @@ impl InfoCommand {
             .or(config.signing.provider.as_ref())
             .map(|p| p.parse::<ProviderType>())
             .transpose()?
-            .unwrap_or_else(|| {
+            .unwrap_or({
                 #[cfg(target_os = "macos")]
                 {
                     ProviderType::MacOS
@@ -564,9 +594,19 @@ impl InfoCommand {
                     let exp_style = if days_left < 0 {
                         style(format!("{} (EXPIRED)", expires.format("%Y-%m-%d"))).red()
                     } else if days_left < 30 {
-                        style(format!("{} ({} days left)", expires.format("%Y-%m-%d"), days_left)).yellow()
+                        style(format!(
+                            "{} ({} days left)",
+                            expires.format("%Y-%m-%d"),
+                            days_left
+                        ))
+                        .yellow()
                     } else {
-                        style(format!("{} ({} days left)", expires.format("%Y-%m-%d"), days_left)).green()
+                        style(format!(
+                            "{} ({} days left)",
+                            expires.format("%Y-%m-%d"),
+                            days_left
+                        ))
+                        .green()
                     };
                     println!("  Expires:    {}", exp_style);
                 }

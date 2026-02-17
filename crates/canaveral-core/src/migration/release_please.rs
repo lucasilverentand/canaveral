@@ -240,22 +240,19 @@ impl Migrator for ReleasePleaseMigrator {
 
         // Handle pre-major bumping options
         if rp_config.bump_minor_pre_major == Some(true) {
-            result.warn(
-                "bump-minor-pre-major is enabled - breaking changes bump minor before 1.0",
-            );
+            result.warn("bump-minor-pre-major is enabled - breaking changes bump minor before 1.0");
         }
         if rp_config.bump_patch_for_minor_pre_major == Some(true) {
-            result.warn(
-                "bump-patch-for-minor-pre-major is enabled - features bump patch before 1.0",
-            );
+            result
+                .warn("bump-patch-for-minor-pre-major is enabled - features bump patch before 1.0");
         }
 
         // Handle separate pull requests
         if rp_config.separate_pull_requests == Some(true) {
-            result.warn("separate-pull-requests is enabled - canaveral handles releases differently");
-            result.manual_step(
-                "Consider using monorepo independent versioning for similar behavior",
-            );
+            result
+                .warn("separate-pull-requests is enabled - canaveral handles releases differently");
+            result
+                .manual_step("Consider using monorepo independent versioning for similar behavior");
         }
 
         // Common manual steps
@@ -327,7 +324,10 @@ mod tests {
         assert_eq!(result.source, MigrationSource::ReleasePlease);
         assert_eq!(result.config.versioning.tag_format, "v{version}");
         assert!(result.config.changelog.enabled);
-        assert_eq!(result.config.changelog.file, std::path::PathBuf::from("CHANGELOG.md"));
+        assert_eq!(
+            result.config.changelog.file,
+            std::path::PathBuf::from("CHANGELOG.md")
+        );
     }
 
     #[test]

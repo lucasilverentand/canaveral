@@ -99,11 +99,9 @@ pub fn validate_url(url: &str) -> bool {
 
     // Basic hostname validation
     // Must contain at least one dot or be localhost
-    let is_valid_host = host == "localhost"
+    host == "localhost"
         || host.starts_with('[') // IPv6
-        || (host.contains('.') && !host.starts_with('.') && !host.ends_with('.'));
-
-    is_valid_host
+        || (host.contains('.') && !host.starts_with('.') && !host.ends_with('.'))
 }
 
 /// Validates that a locale string is a valid BCP 47 language tag.
@@ -180,8 +178,7 @@ pub fn has_excess_whitespace(value: &str) -> bool {
     let first = value.chars().next();
     let last = value.chars().next_back();
 
-    matches!(first, Some(c) if c.is_whitespace()) ||
-    matches!(last, Some(c) if c.is_whitespace())
+    matches!(first, Some(c) if c.is_whitespace()) || matches!(last, Some(c) if c.is_whitespace())
 }
 
 /// Checks if a string contains any newlines.

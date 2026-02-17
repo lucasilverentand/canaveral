@@ -71,15 +71,14 @@ impl GooglePlayStore {
     /// Create a new Google Play Store client
     pub fn new(config: GooglePlayConfig) -> Result<Self> {
         // Load service account key
-        let key_content = std::fs::read_to_string(&config.service_account_key)
-            .map_err(|e| StoreError::ConfigurationError(format!(
-                "Failed to read service account key: {}", e
-            )))?;
+        let key_content = std::fs::read_to_string(&config.service_account_key).map_err(|e| {
+            StoreError::ConfigurationError(format!("Failed to read service account key: {}", e))
+        })?;
 
-        let service_account: ServiceAccountKey = serde_json::from_str(&key_content)
-            .map_err(|e| StoreError::InvalidCredentials(format!(
-                "Invalid service account key: {}", e
-            )))?;
+        let service_account: ServiceAccountKey =
+            serde_json::from_str(&key_content).map_err(|e| {
+                StoreError::InvalidCredentials(format!("Invalid service account key: {}", e))
+            })?;
 
         Ok(Self {
             config,
@@ -122,11 +121,11 @@ impl GooglePlayStore {
             exp: exp.timestamp(),
         };
 
-        let encoding_key = jsonwebtoken::EncodingKey::from_rsa_pem(
-            self.service_account.private_key.as_bytes()
-        ).map_err(|e| StoreError::InvalidCredentials(format!(
-            "Invalid private key: {}", e
-        )))?;
+        let encoding_key =
+            jsonwebtoken::EncodingKey::from_rsa_pem(self.service_account.private_key.as_bytes())
+                .map_err(|e| {
+                    StoreError::InvalidCredentials(format!("Invalid private key: {}", e))
+                })?;
 
         let jwt = jsonwebtoken::encode(
             &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256),
@@ -135,7 +134,8 @@ impl GooglePlayStore {
         )?;
 
         // Exchange JWT for access token
-        let response = self.client
+        let response = self
+            .client
             .post(TOKEN_URL)
             .form(&[
                 ("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
@@ -171,7 +171,8 @@ impl GooglePlayStore {
         let token = self.get_access_token().await?;
         let url = format!("{}{}", API_BASE_URL, endpoint);
 
-        let mut request = self.client
+        let mut request = self
+            .client
             .request(method.clone(), &url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json");
@@ -205,11 +206,13 @@ impl GooglePlayStore {
         }
 
         let endpoint = format!("/applications/{}/edits", self.config.package_name);
-        let response: EditResponse = self.api_request(
-            reqwest::Method::POST,
-            &endpoint,
-            Some(serde_json::json!({})),
-        ).await?;
+        let response: EditResponse = self
+            .api_request(
+                reqwest::Method::POST,
+                &endpoint,
+                Some(serde_json::json!({})),
+            )
+            .await?;
 
         Ok(response.id)
     }
@@ -221,11 +224,9 @@ impl GooglePlayStore {
             self.config.package_name, edit_id
         );
 
-        let _: serde_json::Value = self.api_request(
-            reqwest::Method::POST,
-            &endpoint,
-            None,
-        ).await?;
+        let _: serde_json::Value = self
+            .api_request(reqwest::Method::POST, &endpoint, None)
+            .await?;
 
         Ok(())
     }
@@ -234,7 +235,8 @@ impl GooglePlayStore {
     async fn upload_binary(&self, edit_id: &str, path: &Path) -> Result<i64> {
         let token = self.get_access_token().await?;
 
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_lowercase();
@@ -251,7 +253,8 @@ impl GooglePlayStore {
 
         let file_content = tokio::fs::read(path).await?;
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/octet-stream")
@@ -289,11 +292,14 @@ impl GooglePlayStore {
         );
 
         // Build release notes array
-        let notes: Vec<serde_json::Value> = release_notes.iter()
-            .map(|(lang, text)| serde_json::json!({
-                "language": lang,
-                "text": text
-            }))
+        let notes: Vec<serde_json::Value> = release_notes
+            .iter()
+            .map(|(lang, text)| {
+                serde_json::json!({
+                    "language": lang,
+                    "text": text
+                })
+            })
             .collect();
 
         let mut release = serde_json::json!({
@@ -314,11 +320,9 @@ impl GooglePlayStore {
             "releases": [release]
         });
 
-        let _: serde_json::Value = self.api_request(
-            reqwest::Method::PUT,
-            &endpoint,
-            Some(body),
-        ).await?;
+        let _: serde_json::Value = self
+            .api_request(reqwest::Method::PUT, &endpoint, Some(body))
+            .await?;
 
         Ok(())
     }
@@ -346,23 +350,40 @@ impl GooglePlayStore {
                 // package: name='com.example' versionCode='1' versionName='1.0.0'
                 for part in line.split_whitespace() {
                     if part.starts_with("name='") {
-                        package_name = part.trim_start_matches("name='").trim_end_matches('\'').to_string();
+                        package_name = part
+                            .trim_start_matches("name='")
+                            .trim_end_matches('\'')
+                            .to_string();
                     } else if part.starts_with("versionCode='") {
-                        version_code = part.trim_start_matches("versionCode='").trim_end_matches('\'').to_string();
+                        version_code = part
+                            .trim_start_matches("versionCode='")
+                            .trim_end_matches('\'')
+                            .to_string();
                     } else if part.starts_with("versionName='") {
-                        version_name = part.trim_start_matches("versionName='").trim_end_matches('\'').to_string();
+                        version_name = part
+                            .trim_start_matches("versionName='")
+                            .trim_end_matches('\'')
+                            .to_string();
                     }
                 }
             } else if line.starts_with("application-label:") {
-                app_name = Some(line.trim_start_matches("application-label:'").trim_end_matches('\'').to_string());
+                app_name = Some(
+                    line.trim_start_matches("application-label:'")
+                        .trim_end_matches('\'')
+                        .to_string(),
+                );
             } else if line.starts_with("sdkVersion:'") {
-                min_sdk = Some(line.trim_start_matches("sdkVersion:'").trim_end_matches('\'').to_string());
+                min_sdk = Some(
+                    line.trim_start_matches("sdkVersion:'")
+                        .trim_end_matches('\'')
+                        .to_string(),
+                );
             }
         }
 
         if package_name.is_empty() {
             return Err(StoreError::InvalidArtifact(
-                "Could not determine package name from APK/AAB".to_string()
+                "Could not determine package name from APK/AAB".to_string(),
             ));
         }
 
@@ -443,10 +464,12 @@ impl StoreAdapter for GooglePlayStore {
         let validation = self.validate_artifact(path).await?;
         if !validation.valid {
             return Err(StoreError::ValidationFailed(
-                validation.errors.iter()
+                validation
+                    .errors
+                    .iter()
                     .map(|e| e.message.clone())
                     .collect::<Vec<_>>()
-                    .join("; ")
+                    .join("; "),
             ));
         }
 
@@ -471,7 +494,9 @@ impl StoreAdapter for GooglePlayStore {
         let version_code = self.upload_binary(&edit_id, path).await?;
 
         // Assign to track
-        let track = options.track.as_ref()
+        let track = options
+            .track
+            .as_ref()
             .or(self.config.default_track.as_ref())
             .map(|s| s.as_str())
             .unwrap_or("internal");
@@ -483,7 +508,8 @@ impl StoreAdapter for GooglePlayStore {
             version_code,
             options.rollout_percentage,
             &options.release_notes,
-        ).await?;
+        )
+        .await?;
 
         // Commit edit
         info!("Committing edit...");
@@ -549,7 +575,8 @@ impl StagedRolloutSupport for GooglePlayStore {
             build_id.parse().unwrap_or(0),
             Some(percentage),
             &std::collections::HashMap::new(),
-        ).await?;
+        )
+        .await?;
 
         self.commit_edit(&edit_id).await?;
 
@@ -588,7 +615,8 @@ impl TrackSupport for GooglePlayStore {
             build_id.parse().unwrap_or(0),
             None,
             &std::collections::HashMap::new(),
-        ).await?;
+        )
+        .await?;
 
         self.commit_edit(&edit_id).await?;
 

@@ -83,10 +83,7 @@ fn hooks_dir(repo_root: &Path) -> std::io::Result<PathBuf> {
 
 /// Backup filename for an existing non-canaveral hook
 fn backup_path(hook_path: &Path) -> PathBuf {
-    let name = hook_path
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy();
+    let name = hook_path.file_name().unwrap_or_default().to_string_lossy();
     hook_path.with_file_name(format!("{name}.pre-canaveral"))
 }
 
@@ -95,10 +92,11 @@ pub fn install_hook(
     repo_root: &Path,
     hook_type: GitHookType,
 ) -> Result<(), canaveral_core::error::GitHookError> {
-    let dir = hooks_dir(repo_root).map_err(|e| canaveral_core::error::GitHookError::InstallFailed {
-        hook: hook_type.to_string(),
-        reason: e.to_string(),
-    })?;
+    let dir =
+        hooks_dir(repo_root).map_err(|e| canaveral_core::error::GitHookError::InstallFailed {
+            hook: hook_type.to_string(),
+            reason: e.to_string(),
+        })?;
 
     let path = dir.join(hook_type.filename());
 
@@ -106,9 +104,11 @@ pub fn install_hook(
     if path.exists() && !is_canaveral_hook(&path) {
         let backup = backup_path(&path);
         info!(hook = %hook_type, backup = %backup.display(), "backing up existing hook");
-        fs::rename(&path, &backup).map_err(|e| canaveral_core::error::GitHookError::InstallFailed {
-            hook: hook_type.to_string(),
-            reason: format!("failed to back up existing hook: {e}"),
+        fs::rename(&path, &backup).map_err(|e| {
+            canaveral_core::error::GitHookError::InstallFailed {
+                hook: hook_type.to_string(),
+                reason: format!("failed to back up existing hook: {e}"),
+            }
         })?;
     }
 
@@ -135,12 +135,11 @@ pub fn uninstall_hook(
     repo_root: &Path,
     hook_type: GitHookType,
 ) -> Result<(), canaveral_core::error::GitHookError> {
-    let dir = hooks_dir(repo_root).map_err(|e| {
-        canaveral_core::error::GitHookError::UninstallFailed {
+    let dir =
+        hooks_dir(repo_root).map_err(|e| canaveral_core::error::GitHookError::UninstallFailed {
             hook: hook_type.to_string(),
             reason: e.to_string(),
-        }
-    })?;
+        })?;
 
     let path = dir.join(hook_type.filename());
 

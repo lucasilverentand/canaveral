@@ -5,13 +5,13 @@ use console::style;
 use dialoguer::Confirm;
 use tracing::info;
 
+use canaveral_changelog::ChangelogGenerator;
+use canaveral_changelog::{CommitParser, ConventionalParser};
 use canaveral_core::config::load_config_or_default;
 use canaveral_core::types::ReleaseType;
 use canaveral_core::workflow::{format_tag, ReleaseOptions, ReleaseWorkflow};
-use canaveral_changelog::ChangelogGenerator;
 use canaveral_git::GitRepo;
 use canaveral_strategies::{BumpType, SemVerStrategy, VersionStrategy};
-use canaveral_changelog::{CommitParser, ConventionalParser};
 
 use crate::cli::{Cli, OutputFormat};
 
@@ -147,7 +147,10 @@ impl ReleaseCommand {
 
             if bump_type == BumpType::None {
                 if !cli.quiet {
-                    println!("{}", style("No version bump required - no relevant commits found.").yellow());
+                    println!(
+                        "{}",
+                        style("No version bump required - no relevant commits found.").yellow()
+                    );
                 }
                 return Ok(());
             }
@@ -170,7 +173,10 @@ impl ReleaseCommand {
             println!();
 
             if self.dry_run {
-                println!("  {}", style("[DRY RUN - no changes will be made]").yellow().bold());
+                println!(
+                    "  {}",
+                    style("[DRY RUN - no changes will be made]").yellow().bold()
+                );
                 println!();
             }
         }
@@ -241,18 +247,20 @@ impl ReleaseCommand {
             repo.create_tag(&tag, Some(&format!("Release {}", next_version)))?;
 
             if !cli.quiet {
-                println!("{} Created tag {}", style("✓").green(), style(&tag).yellow());
+                println!(
+                    "{} Created tag {}",
+                    style("✓").green(),
+                    style(&tag).yellow()
+                );
             }
 
             // Note: Push is typically done via git CLI for proper auth handling
-            if config.git.push_tags {
-                if !cli.quiet {
-                    println!(
-                        "{} To push, run: {}",
-                        style("→").blue(),
-                        style(format!("git push {} {}", config.git.remote, tag)).cyan()
-                    );
-                }
+            if config.git.push_tags && !cli.quiet {
+                println!(
+                    "{} To push, run: {}",
+                    style("→").blue(),
+                    style(format!("git push {} {}", config.git.remote, tag)).cyan()
+                );
             }
         }
 

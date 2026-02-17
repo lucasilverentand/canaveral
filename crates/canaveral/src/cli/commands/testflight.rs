@@ -7,8 +7,7 @@ use console::style;
 use tracing::info;
 
 use canaveral_stores::apple::{
-    TestFlight, TestFlightBuild, BetaGroup, BetaTester,
-    BuildProcessingState, BetaReviewState,
+    BetaGroup, BetaReviewState, BetaTester, BuildProcessingState, TestFlight, TestFlightBuild,
 };
 use canaveral_stores::types::AppleStoreConfig;
 
@@ -291,10 +290,7 @@ impl TestFlightCommand {
         if cli.format == OutputFormat::Json {
             println!("{}", serde_json::to_string_pretty(&result)?);
         } else if !cli.quiet {
-            println!(
-                "{} Upload completed!",
-                style("✓").green().bold()
-            );
+            println!("{} Upload completed!", style("✓").green().bold());
             if let Some(ref build_id) = result.build_id {
                 println!("  Build ID: {}", style(build_id).cyan());
             }
@@ -315,7 +311,9 @@ impl TestFlightCommand {
         } else if let Some(ref bundle_id) = args.bundle_id {
             let app_id = testflight.get_app_id(bundle_id).await?;
             let builds = testflight.list_builds(&app_id, Some(1)).await?;
-            builds.into_iter().next()
+            builds
+                .into_iter()
+                .next()
                 .ok_or_else(|| anyhow::anyhow!("No builds found for {}", bundle_id))?
         } else {
             anyhow::bail!("Either build_id or bundle_id is required");
@@ -337,7 +335,8 @@ impl TestFlightCommand {
         let builds = testflight.list_builds(&app_id, Some(args.limit)).await?;
 
         let builds: Vec<_> = if args.processing {
-            builds.into_iter()
+            builds
+                .into_iter()
                 .filter(|b| b.processing_state == BuildProcessingState::Processing)
                 .collect()
         } else {
@@ -371,14 +370,17 @@ impl TestFlightCommand {
 
                 let group_id = if let Some(ref group_name) = group {
                     let groups = testflight.list_beta_groups(&app_id).await?;
-                    groups.iter()
+                    groups
+                        .iter()
                         .find(|g| g.name.eq_ignore_ascii_case(group_name))
                         .map(|g| g.id.clone())
                 } else {
                     None
                 };
 
-                let testers = testflight.list_testers(&app_id, group_id.as_deref()).await?;
+                let testers = testflight
+                    .list_testers(&app_id, group_id.as_deref())
+                    .await?;
 
                 if cli.format == OutputFormat::Json {
                     println!("{}", serde_json::to_string_pretty(&testers)?);
@@ -395,21 +397,30 @@ impl TestFlightCommand {
                 }
             }
 
-            TestersSubcommand::Add { email, group, first_name, last_name, bundle_id } => {
+            TestersSubcommand::Add {
+                email,
+                group,
+                first_name,
+                last_name,
+                bundle_id,
+            } => {
                 let app_id = testflight.get_app_id(bundle_id).await?;
                 let groups = testflight.list_beta_groups(&app_id).await?;
 
-                let group_id = groups.iter()
+                let group_id = groups
+                    .iter()
                     .find(|g| g.name.eq_ignore_ascii_case(group))
                     .map(|g| g.id.as_str())
                     .ok_or_else(|| anyhow::anyhow!("Group not found: {}", group))?;
 
-                let tester = testflight.invite_tester(
-                    email,
-                    first_name.as_deref(),
-                    last_name.as_deref(),
-                    &[group_id],
-                ).await?;
+                let tester = testflight
+                    .invite_tester(
+                        email,
+                        first_name.as_deref(),
+                        last_name.as_deref(),
+                        &[group_id],
+                    )
+                    .await?;
 
                 if cli.format == OutputFormat::Json {
                     println!("{}", serde_json::to_string_pretty(&tester)?);
@@ -427,7 +438,8 @@ impl TestFlightCommand {
                 let app_id = testflight.get_app_id(bundle_id).await?;
                 let testers = testflight.list_testers(&app_id, None).await?;
 
-                let tester = testers.iter()
+                let tester = testers
+                    .iter()
                     .find(|t| t.email.eq_ignore_ascii_case(email))
                     .ok_or_else(|| anyhow::anyhow!("Tester not found: {}", email))?;
 
@@ -469,9 +481,15 @@ impl TestFlightCommand {
                 }
             }
 
-            GroupsSubcommand::Create { name, bundle_id, internal } => {
+            GroupsSubcommand::Create {
+                name,
+                bundle_id,
+                internal,
+            } => {
                 let app_id = testflight.get_app_id(bundle_id).await?;
-                let group = testflight.create_beta_group(&app_id, name, *internal).await?;
+                let group = testflight
+                    .create_beta_group(&app_id, name, *internal)
+                    .await?;
 
                 if cli.format == OutputFormat::Json {
                     println!("{}", serde_json::to_string_pretty(&group)?);
@@ -497,7 +515,8 @@ impl TestFlightCommand {
                 let app_id = testflight.get_app_id(bundle_id).await?;
                 let groups = testflight.list_beta_groups(&app_id).await?;
 
-                let group = groups.iter()
+                let group = groups
+                    .iter()
                     .find(|g| g.name.eq_ignore_ascii_case(name))
                     .ok_or_else(|| anyhow::anyhow!("Group not found: {}", name))?;
 
@@ -521,7 +540,9 @@ impl TestFlightCommand {
 
         // Set changelog if provided
         if let Some(ref changelog) = args.changelog {
-            testflight.set_whats_new(&args.build_id, &args.locale, changelog).await?;
+            testflight
+                .set_whats_new(&args.build_id, &args.locale, changelog)
+                .await?;
         }
 
         let submission = testflight.submit_for_beta_review(&args.build_id).await?;
@@ -553,7 +574,10 @@ impl TestFlightCommand {
             use dialoguer::Confirm;
 
             let confirmed = Confirm::new()
-                .with_prompt(format!("Are you sure you want to expire build {}?", args.build_id))
+                .with_prompt(format!(
+                    "Are you sure you want to expire build {}?",
+                    args.build_id
+                ))
                 .default(false)
                 .interact()?;
 
@@ -628,7 +652,10 @@ impl TestFlightCommand {
             }
         );
         if let Some(ref uploaded) = build.uploaded_at {
-            println!("    Uploaded: {}", style(uploaded.format("%Y-%m-%d %H:%M UTC")).dim());
+            println!(
+                "    Uploaded: {}",
+                style(uploaded.format("%Y-%m-%d %H:%M UTC")).dim()
+            );
         }
         if build.expired {
             println!("    {}", style("EXPIRED").red().bold());
@@ -644,11 +671,7 @@ impl TestFlightCommand {
             (None, Some(l)) => l.clone(),
             (None, None) => "(no name)".to_string(),
         };
-        println!(
-            "  {} - {}",
-            style(&tester.email).cyan(),
-            style(name).dim()
-        );
+        println!("  {} - {}", style(&tester.email).cyan(), style(name).dim());
     }
 
     fn print_group(&self, group: &BetaGroup) {

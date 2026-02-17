@@ -61,24 +61,14 @@ impl CalVerStrategy {
     fn current_date_components(&self) -> (u64, u64) {
         let now = Local::now();
         let year = now.year() as u64;
-        let short_year = (year % 100) as u64;
+        let short_year = year % 100;
 
         match self.format {
-            CalVerFormat::YearMonth | CalVerFormat::YearMonthPadded => {
-                (year, now.month() as u64)
-            }
-            CalVerFormat::ShortYearMonth => {
-                (short_year, now.month() as u64)
-            }
-            CalVerFormat::YearMonthDay => {
-                (year, now.month() as u64)
-            }
-            CalVerFormat::YearWeek => {
-                (year, now.iso_week().week() as u64)
-            }
-            CalVerFormat::YearMicro => {
-                (year, 0)
-            }
+            CalVerFormat::YearMonth | CalVerFormat::YearMonthPadded => (year, now.month() as u64),
+            CalVerFormat::ShortYearMonth => (short_year, now.month() as u64),
+            CalVerFormat::YearMonthDay => (year, now.month() as u64),
+            CalVerFormat::YearWeek => (year, now.iso_week().week() as u64),
+            CalVerFormat::YearMicro => (year, 0),
         }
     }
 
@@ -100,11 +90,15 @@ impl CalVerStrategy {
         let parts: Vec<&str> = version.split('.').collect();
 
         match self.format {
-            CalVerFormat::YearMonth | CalVerFormat::YearMonthPadded | CalVerFormat::ShortYearMonth => {
+            CalVerFormat::YearMonth
+            | CalVerFormat::YearMonthPadded
+            | CalVerFormat::ShortYearMonth => {
                 if parts.len() < 2 {
-                    return Err(VersionError::InvalidFormat(
-                        format!("Expected format YYYY.MM.MICRO or similar, got: {}", version)
-                    ).into());
+                    return Err(VersionError::InvalidFormat(format!(
+                        "Expected format YYYY.MM.MICRO or similar, got: {}",
+                        version
+                    ))
+                    .into());
                 }
 
                 let major: u64 = parts[0].parse().map_err(|_| {
@@ -121,9 +115,11 @@ impl CalVerStrategy {
             }
             CalVerFormat::YearMonthDay => {
                 if parts.len() < 3 {
-                    return Err(VersionError::InvalidFormat(
-                        format!("Expected format YYYY.MM.DD, got: {}", version)
-                    ).into());
+                    return Err(VersionError::InvalidFormat(format!(
+                        "Expected format YYYY.MM.DD, got: {}",
+                        version
+                    ))
+                    .into());
                 }
 
                 let major: u64 = parts[0].parse().map_err(|_| {
@@ -142,9 +138,11 @@ impl CalVerStrategy {
             }
             CalVerFormat::YearWeek => {
                 if parts.len() < 2 {
-                    return Err(VersionError::InvalidFormat(
-                        format!("Expected format YYYY.WW.MICRO, got: {}", version)
-                    ).into());
+                    return Err(VersionError::InvalidFormat(format!(
+                        "Expected format YYYY.WW.MICRO, got: {}",
+                        version
+                    ))
+                    .into());
                 }
 
                 let major: u64 = parts[0].parse().map_err(|_| {
@@ -161,9 +159,11 @@ impl CalVerStrategy {
             }
             CalVerFormat::YearMicro => {
                 if parts.len() < 2 {
-                    return Err(VersionError::InvalidFormat(
-                        format!("Expected format YYYY.MICRO, got: {}", version)
-                    ).into());
+                    return Err(VersionError::InvalidFormat(format!(
+                        "Expected format YYYY.MICRO, got: {}",
+                        version
+                    ))
+                    .into());
                 }
 
                 let major: u64 = parts[0].parse().map_err(|_| {
@@ -199,19 +199,34 @@ impl VersionStrategy for CalVerStrategy {
     fn format(&self, components: &VersionComponents) -> String {
         match self.format {
             CalVerFormat::YearMonth => {
-                format!("{}.{}.{}", components.major, components.minor, components.patch)
+                format!(
+                    "{}.{}.{}",
+                    components.major, components.minor, components.patch
+                )
             }
             CalVerFormat::YearMonthPadded => {
-                format!("{}.{:02}.{}", components.major, components.minor, components.patch)
+                format!(
+                    "{}.{:02}.{}",
+                    components.major, components.minor, components.patch
+                )
             }
             CalVerFormat::ShortYearMonth => {
-                format!("{}.{}.{}", components.major, components.minor, components.patch)
+                format!(
+                    "{}.{}.{}",
+                    components.major, components.minor, components.patch
+                )
             }
             CalVerFormat::YearMonthDay => {
-                format!("{}.{}.{}", components.major, components.minor, components.patch)
+                format!(
+                    "{}.{}.{}",
+                    components.major, components.minor, components.patch
+                )
             }
             CalVerFormat::YearWeek => {
-                format!("{}.{}.{}", components.major, components.minor, components.patch)
+                format!(
+                    "{}.{}.{}",
+                    components.major, components.minor, components.patch
+                )
             }
             CalVerFormat::YearMicro => {
                 format!("{}.{}", components.major, components.minor)
@@ -245,11 +260,8 @@ impl VersionStrategy for CalVerStrategy {
                 // For other formats, check if we're in a new period
                 if self.is_current_period(current) {
                     // Same period, increment micro version
-                    let result = VersionComponents::new(
-                        current.major,
-                        current.minor,
-                        current.patch + 1,
-                    );
+                    let result =
+                        VersionComponents::new(current.major, current.minor, current.patch + 1);
                     debug!(result = %self.format(&result), "same period, incremented micro");
                     Ok(result)
                 } else {
@@ -262,7 +274,12 @@ impl VersionStrategy for CalVerStrategy {
         }
     }
 
-    fn determine_bump_type(&self, _is_breaking: bool, _is_feature: bool, _is_fix: bool) -> BumpType {
+    fn determine_bump_type(
+        &self,
+        _is_breaking: bool,
+        _is_feature: bool,
+        _is_fix: bool,
+    ) -> BumpType {
         // CalVer doesn't use semantic bump types
         // Always return Patch to trigger a version increment
         BumpType::Patch
@@ -272,7 +289,9 @@ impl VersionStrategy for CalVerStrategy {
         let va = self.parse(a)?;
         let vb = self.parse(b)?;
 
-        Ok(va.major.cmp(&vb.major)
+        Ok(va
+            .major
+            .cmp(&vb.major)
             .then(va.minor.cmp(&vb.minor))
             .then(va.patch.cmp(&vb.patch)))
     }

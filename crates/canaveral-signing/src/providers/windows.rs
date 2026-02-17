@@ -77,10 +77,12 @@ impl WindowsProvider {
 
     /// Get signtool path or return error
     fn get_signtool(&self) -> Result<&str> {
-        self.signtool_path.as_deref().ok_or_else(|| SigningError::ToolNotFound {
-            tool: "signtool.exe".to_string(),
-            hint: "Install Windows SDK or add signtool.exe to PATH".to_string(),
-        })
+        self.signtool_path
+            .as_deref()
+            .ok_or_else(|| SigningError::ToolNotFound {
+                tool: "signtool.exe".to_string(),
+                hint: "Install Windows SDK or add signtool.exe to PATH".to_string(),
+            })
     }
 
     /// Parse signtool verify output for signature info
@@ -176,7 +178,7 @@ impl SigningProvider for WindowsProvider {
                 current_thumbprint = Some(
                     line.trim_start_matches("Cert Hash(sha1):")
                         .trim()
-                        .replace(' ', "")
+                        .replace(' ', ""),
                 );
             }
             // Check for Code Signing EKU
@@ -185,7 +187,9 @@ impl SigningProvider for WindowsProvider {
             }
             // End of certificate entry
             else if line.starts_with("===============") {
-                if let (Some(name), Some(thumbprint)) = (current_name.take(), current_thumbprint.take()) {
+                if let (Some(name), Some(thumbprint)) =
+                    (current_name.take(), current_thumbprint.take())
+                {
                     if is_code_signing {
                         let identity_type = if name.contains("EV ") {
                             SigningIdentityType::WindowsEV
@@ -193,11 +197,8 @@ impl SigningProvider for WindowsProvider {
                             SigningIdentityType::WindowsAuthenticode
                         };
 
-                        let mut identity = SigningIdentity::new(
-                            thumbprint.clone(),
-                            name,
-                            identity_type,
-                        );
+                        let mut identity =
+                            SigningIdentity::new(thumbprint.clone(), name, identity_type);
                         identity.fingerprint = Some(thumbprint);
                         identities.push(identity);
                     }
@@ -217,7 +218,11 @@ impl SigningProvider for WindowsProvider {
             .into_iter()
             .filter(|id| {
                 id.name.to_lowercase().contains(&query.to_lowercase())
-                    || id.fingerprint.as_ref().map(|f| f.to_lowercase().contains(&query.to_lowercase())).unwrap_or(false)
+                    || id
+                        .fingerprint
+                        .as_ref()
+                        .map(|f| f.to_lowercase().contains(&query.to_lowercase()))
+                        .unwrap_or(false)
             })
             .collect();
 
@@ -276,7 +281,9 @@ impl SigningProvider for WindowsProvider {
 
         // Timestamp
         if options.timestamp {
-            let timestamp_url = options.timestamp_url.as_deref()
+            let timestamp_url = options
+                .timestamp_url
+                .as_deref()
                 .unwrap_or("http://timestamp.digicert.com");
             args.push("/tr");
             args.push(timestamp_url);
@@ -321,7 +328,11 @@ impl SigningProvider for WindowsProvider {
             });
         }
 
-        info!("Signed {} with Windows certificate {}", artifact.display(), identity.name);
+        info!(
+            "Signed {} with Windows certificate {}",
+            artifact.display(),
+            identity.name
+        );
         Ok(())
     }
 
@@ -374,7 +385,9 @@ impl SigningProvider for WindowsProvider {
     }
 
     fn supported_extensions(&self) -> &[&str] {
-        &["exe", "dll", "sys", "msi", "msix", "appx", "cab", "cat", "ocx"]
+        &[
+            "exe", "dll", "sys", "msi", "msix", "appx", "cab", "cat", "ocx",
+        ]
     }
 }
 

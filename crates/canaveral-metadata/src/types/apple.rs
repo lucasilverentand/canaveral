@@ -68,7 +68,11 @@ impl AppleMetadata {
     }
 
     /// Sets localized metadata for a specific locale.
-    pub fn set_localization(&mut self, locale: impl Into<String>, metadata: AppleLocalizedMetadata) {
+    pub fn set_localization(
+        &mut self,
+        locale: impl Into<String>,
+        metadata: AppleLocalizedMetadata,
+    ) {
         self.localizations.insert(locale.into(), metadata);
     }
 }
@@ -212,7 +216,7 @@ impl AppleScreenshotSet {
 }
 
 /// Apple App Store categories.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AppleCategory {
     /// Books category.
@@ -266,15 +270,10 @@ pub enum AppleCategory {
     /// Travel category.
     Travel,
     /// Utilities category.
+    #[default]
     Utilities,
     /// Weather category.
     Weather,
-}
-
-impl Default for AppleCategory {
-    fn default() -> Self {
-        AppleCategory::Utilities
-    }
 }
 
 /// Age rating configuration for Apple App Store.

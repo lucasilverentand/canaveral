@@ -93,7 +93,10 @@ impl PrValidationResult {
 
     /// Get failed checks
     pub fn failures(&self) -> Vec<&CheckResult> {
-        self.checks.iter().filter(|c| !c.passed && !c.is_warning).collect()
+        self.checks
+            .iter()
+            .filter(|c| !c.passed && !c.is_warning)
+            .collect()
     }
 
     /// Get warnings

@@ -551,7 +551,11 @@ impl AppleValidator {
     }
 
     /// Validates screenshots.
-    fn validate_screenshots(&self, screenshots: &AppleScreenshotSet, result: &mut ValidationResult) {
+    fn validate_screenshots(
+        &self,
+        screenshots: &AppleScreenshotSet,
+        result: &mut ValidationResult,
+    ) {
         // iPhone 6.5"
         self.validate_screenshot_set(
             &screenshots.iphone_6_5,
@@ -586,21 +590,9 @@ impl AppleValidator {
 
         // For now, we don't validate dimensions for Mac, Apple TV, Apple Watch
         // as they have many valid sizes
-        self.validate_screenshot_count(
-            &screenshots.mac,
-            "screenshots.mac",
-            result,
-        );
-        self.validate_screenshot_count(
-            &screenshots.apple_tv,
-            "screenshots.apple_tv",
-            result,
-        );
-        self.validate_screenshot_count(
-            &screenshots.apple_watch,
-            "screenshots.apple_watch",
-            result,
-        );
+        self.validate_screenshot_count(&screenshots.mac, "screenshots.mac", result);
+        self.validate_screenshot_count(&screenshots.apple_tv, "screenshots.apple_tv", result);
+        self.validate_screenshot_count(&screenshots.apple_watch, "screenshots.apple_watch", result);
 
         // Check if any screenshots exist for required device types
         if screenshots.is_empty() {
@@ -752,7 +744,9 @@ mod tests {
             marketing_url: None,
         };
 
-        metadata.localizations.insert("en-US".to_string(), localized);
+        metadata
+            .localizations
+            .insert("en-US".to_string(), localized);
         metadata
     }
 
@@ -834,8 +828,10 @@ mod tests {
         let result = validator.validate(&metadata);
 
         assert!(!result.is_valid());
-        assert!(result.errors().iter().any(|e| e.field.contains("iphone_6_5")
-            && e.message.contains("invalid dimensions")));
+        assert!(result
+            .errors()
+            .iter()
+            .any(|e| e.field.contains("iphone_6_5") && e.message.contains("invalid dimensions")));
     }
 
     #[test]
@@ -844,9 +840,11 @@ mod tests {
 
         // Add too many screenshots
         for i in 0..12 {
-            let screenshot =
-                MediaAsset::new(PathBuf::from(format!("screen{}.png", i)), AssetType::Screenshot)
-                    .with_dimensions(1242, 2688);
+            let screenshot = MediaAsset::new(
+                PathBuf::from(format!("screen{}.png", i)),
+                AssetType::Screenshot,
+            )
+            .with_dimensions(1242, 2688);
             metadata.screenshots.iphone_6_5.push(screenshot);
         }
 
@@ -854,8 +852,10 @@ mod tests {
         let result = validator.validate(&metadata);
 
         assert!(!result.is_valid());
-        assert!(result.errors().iter().any(|e| e.field.contains("iphone_6_5")
-            && e.message.contains("Too many screenshots")));
+        assert!(result
+            .errors()
+            .iter()
+            .any(|e| e.field.contains("iphone_6_5") && e.message.contains("Too many screenshots")));
     }
 
     #[test]

@@ -96,7 +96,14 @@ pub mod utils;
 pub mod validation;
 
 pub use error::MetadataError;
-pub use storage::{FastlaneStorage, MetadataStorage, MetadataStorageRegistry, StorageFormat, UnifiedStorage};
+pub use storage::{
+    FastlaneStorage, MetadataStorage, MetadataStorageRegistry, StorageFormat, UnifiedStorage,
+};
+pub use templates::{
+    apply_templates_to_apple_metadata, apply_templates_to_google_play_metadata,
+    extract_variable_names, has_template_variables, process_template, validate_template,
+    TemplateVariables,
+};
 pub use types::apple::{
     AppleAgeRating, AppleCategory, AppleLocalizedMetadata, AppleMetadata, AppleScreenshotSet,
 };
@@ -104,11 +111,6 @@ pub use types::common::{AssetType, Locale, MediaAsset, Platform};
 pub use types::google_play::{
     GooglePlayCategory, GooglePlayContentRating, GooglePlayLocalizedMetadata, GooglePlayMetadata,
     GooglePlayScreenshotSet,
-};
-pub use templates::{
-    apply_templates_to_apple_metadata, apply_templates_to_google_play_metadata,
-    extract_variable_names, has_template_variables, process_template, validate_template,
-    TemplateVariables,
 };
 pub use utils::{
     auto_fix_text, count_chars, format_keywords, get_language_code, get_missing_apple_locales,
@@ -118,21 +120,42 @@ pub use utils::{
     GOOGLE_PLAY_RECOMMENDED_LOCALES,
 };
 pub use validation::{
-    validate_localized_google_play_screenshots, validate_localized_screenshots, AppleValidator,
-    GooglePlayValidator, Severity, ValidationIssue, ValidationResult,
-    // Screenshot file validation
-    read_image_dimensions, validate_apple_screenshot_file, validate_feature_graphic_file,
-    validate_google_play_screenshot_file, validate_screenshot_directory,
-    // Apple dimension constants
-    APPLE_DEVICE_TYPES, APPLE_IPAD_10_5_DIMS, APPLE_IPAD_PRO_11_DIMS, APPLE_IPAD_PRO_12_9_DIMS,
-    APPLE_IPHONE_5_5_DIMS, APPLE_IPHONE_6_1_DIMS, APPLE_IPHONE_6_5_DIMS, APPLE_IPHONE_6_7_DIMS,
-    APPLE_TV_DIMS, APPLE_WATCH_SERIES_9_DIMS,
-    // Google Play dimension constants
-    GOOGLE_PLAY_DEVICE_TYPES, GOOGLE_PLAY_FEATURE_GRAPHIC_DIMS, GOOGLE_PLAY_PHONE_DIMS,
-    GOOGLE_PLAY_SCREENSHOT_MAX, GOOGLE_PLAY_SCREENSHOT_MIN, GOOGLE_PLAY_TABLET_10_DIMS,
-    GOOGLE_PLAY_TABLET_7_DIMS, GOOGLE_PLAY_TV_DIMS,
     // Helper functions
-    get_apple_valid_dimensions, get_google_play_valid_dimensions,
+    get_apple_valid_dimensions,
+    get_google_play_valid_dimensions,
+    // Screenshot file validation
+    read_image_dimensions,
+    validate_apple_screenshot_file,
+    validate_feature_graphic_file,
+    validate_google_play_screenshot_file,
+    validate_localized_google_play_screenshots,
+    validate_localized_screenshots,
+    validate_screenshot_directory,
+    AppleValidator,
+    GooglePlayValidator,
+    Severity,
+    ValidationIssue,
+    ValidationResult,
+    // Apple dimension constants
+    APPLE_DEVICE_TYPES,
+    APPLE_IPAD_10_5_DIMS,
+    APPLE_IPAD_PRO_11_DIMS,
+    APPLE_IPAD_PRO_12_9_DIMS,
+    APPLE_IPHONE_5_5_DIMS,
+    APPLE_IPHONE_6_1_DIMS,
+    APPLE_IPHONE_6_5_DIMS,
+    APPLE_IPHONE_6_7_DIMS,
+    APPLE_TV_DIMS,
+    APPLE_WATCH_SERIES_9_DIMS,
+    // Google Play dimension constants
+    GOOGLE_PLAY_DEVICE_TYPES,
+    GOOGLE_PLAY_FEATURE_GRAPHIC_DIMS,
+    GOOGLE_PLAY_PHONE_DIMS,
+    GOOGLE_PLAY_SCREENSHOT_MAX,
+    GOOGLE_PLAY_SCREENSHOT_MIN,
+    GOOGLE_PLAY_TABLET_10_DIMS,
+    GOOGLE_PLAY_TABLET_7_DIMS,
+    GOOGLE_PLAY_TV_DIMS,
 };
 
 /// Result type alias for metadata operations.

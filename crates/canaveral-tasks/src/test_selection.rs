@@ -69,10 +69,7 @@ impl TestMap {
             _ => {} // Unknown type, fall back to full suite
         }
 
-        debug!(
-            mappings = map.source_to_tests.len(),
-            "test map built"
-        );
+        debug!(mappings = map.source_to_tests.len(), "test map built");
         map
     }
 
@@ -120,7 +117,10 @@ impl TestMap {
 
                 for test_entry in test_entries.flatten() {
                     if let Ok(content) = std::fs::read_to_string(&test_entry) {
-                        let relative_test = test_entry.strip_prefix(dir).unwrap_or(&test_entry).to_path_buf();
+                        let relative_test = test_entry
+                            .strip_prefix(dir)
+                            .unwrap_or(&test_entry)
+                            .to_path_buf();
 
                         for cap in use_re.captures_iter(&content) {
                             if let Some(module_name) = cap.get(1) {
@@ -181,7 +181,10 @@ impl TestMap {
         for test_path in &test_files {
             if let Ok(content) = std::fs::read_to_string(test_path) {
                 let test_dir_path = test_path.parent().unwrap_or(dir);
-                let relative_test = test_path.strip_prefix(dir).unwrap_or(test_path).to_path_buf();
+                let relative_test = test_path
+                    .strip_prefix(dir)
+                    .unwrap_or(test_path)
+                    .to_path_buf();
 
                 for cap in import_re.captures_iter(&content) {
                     let import_path = cap
@@ -194,7 +197,8 @@ impl TestMap {
                     if import_path.starts_with('.') {
                         let resolved = test_dir_path.join(import_path);
                         // Try common extensions
-                        let extensions = ["", ".js", ".ts", ".tsx", ".jsx", "/index.js", "/index.ts"];
+                        let extensions =
+                            ["", ".js", ".ts", ".tsx", ".jsx", "/index.js", "/index.ts"];
                         for ext in &extensions {
                             let candidate = PathBuf::from(format!("{}{}", resolved.display(), ext));
                             if candidate.exists() {
@@ -235,7 +239,10 @@ impl TestMap {
         // For each test file, find its imports
         for test_path in &test_files {
             if let Ok(content) = std::fs::read_to_string(test_path) {
-                let relative_test = test_path.strip_prefix(dir).unwrap_or(test_path).to_path_buf();
+                let relative_test = test_path
+                    .strip_prefix(dir)
+                    .unwrap_or(test_path)
+                    .to_path_buf();
 
                 for cap in import_re.captures_iter(&content) {
                     let module = cap
@@ -276,7 +283,7 @@ impl TestSelector {
     pub fn select(
         packages: &[(String, PathBuf, String)], // (name, path, type)
         changed_files: &HashMap<String, Vec<PathBuf>>, // package -> changed files
-        dependency_changes: &HashSet<String>, // packages changed via dependencies
+        dependency_changes: &HashSet<String>,   // packages changed via dependencies
     ) -> Vec<SelectedTest> {
         info!(
             packages = packages.len(),
@@ -348,10 +355,7 @@ impl TestSelector {
 
 /// Check if a file is a test file based on naming conventions
 fn is_test_file(path: &Path, package_type: &str) -> bool {
-    let name = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
     let path_str = path.to_string_lossy();
 
     match package_type {
@@ -372,7 +376,10 @@ mod tests {
 
     #[test]
     fn test_selection_reason_display() {
-        assert_eq!(SelectionReason::DirectChange.to_string(), "file changed directly");
+        assert_eq!(
+            SelectionReason::DirectChange.to_string(),
+            "file changed directly"
+        );
         assert_eq!(
             SelectionReason::PackageDependency("core".to_string()).to_string(),
             "dependency 'core' changed"
@@ -390,10 +397,7 @@ mod tests {
     fn test_is_test_file_js() {
         assert!(is_test_file(Path::new("src/app.test.js"), "npm"));
         assert!(is_test_file(Path::new("src/app.spec.ts"), "npm"));
-        assert!(is_test_file(
-            Path::new("__tests__/app.js"),
-            "npm"
-        ));
+        assert!(is_test_file(Path::new("__tests__/app.js"), "npm"));
         assert!(!is_test_file(Path::new("src/app.js"), "npm"));
     }
 

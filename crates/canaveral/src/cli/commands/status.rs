@@ -4,9 +4,9 @@ use clap::Args;
 use console::style;
 use tracing::info;
 
+use canaveral_adapters::detect_packages;
 use canaveral_core::config::load_config_or_default;
 use canaveral_git::GitRepo;
-use canaveral_adapters::detect_packages;
 
 use crate::cli::{Cli, OutputFormat};
 

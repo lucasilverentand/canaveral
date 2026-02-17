@@ -113,10 +113,12 @@ impl Orchestrator {
         }
 
         // Execute build with retry logic
-        let artifacts = self.execute_with_retry(
-            || async { adapter.build(ctx).await },
-            self.config.max_retries,
-        ).await?;
+        let artifacts = self
+            .execute_with_retry(
+                || async { adapter.build(ctx).await },
+                self.config.max_retries,
+            )
+            .await?;
 
         // Verify artifacts exist
         for artifact in &artifacts {
@@ -222,11 +224,13 @@ impl Orchestrator {
         let frameworks: Vec<_> = result
             .build
             .iter()
-            .map(|d| serde_json::json!({
-                "id": d.adapter_id,
-                "name": d.adapter_name,
-                "confidence": d.detection.confidence()
-            }))
+            .map(|d| {
+                serde_json::json!({
+                    "id": d.adapter_id,
+                    "name": d.adapter_name,
+                    "confidence": d.detection.confidence()
+                })
+            })
             .collect();
 
         output = output.with_metadata("frameworks", serde_json::json!(frameworks));

@@ -123,7 +123,8 @@ impl ChangeDetector {
                     for dep in &directly_changed {
                         if dependents.contains(dep) {
                             // This package depends on a changed package
-                            let affected_pkg = packages.iter().find(|p| p.name == pkg.name).unwrap();
+                            let affected_pkg =
+                                packages.iter().find(|p| p.name == pkg.name).unwrap();
                             changed.insert(
                                 pkg.name.clone(),
                                 ChangedPackage {
@@ -164,10 +165,7 @@ impl ChangeDetector {
 
             // Find the package that contains this file
             for pkg in packages {
-                let pkg_relative_path = pkg
-                    .path
-                    .strip_prefix(&self.root)
-                    .unwrap_or(&pkg.path);
+                let pkg_relative_path = pkg.path.strip_prefix(&self.root).unwrap_or(&pkg.path);
 
                 if relative_file.starts_with(pkg_relative_path) {
                     mappings.push((relative_file.clone(), pkg.name.clone()));
@@ -197,9 +195,9 @@ impl ChangeDetector {
             cmd.args(["ls-files"]);
         }
 
-        let output = cmd.output().map_err(|e| {
-            crate::error::GitError::OpenFailed(format!("Failed to run git: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .map_err(|e| crate::error::GitError::OpenFailed(format!("Failed to run git: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -234,9 +232,9 @@ impl ChangeDetector {
             cmd.arg(format!("--match={}", pattern));
         }
 
-        let output = cmd.output().map_err(|e| {
-            crate::error::GitError::OpenFailed(format!("Failed to run git: {}", e))
-        })?;
+        let output = cmd
+            .output()
+            .map_err(|e| crate::error::GitError::OpenFailed(format!("Failed to run git: {}", e)))?;
 
         let from_ref = if output.status.success() {
             let tag = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -383,7 +381,9 @@ mod tests {
 
         let changed_files = vec![PathBuf::from("packages/pkg-a/src/index.js")];
 
-        let changes = detector.detect_changes(&packages, &changed_files, None).unwrap();
+        let changes = detector
+            .detect_changes(&packages, &changed_files, None)
+            .unwrap();
 
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].name, "pkg-a");

@@ -47,10 +47,7 @@ impl GitRepo {
             }
         })?;
 
-        let path = repo
-            .workdir()
-            .unwrap_or_else(|| repo.path())
-            .to_path_buf();
+        let path = repo.workdir().unwrap_or_else(|| repo.path()).to_path_buf();
 
         Ok(Self { repo, path })
     }

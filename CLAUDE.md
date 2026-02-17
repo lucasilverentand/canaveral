@@ -74,6 +74,21 @@ The vision is to cover the full lifecycle of a deployable:
 - Config structs derive `Serialize, Deserialize, Debug, Clone`
 - CLI structs derive `Parser` (clap)
 
+## Development workflow
+
+Before committing:
+- `canaveral fmt` — format all code (or `--check` to verify)
+- `canaveral lint` — run clippy with `-D warnings`
+- `canaveral check` — run fmt check + lint + test in one command
+
+Before pushing:
+- `canaveral check` must pass
+
+Commit messages follow Conventional Commits: `type(scope): description`
+Valid types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+
+Git hooks enforce these rules automatically. Never use `--no-verify`.
+
 ## File layout conventions
 
 - Each crate's `src/lib.rs` re-exports the public API

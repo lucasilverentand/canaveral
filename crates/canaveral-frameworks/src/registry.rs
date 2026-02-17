@@ -11,9 +11,7 @@ use tracing::{debug, info, instrument, warn};
 
 use crate::detection::DetectionResult;
 use crate::error::{FrameworkError, Result};
-use crate::traits::{
-    BuildAdapter, DistributeAdapter, OtaAdapter, ScreenshotAdapter, TestAdapter,
-};
+use crate::traits::{BuildAdapter, DistributeAdapter, OtaAdapter, ScreenshotAdapter, TestAdapter};
 
 /// Registry of framework adapters
 pub struct FrameworkRegistry {
@@ -282,7 +280,10 @@ impl FrameworkRegistry {
 
     /// Get all distribution adapter IDs
     pub fn distribute_adapter_ids(&self) -> Vec<&str> {
-        self.distribute_adapters.keys().map(|s| s.as_str()).collect()
+        self.distribute_adapters
+            .keys()
+            .map(|s| s.as_str())
+            .collect()
     }
 
     // -------------------------------------------------------------------------

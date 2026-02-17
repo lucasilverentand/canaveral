@@ -123,7 +123,7 @@ impl OrchestratorConfig {
 
         // Override from env vars
         if let Ok(v) = std::env::var("CANAVERAL_OUTPUT_FORMAT") {
-            if let Some(fmt) = OutputFormat::from_str(&v) {
+            if let Some(fmt) = OutputFormat::parse(&v) {
                 config.output_format = fmt;
             }
         }

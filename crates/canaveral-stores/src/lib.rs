@@ -63,9 +63,7 @@ pub use traits::StoreAdapter;
 pub use types::*;
 
 // Re-export registry types
-pub use registries::{
-    CratesIoConfig, CratesIoRegistry, NpmConfig, NpmRegistry, TagSupport,
-};
+pub use registries::{CratesIoConfig, CratesIoRegistry, NpmConfig, NpmRegistry, TagSupport};
 
 // Re-export metadata integration types when feature is enabled
 #[cfg(feature = "metadata")]

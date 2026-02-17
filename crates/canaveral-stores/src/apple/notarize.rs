@@ -112,13 +112,13 @@ impl Notarizer {
         }
 
         // Parse JSON output for submission ID
-        let json: serde_json::Value = serde_json::from_str(&stdout)
-            .map_err(|e| StoreError::NotarizationFailed(format!("Failed to parse response: {}", e)))?;
+        let json: serde_json::Value = serde_json::from_str(&stdout).map_err(|e| {
+            StoreError::NotarizationFailed(format!("Failed to parse response: {}", e))
+        })?;
 
-        let submission_id = json
-            .get("id")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| StoreError::NotarizationFailed("No submission ID in response".to_string()))?;
+        let submission_id = json.get("id").and_then(|v| v.as_str()).ok_or_else(|| {
+            StoreError::NotarizationFailed("No submission ID in response".to_string())
+        })?;
 
         info!("Notarization submitted: {}", submission_id);
         Ok(submission_id.to_string())
@@ -148,8 +148,9 @@ impl Notarizer {
             )));
         }
 
-        let json: serde_json::Value = serde_json::from_str(&stdout)
-            .map_err(|e| StoreError::NotarizationFailed(format!("Failed to parse response: {}", e)))?;
+        let json: serde_json::Value = serde_json::from_str(&stdout).map_err(|e| {
+            StoreError::NotarizationFailed(format!("Failed to parse response: {}", e))
+        })?;
 
         let status_str = json
             .get("status")
@@ -315,8 +316,9 @@ impl Notarizer {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let json: serde_json::Value = serde_json::from_str(&stdout)
-            .map_err(|e| StoreError::NotarizationFailed(format!("Failed to parse response: {}", e)))?;
+        let json: serde_json::Value = serde_json::from_str(&stdout).map_err(|e| {
+            StoreError::NotarizationFailed(format!("Failed to parse response: {}", e))
+        })?;
 
         let mut results = Vec::new();
 
