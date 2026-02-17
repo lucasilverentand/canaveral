@@ -7,6 +7,7 @@ use tracing::info;
 use canaveral_core::config::load_config_or_default;
 use canaveral_core::templates::{CITemplateRegistry, TemplateOptions};
 
+use super::RunCommand;
 use crate::cli::{Cli, OutputFormat};
 
 /// CI/CD pipeline management
@@ -115,6 +116,11 @@ impl CIGenerateCommand {
         // Detect package type
         if let Some(pkg_type) = canaveral_core::templates::detect_package_type(&cwd) {
             options = options.with_package_type(&pkg_type);
+            if pkg_type == "npm" {
+                if let Some(pm) = canaveral_core::templates::detect_package_manager(&cwd) {
+                    options = options.with_package_manager(pm);
+                }
+            }
         }
 
         if self.native {
@@ -187,16 +193,16 @@ impl CIRunCommand {
         let (config, _) = load_config_or_default(&cwd);
 
         let tasks_to_run = match self.event.as_str() {
-            "pull_request" | "pr" => &config.ci.on_pr,
-            "push" => &config.ci.on_push_main,
-            "tag" => &config.ci.on_tag,
+            "pull_request" | "pr" => config.ci.on_pr.clone(),
+            "push" => config.ci.on_push_main.clone(),
+            "tag" => config.ci.on_tag.clone(),
             other => anyhow::bail!(
                 "Unknown CI event: {}. Use pull_request, push, or tag.",
                 other
             ),
         };
 
-        if !cli.quiet {
+        if !cli.quiet && cli.format == OutputFormat::Text {
             println!(
                 "{} CI pipeline for event: {}",
                 style("→").blue(),
@@ -212,28 +218,24 @@ impl CIRunCommand {
             println!();
         }
 
-        // In a full implementation, this would invoke the task scheduler
-        // For now, display the plan
-        if cli.format == OutputFormat::Json {
-            let plan = serde_json::json!({
-                "event": self.event,
-                "tasks": tasks_to_run,
-                "affected": self.affected,
-                "base": self.base,
-                "dry_run": self.dry_run,
-            });
-            println!("{}", serde_json::to_string_pretty(&plan)?);
-        } else if !cli.quiet {
-            for task in tasks_to_run {
-                println!("  {} {}", style("▸").dim(), task);
+        if tasks_to_run.is_empty() {
+            if !cli.quiet && cli.format == OutputFormat::Text {
+                println!("{} No tasks configured for this event.", style("✓").green());
             }
-            println!();
-            println!(
-                "{} Run {} to execute these tasks across the workspace.",
-                style("→").blue(),
-                style(format!("canaveral run {}", tasks_to_run.join(" "))).cyan()
-            );
+            return Ok(());
         }
+
+        let run_cmd = RunCommand {
+            tasks: tasks_to_run,
+            affected: self.affected,
+            base: self.base.clone(),
+            filter: Vec::new(),
+            concurrency: None,
+            dry_run: self.dry_run,
+            continue_on_error: false,
+            no_cache: false,
+        };
+        run_cmd.execute(cli)?;
 
         Ok(())
     }
@@ -335,6 +337,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install Canaveral
         run: cargo install canaveral

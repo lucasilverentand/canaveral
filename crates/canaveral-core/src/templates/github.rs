@@ -19,16 +19,30 @@ impl GitHubActionsTemplate {
         match options.package_type.as_deref() {
             Some("npm") => {
                 let node_version = options.node_version.as_deref().unwrap_or("20");
+                let package_manager = options.package_manager.as_deref().unwrap_or("npm");
+                let cache_block = match package_manager {
+                    "pnpm" => "          cache: 'pnpm'\n",
+                    "yarn" => "          cache: 'yarn'\n",
+                    _ => "          cache: 'npm'\n",
+                };
+                let install_command = match package_manager {
+                    "pnpm" => "pnpm install --frozen-lockfile",
+                    "yarn" => "yarn install --immutable",
+                    "bun" => "bun install --frozen-lockfile",
+                    _ => "npm ci",
+                };
                 format!(
                     r#"      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '{}'
-          cache: 'npm'
+{cache_block}
 
       - name: Install dependencies
-        run: npm ci"#,
-                    node_version
+        run: {install_command}"#,
+                    node_version,
+                    cache_block = cache_block.trim_end(),
+                    install_command = install_command
                 )
             }
             Some("cargo") => {
@@ -98,12 +112,29 @@ impl GitHubActionsTemplate {
     /// Generate the test step based on package type
     fn generate_test_step(&self, options: &TemplateOptions) -> String {
         match options.package_type.as_deref() {
-            Some("npm") => r#"      - name: Run tests
-        run: npm test
+            Some("npm") => {
+                let package_manager = options.package_manager.as_deref().unwrap_or("npm");
+                let test_command = match package_manager {
+                    "pnpm" => "pnpm test",
+                    "yarn" => "yarn test",
+                    "bun" => "bun run test",
+                    _ => "npm test",
+                };
+                let lint_command = match package_manager {
+                    "pnpm" => "pnpm run lint",
+                    "yarn" => "yarn lint",
+                    "bun" => "bun run lint",
+                    _ => "npm run lint",
+                };
+
+                format!(
+                    r#"      - name: Run tests
+        run: {test_command}
 
       - name: Run linting
-        run: npm run lint"#
-                .to_string(),
+        run: {lint_command}"#
+                )
+            }
             Some("cargo") => r#"      - name: Run tests
         run: cargo test
 
@@ -140,11 +171,22 @@ impl GitHubActionsTemplate {
     /// Generate the publish step based on package type
     fn generate_publish_step(&self, options: &TemplateOptions) -> String {
         match options.package_type.as_deref() {
-            Some("npm") => r#"      - name: Publish to npm
-        run: npm publish
+            Some("npm") => {
+                let package_manager = options.package_manager.as_deref().unwrap_or("npm");
+                let publish_command = match package_manager {
+                    "pnpm" => "pnpm publish --no-git-checks",
+                    "yarn" => "yarn npm publish",
+                    "bun" => "bun publish",
+                    _ => "npm publish",
+                };
+
+                format!(
+                    r#"      - name: Publish to npm
+        run: {publish_command}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}"#
-                .to_string(),
+          NODE_AUTH_TOKEN: ${{{{ secrets.NPM_TOKEN }}}}"#
+                )
+            }
             Some("cargo") => r#"      - name: Publish to crates.io
         run: cargo publish
         env:
@@ -258,6 +300,9 @@ jobs:"#
           token: ${{{{ secrets.GITHUB_TOKEN }}}}
 
 {setup_step}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install Canaveral
         run: cargo install canaveral

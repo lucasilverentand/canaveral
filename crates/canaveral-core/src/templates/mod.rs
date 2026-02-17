@@ -7,6 +7,7 @@
 //! - Azure Pipelines
 
 use std::path::Path;
+use std::str::FromStr;
 
 use crate::error::Result;
 
@@ -25,6 +26,8 @@ pub struct TemplateOptions {
     pub project_name: Option<String>,
     /// Package manager type
     pub package_type: Option<String>,
+    /// JavaScript package manager (npm, pnpm, yarn, bun)
+    pub package_manager: Option<String>,
     /// Default branch name
     pub default_branch: String,
     /// Release branches (patterns)
@@ -74,6 +77,12 @@ impl TemplateOptions {
     /// Set the package type
     pub fn with_package_type(mut self, package_type: impl Into<String>) -> Self {
         self.package_type = Some(package_type.into());
+        self
+    }
+
+    /// Set the package manager
+    pub fn with_package_manager(mut self, package_manager: impl Into<String>) -> Self {
+        self.package_manager = Some(package_manager.into());
         self
     }
 
@@ -133,6 +142,38 @@ pub fn detect_package_type(path: &Path) -> Option<String> {
     } else {
         None
     }
+}
+
+/// Detect JavaScript package manager from package metadata and lockfiles
+pub fn detect_package_manager(path: &Path) -> Option<String> {
+    let package_json_path = path.join("package.json");
+    if !package_json_path.exists() {
+        return None;
+    }
+
+    if let Ok(content) = std::fs::read_to_string(&package_json_path) {
+        if let Ok(value) = serde_json::Value::from_str(&content) {
+            if let Some(manager) = value
+                .get("packageManager")
+                .and_then(|v| v.as_str())
+                .and_then(|raw| raw.split('@').next())
+            {
+                return Some(manager.to_string());
+            }
+        }
+    }
+
+    if path.join("pnpm-lock.yaml").exists() {
+        return Some("pnpm".to_string());
+    }
+    if path.join("yarn.lock").exists() {
+        return Some("yarn".to_string());
+    }
+    if path.join("bun.lockb").exists() || path.join("bun.lock").exists() {
+        return Some("bun".to_string());
+    }
+
+    Some("npm".to_string())
 }
 
 #[cfg(test)]

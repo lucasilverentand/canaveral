@@ -111,7 +111,8 @@ impl RunCommand {
         packages.sort_by_key(|p| sorted.iter().position(|s| s == p).unwrap_or(usize::MAX));
 
         // Build pipeline from config or defaults
-        let pipeline = build_pipeline(&config.tasks.pipeline, &self.tasks);
+        let package_manager = detect_package_manager(&cwd);
+        let pipeline = build_pipeline(&config.tasks.pipeline, &self.tasks, &package_manager);
 
         // Build the task DAG
         let dag = TaskDag::build(&graph, &pipeline, &self.tasks, &packages)
@@ -255,6 +256,7 @@ impl RunCommand {
 fn build_pipeline(
     config_pipeline: &HashMap<String, canaveral_core::config::PipelineTask>,
     target_tasks: &[String],
+    package_manager: &str,
 ) -> HashMap<String, TaskDefinition> {
     let mut pipeline = HashMap::new();
 
@@ -272,9 +274,14 @@ fn build_pipeline(
         } else {
             // Create default definition for unconfigured tasks
             let def = match task_name.as_str() {
-                "build" => TaskDefinition::new("build").with_depends_on_packages(true),
-                "test" => TaskDefinition::new("test").with_depends_on("build"),
-                "lint" => TaskDefinition::new("lint"),
+                "build" => TaskDefinition::new("build")
+                    .with_command(default_task_command(package_manager, "build"))
+                    .with_depends_on_packages(true),
+                "test" => TaskDefinition::new("test")
+                    .with_command(default_task_command(package_manager, "test"))
+                    .with_depends_on("build"),
+                "lint" => TaskDefinition::new("lint")
+                    .with_command(default_task_command(package_manager, "lint")),
                 _ => TaskDefinition::new(task_name),
             };
             pipeline.insert(task_name.clone(), def);
@@ -282,6 +289,46 @@ fn build_pipeline(
     }
 
     pipeline
+}
+
+fn detect_package_manager(root: &std::path::Path) -> String {
+    let package_json_path = root.join("package.json");
+    if package_json_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&package_json_path) {
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(pm) = value
+                    .get("packageManager")
+                    .and_then(|v| v.as_str())
+                    .and_then(|raw| raw.split('@').next())
+                {
+                    return pm.to_string();
+                }
+            }
+        }
+    }
+
+    if root.join("pnpm-lock.yaml").exists() {
+        "pnpm".to_string()
+    } else if root.join("yarn.lock").exists() {
+        "yarn".to_string()
+    } else if root.join("bun.lockb").exists() || root.join("bun.lock").exists() {
+        "bun".to_string()
+    } else {
+        "npm".to_string()
+    }
+}
+
+fn default_task_command(package_manager: &str, task: &str) -> String {
+    match (package_manager, task) {
+        ("npm", "test") => "npm test".to_string(),
+        ("npm", _) => format!("npm run {task}"),
+        ("pnpm", "test") => "pnpm test".to_string(),
+        ("pnpm", _) => format!("pnpm run {task}"),
+        ("yarn", _) => format!("yarn {task}"),
+        ("bun", _) => format!("bun run {task}"),
+        (_, "test") => "npm test".to_string(),
+        _ => format!("npm run {task}"),
+    }
 }
 
 /// Console reporter with live output

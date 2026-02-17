@@ -18,6 +18,14 @@ pub use manifest::PackageJson;
 /// npm package adapter
 pub struct NpmAdapter;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum JsPackageManager {
+    Npm,
+    Pnpm,
+    Yarn,
+    Bun,
+}
+
 impl NpmAdapter {
     /// Create a new npm adapter
     pub fn new() -> Self {
@@ -32,6 +40,92 @@ impl NpmAdapter {
     /// Check if package name is scoped (@scope/name)
     fn is_scoped_package(&self, name: &str) -> bool {
         name.starts_with('@')
+    }
+
+    fn detect_package_manager(&self, path: &Path) -> JsPackageManager {
+        let manifest = PackageJson::load(&self.manifest_path(path)).ok();
+        if let Some(manager) = manifest
+            .as_ref()
+            .and_then(|m| m.other.get("packageManager"))
+            .and_then(|v| v.as_str())
+            .and_then(|raw| raw.split('@').next())
+        {
+            return match manager {
+                "pnpm" => JsPackageManager::Pnpm,
+                "yarn" => JsPackageManager::Yarn,
+                "bun" => JsPackageManager::Bun,
+                _ => JsPackageManager::Npm,
+            };
+        }
+
+        if path.join("pnpm-lock.yaml").exists() {
+            JsPackageManager::Pnpm
+        } else if path.join("yarn.lock").exists() {
+            JsPackageManager::Yarn
+        } else if path.join("bun.lockb").exists() || path.join("bun.lock").exists() {
+            JsPackageManager::Bun
+        } else {
+            JsPackageManager::Npm
+        }
+    }
+
+    fn publish_command(&self, manager: JsPackageManager) -> (String, Vec<String>) {
+        match manager {
+            JsPackageManager::Npm => ("npm".to_string(), vec!["publish".to_string()]),
+            JsPackageManager::Pnpm => ("pnpm".to_string(), vec!["publish".to_string()]),
+            JsPackageManager::Yarn => (
+                "yarn".to_string(),
+                vec!["npm".to_string(), "publish".to_string()],
+            ),
+            JsPackageManager::Bun => ("bun".to_string(), vec!["publish".to_string()]),
+        }
+    }
+
+    fn run_script_command(
+        &self,
+        manager: JsPackageManager,
+        script: &str,
+        special_test: bool,
+    ) -> (String, Vec<String>) {
+        match manager {
+            JsPackageManager::Npm => {
+                if special_test {
+                    ("npm".to_string(), vec!["test".to_string()])
+                } else {
+                    (
+                        "npm".to_string(),
+                        vec!["run".to_string(), script.to_string()],
+                    )
+                }
+            }
+            JsPackageManager::Pnpm => {
+                if special_test {
+                    ("pnpm".to_string(), vec!["test".to_string()])
+                } else {
+                    (
+                        "pnpm".to_string(),
+                        vec!["run".to_string(), script.to_string()],
+                    )
+                }
+            }
+            JsPackageManager::Yarn => ("yarn".to_string(), vec![script.to_string()]),
+            JsPackageManager::Bun => (
+                "bun".to_string(),
+                vec!["run".to_string(), script.to_string()],
+            ),
+        }
+    }
+
+    fn pack_command(&self, manager: JsPackageManager) -> (String, Vec<String>) {
+        match manager {
+            JsPackageManager::Npm => ("npm".to_string(), vec!["pack".to_string()]),
+            JsPackageManager::Pnpm => ("pnpm".to_string(), vec!["pack".to_string()]),
+            JsPackageManager::Yarn => ("yarn".to_string(), vec!["pack".to_string()]),
+            JsPackageManager::Bun => (
+                "bun".to_string(),
+                vec!["pm".to_string(), "pack".to_string()],
+            ),
+        }
     }
 }
 
@@ -90,8 +184,10 @@ impl PackageAdapter for NpmAdapter {
 
     fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
         info!(adapter = "npm", path = %path.display(), dry_run = options.dry_run, "publishing package");
-        let mut cmd = Command::new("npm");
-        cmd.arg("publish");
+        let manager = self.detect_package_manager(path);
+        let (command, base_args) = self.publish_command(manager);
+        let mut cmd = Command::new(&command);
+        cmd.args(&base_args);
         cmd.current_dir(path);
 
         if options.dry_run {
@@ -125,7 +221,7 @@ impl PackageAdapter for NpmAdapter {
         }
 
         let output = cmd.output().map_err(|e| AdapterError::CommandFailed {
-            command: "npm publish".to_string(),
+            command: format!("{} {}", command, base_args.join(" ")),
             reason: e.to_string(),
         })?;
 
@@ -216,6 +312,7 @@ impl PackageAdapter for NpmAdapter {
 
     fn fmt(&self, path: &Path, check: bool) -> Result<()> {
         let manifest = PackageJson::load(&self.manifest_path(path))?;
+        let manager = self.detect_package_manager(path);
         let script = if check { "format:check" } else { "format" };
 
         // Try format/format:check first, fall back to prettier
@@ -224,19 +321,20 @@ impl PackageAdapter for NpmAdapter {
             .as_ref()
             .is_some_and(|s| s.contains_key(script))
         {
-            let output = Command::new("npm")
-                .args(["run", script])
+            let (command, args) = self.run_script_command(manager, script, false);
+            let output = Command::new(&command)
+                .args(&args)
                 .current_dir(path)
                 .output()
                 .map_err(|e| AdapterError::CommandFailed {
-                    command: format!("npm run {}", script),
+                    command: format!("{} {}", command, args.join(" ")),
                     reason: e.to_string(),
                 })?;
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(AdapterError::CommandFailed {
-                    command: format!("npm run {}", script),
+                    command: format!("{} {}", command, args.join(" ")),
                     reason: stderr.to_string(),
                 }
                 .into());
@@ -248,25 +346,27 @@ impl PackageAdapter for NpmAdapter {
 
     fn lint(&self, path: &Path) -> Result<()> {
         let manifest = PackageJson::load(&self.manifest_path(path))?;
+        let manager = self.detect_package_manager(path);
 
         if manifest
             .scripts
             .as_ref()
             .is_some_and(|s| s.contains_key("lint"))
         {
-            let output = Command::new("npm")
-                .args(["run", "lint"])
+            let (command, args) = self.run_script_command(manager, "lint", false);
+            let output = Command::new(&command)
+                .args(&args)
                 .current_dir(path)
                 .output()
                 .map_err(|e| AdapterError::CommandFailed {
-                    command: "npm run lint".to_string(),
+                    command: format!("{} {}", command, args.join(" ")),
                     reason: e.to_string(),
                 })?;
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(AdapterError::CommandFailed {
-                    command: "npm run lint".to_string(),
+                    command: format!("{} {}", command, args.join(" ")),
                     reason: stderr.to_string(),
                 }
                 .into());
@@ -279,25 +379,27 @@ impl PackageAdapter for NpmAdapter {
     fn build(&self, path: &Path) -> Result<()> {
         // Check if there's a build script
         let manifest = PackageJson::load(&self.manifest_path(path))?;
+        let manager = self.detect_package_manager(path);
 
         if manifest
             .scripts
             .as_ref()
             .is_some_and(|s| s.contains_key("build"))
         {
-            let output = Command::new("npm")
-                .args(["run", "build"])
+            let (command, args) = self.run_script_command(manager, "build", false);
+            let output = Command::new(&command)
+                .args(&args)
                 .current_dir(path)
                 .output()
                 .map_err(|e| AdapterError::CommandFailed {
-                    command: "npm run build".to_string(),
+                    command: format!("{} {}", command, args.join(" ")),
                     reason: e.to_string(),
                 })?;
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(AdapterError::CommandFailed {
-                    command: "npm run build".to_string(),
+                    command: format!("{} {}", command, args.join(" ")),
                     reason: stderr.to_string(),
                 }
                 .into());
@@ -309,25 +411,27 @@ impl PackageAdapter for NpmAdapter {
 
     fn test(&self, path: &Path) -> Result<()> {
         let manifest = PackageJson::load(&self.manifest_path(path))?;
+        let manager = self.detect_package_manager(path);
 
         if manifest
             .scripts
             .as_ref()
             .is_some_and(|s| s.contains_key("test"))
         {
-            let output = Command::new("npm")
-                .args(["test"])
+            let (command, args) = self.run_script_command(manager, "test", true);
+            let output = Command::new(&command)
+                .args(&args)
                 .current_dir(path)
                 .output()
                 .map_err(|e| AdapterError::CommandFailed {
-                    command: "npm test".to_string(),
+                    command: format!("{} {}", command, args.join(" ")),
                     reason: e.to_string(),
                 })?;
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(AdapterError::CommandFailed {
-                    command: "npm test".to_string(),
+                    command: format!("{} {}", command, args.join(" ")),
                     reason: stderr.to_string(),
                 }
                 .into());
@@ -358,19 +462,21 @@ impl PackageAdapter for NpmAdapter {
     }
 
     fn pack(&self, path: &Path) -> Result<Option<PathBuf>> {
-        let output = Command::new("npm")
-            .args(["pack"])
+        let manager = self.detect_package_manager(path);
+        let (command, args) = self.pack_command(manager);
+        let output = Command::new(&command)
+            .args(&args)
             .current_dir(path)
             .output()
             .map_err(|e| AdapterError::CommandFailed {
-                command: "npm pack".to_string(),
+                command: format!("{} {}", command, args.join(" ")),
                 reason: e.to_string(),
             })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(AdapterError::CommandFailed {
-                command: "npm pack".to_string(),
+                command: format!("{} {}", command, args.join(" ")),
                 reason: stderr.to_string(),
             }
             .into());

@@ -3,8 +3,10 @@
 use clap::Args;
 use console::style;
 use dialoguer::Confirm;
+use std::process::Command;
 use tracing::info;
 
+use canaveral_adapters::AdapterRegistry;
 use canaveral_changelog::ChangelogGenerator;
 use canaveral_changelog::{CommitParser, ConventionalParser};
 use canaveral_core::config::load_config_or_default;
@@ -70,6 +72,8 @@ impl ReleaseCommand {
         );
         let cwd = std::env::current_dir()?;
         let (config, config_path) = load_config_or_default(&cwd);
+        let adapter_registry = AdapterRegistry::new();
+        let adapter = adapter_registry.detect(&cwd);
 
         if config_path.is_none() && !cli.quiet {
             println!(
@@ -100,10 +104,14 @@ impl ReleaseCommand {
 
         // Find current version
         let latest_tag = repo.find_latest_tag(None)?;
-        let current_version = latest_tag
+        let tag_version = latest_tag
             .as_ref()
             .and_then(|t| t.version.clone())
             .unwrap_or_else(|| "0.0.0".to_string());
+        let current_version = adapter
+            .as_ref()
+            .and_then(|a| a.get_version(&cwd).ok())
+            .unwrap_or(tag_version);
 
         // Determine next version
         let next_version = if let Some(v) = &self.as_version {
@@ -208,7 +216,32 @@ impl ReleaseCommand {
         };
 
         let workflow = ReleaseWorkflow::new(&config, options);
-        let result = workflow.execute()?;
+        let mut result = workflow.execute()?;
+        result.previous_version = Some(current_version.clone());
+        result.new_version = next_version.clone();
+        result.tag = tag.clone();
+
+        // Update package version via detected adapter
+        if let Some(adapter) = &adapter {
+            if !self.dry_run {
+                adapter.set_version(&cwd, &next_version)?;
+                if !cli.quiet {
+                    println!(
+                        "{} Updated {} version to {}",
+                        style("✓").green(),
+                        style(adapter.name()).cyan(),
+                        style(&next_version).green()
+                    );
+                }
+            } else if !cli.quiet {
+                println!(
+                    "{} Would update {} version to {}",
+                    style("→").blue(),
+                    style(adapter.name()).cyan(),
+                    style(&next_version).green()
+                );
+            }
+        }
 
         // Generate changelog if not skipped
         if !self.no_changelog && config.changelog.enabled {
@@ -241,8 +274,85 @@ impl ReleaseCommand {
             }
         }
 
+        // Publish package using detected adapter
+        let mut published = false;
+        if !self.no_publish {
+            if let Some(adapter) = &adapter {
+                let validation = adapter.validate_publishable(&cwd)?;
+                if !validation.passed {
+                    anyhow::bail!(
+                        "Publish validation failed:\n{}",
+                        validation.errors.join("\n")
+                    );
+                }
+
+                if !cli.quiet {
+                    for warning in &validation.warnings {
+                        println!("{} {}", style("!").yellow(), warning);
+                    }
+                }
+
+                if !self.dry_run {
+                    adapter.publish(&cwd, false)?;
+                    published = true;
+                    if !cli.quiet {
+                        println!(
+                            "{} Published package via {}",
+                            style("✓").green(),
+                            style(adapter.name()).cyan()
+                        );
+                    }
+                } else if !cli.quiet {
+                    println!(
+                        "{} Would publish package via {}",
+                        style("→").blue(),
+                        style(adapter.name()).cyan()
+                    );
+                }
+            } else if !cli.quiet {
+                println!(
+                    "{} No publish adapter detected in {}, skipping publish.",
+                    style("!").yellow(),
+                    style(cwd.display()).dim()
+                );
+            }
+        }
+        result.published = published;
+
         // Git operations
         if !self.no_git && !self.dry_run {
+            if !repo.is_clean()? {
+                let commit_message = config
+                    .git
+                    .commit_message
+                    .replace("{version}", &next_version);
+                let add_output = Command::new("git")
+                    .args(["add", "-A"])
+                    .current_dir(&cwd)
+                    .output()?;
+                if !add_output.status.success() {
+                    anyhow::bail!(
+                        "Failed to stage release changes: {}",
+                        String::from_utf8_lossy(&add_output.stderr)
+                    );
+                }
+
+                let commit_output = Command::new("git")
+                    .args(["commit", "-m", &commit_message])
+                    .current_dir(&cwd)
+                    .output()?;
+                if !commit_output.status.success() {
+                    anyhow::bail!(
+                        "Failed to commit release changes: {}",
+                        String::from_utf8_lossy(&commit_output.stderr)
+                    );
+                }
+
+                if !cli.quiet {
+                    println!("{} Committed release changes", style("✓").green());
+                }
+            }
+
             // Create tag
             repo.create_tag(&tag, Some(&format!("Release {}", next_version)))?;
 

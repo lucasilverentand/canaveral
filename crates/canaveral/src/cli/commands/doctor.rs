@@ -392,6 +392,59 @@ impl DoctorCommand {
             }
         }
 
+        // JavaScript package managers
+        for (name, cmd, args, install_hint) in [
+            (
+                "npm",
+                "npm",
+                vec!["--version"],
+                "Install Node.js (includes npm)",
+            ),
+            (
+                "pnpm",
+                "pnpm",
+                vec!["--version"],
+                "Run 'npm install -g pnpm'",
+            ),
+            (
+                "yarn",
+                "yarn",
+                vec!["--version"],
+                "Run 'corepack enable && corepack prepare yarn@stable --activate'",
+            ),
+            (
+                "bun",
+                "bun",
+                vec!["--version"],
+                "Install Bun from https://bun.sh",
+            ),
+        ] {
+            match get_command_version(cmd, &args) {
+                Some(version) => {
+                    results.push(CheckResult {
+                        name: format!("{name} package manager"),
+                        status: CheckStatus::Ok,
+                        message: Some(version),
+                        version: None,
+                        fix_suggestion: None,
+                    });
+                }
+                None => {
+                    results.push(CheckResult {
+                        name: format!("{name} package manager"),
+                        status: if name == "npm" {
+                            CheckStatus::Fail
+                        } else {
+                            CheckStatus::Skip
+                        },
+                        message: Some("Not installed".to_string()),
+                        version: None,
+                        fix_suggestion: Some(install_hint.to_string()),
+                    });
+                }
+            }
+        }
+
         results
     }
 
@@ -657,6 +710,55 @@ impl DoctorCommand {
 
     fn check_stores(&self) -> Vec<CheckResult> {
         let mut results = Vec::new();
+
+        // npm registry auth
+        let npm_token = std::env::var("NPM_TOKEN").ok();
+        if npm_token.as_ref().is_some_and(|t| !t.trim().is_empty()) {
+            results.push(CheckResult {
+                name: "npm token".to_string(),
+                status: CheckStatus::Ok,
+                message: Some("NPM_TOKEN is set".to_string()),
+                version: None,
+                fix_suggestion: None,
+            });
+        } else {
+            results.push(CheckResult {
+                name: "npm token".to_string(),
+                status: CheckStatus::Warn,
+                message: Some("NPM_TOKEN is not set".to_string()),
+                version: None,
+                fix_suggestion: Some(
+                    "Set NPM_TOKEN for CI publishing (or rely on npm login for local publishes)"
+                        .to_string(),
+                ),
+            });
+        }
+
+        if which::which("npm").is_ok() {
+            match Command::new("npm").args(["whoami"]).output() {
+                Ok(output) if output.status.success() => {
+                    let user = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    results.push(CheckResult {
+                        name: "npm auth".to_string(),
+                        status: CheckStatus::Ok,
+                        message: Some(format!("Logged in as {}", user)),
+                        version: None,
+                        fix_suggestion: None,
+                    });
+                }
+                _ => {
+                    results.push(CheckResult {
+                        name: "npm auth".to_string(),
+                        status: CheckStatus::Warn,
+                        message: Some("Not authenticated".to_string()),
+                        version: None,
+                        fix_suggestion: Some(
+                            "Run 'npm login' for local publish checks".to_string(),
+                        ),
+                    });
+                }
+            }
+        }
 
         // App Store Connect
         let asc_key_id = std::env::var("APP_STORE_CONNECT_API_KEY_ID").ok();
