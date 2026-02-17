@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 use console::style;
-use dialoguer::{Confirm, Select};
+use dialoguer::Confirm;
 use tracing::info;
 
 use canaveral_core::config::defaults::{DEFAULT_CONFIG_TOML, DEFAULT_CONFIG_TEMPLATE};
@@ -60,45 +60,14 @@ impl InitCommand {
             }
         }
 
-        // Choose format if not specified
-        let format = if self.yes {
-            "toml"
-        } else {
-            let formats = vec!["toml", "yaml"];
-            let selection = Select::new()
-                .with_prompt("Configuration format")
-                .items(&formats)
-                .default(0)
-                .interact()?;
-            formats[selection]
-        };
-
-        // Adjust path for format
-        let config_path = if format == "yaml" && config_path.extension().is_some_and(|e| e == "toml") {
-            config_path.with_extension("yaml")
-        } else {
-            config_path
-        };
-
         // Generate config
-        let content = if format == "yaml" {
-            // Convert TOML template to YAML
-            let config: canaveral_core::config::Config =
-                toml::from_str(DEFAULT_CONFIG_TEMPLATE)?;
-            serde_yaml::to_string(&config)?
-        } else {
-            DEFAULT_CONFIG_TEMPLATE.to_string()
-        };
+        let content = DEFAULT_CONFIG_TEMPLATE.to_string();
 
         // Write config
         std::fs::write(&config_path, &content)?;
 
         // Auto-install git hooks if configured
-        let parsed_config: canaveral_core::config::Config = if format == "toml" {
-            toml::from_str(&content)?
-        } else {
-            serde_yaml::from_str(&content)?
-        };
+        let parsed_config: canaveral_core::config::Config = toml::from_str(&content)?;
         if parsed_config.git_hooks.auto_install {
             if let Ok(repo_root) = find_git_root(&cwd) {
                 match canaveral_git::hooks::install_all(&repo_root) {
