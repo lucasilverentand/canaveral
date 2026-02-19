@@ -174,6 +174,7 @@ See [docs/architecture/configuration.md](docs/architecture/configuration.md) for
 
 ```bash
 canaveral init                   # Create a canaveral.toml config
+canaveral scaffold [--list]      # Scaffold a starter project from templates
 canaveral status                 # Show repo status, current version, pending changes
 canaveral validate               # Validate config and repo state
 canaveral doctor                 # Check environment for required tools

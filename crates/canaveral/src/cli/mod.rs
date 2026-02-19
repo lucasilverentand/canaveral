@@ -10,8 +10,8 @@ use commands::{
     BuildCommand, CICommand, CacheCommand, ChangelogCommand, CheckCommand, CompletionsCommand,
     DoctorCommand, FirebaseCommand, FmtCommand, HooksCommand, InitCommand, LintCommand,
     MatchCommand, MetadataCommand, PrCommand, PublishCommand, ReleaseCommand, RunCommand,
-    ScreenshotsCommand, SigningCommand, StatusCommand, TestCommand, TestFlightCommand,
-    ToolsCommand, ValidateCommand, VersionCommand,
+    ScaffoldCommand, ScreenshotsCommand, SigningCommand, StatusCommand, TestCommand,
+    TestFlightCommand, ToolsCommand, ValidateCommand, VersionCommand,
 };
 
 /// Canaveral - Universal release management CLI
@@ -55,6 +55,9 @@ pub enum OutputFormat {
 pub enum Commands {
     /// Initialize a new Canaveral configuration
     Init(InitCommand),
+
+    /// Scaffold a starter project (Astro, Expo, Hono, etc.)
+    Scaffold(ScaffoldCommand),
 
     /// Calculate the next version
     Version(VersionCommand),
@@ -144,6 +147,7 @@ impl Cli {
 
         let command_name = match &self.command {
             Commands::Init(_) => "init",
+            Commands::Scaffold(_) => "scaffold",
             Commands::Version(_) => "version",
             Commands::Changelog(_) => "changelog",
             Commands::Release(_) => "release",
@@ -179,6 +183,7 @@ impl Cli {
 
         match self.command {
             Commands::Init(ref cmd) => cmd.execute(&self),
+            Commands::Scaffold(ref cmd) => cmd.execute(&self),
             Commands::Version(ref cmd) => cmd.execute(&self),
             Commands::Changelog(ref cmd) => cmd.execute(&self),
             Commands::Release(ref cmd) => cmd.execute(&self),
