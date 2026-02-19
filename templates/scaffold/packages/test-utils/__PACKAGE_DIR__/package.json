@@ -1,0 +1,12 @@
+{
+  "name": "@{{project_slug}}/test-utils",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "echo build test-utils",
+    "dev": "echo dev test-utils",
+    "test": "echo test test-utils"
+  }
+}

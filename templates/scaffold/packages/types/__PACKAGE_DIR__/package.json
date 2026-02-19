@@ -1,0 +1,12 @@
+{
+  "name": "@{{project_slug}}/types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "echo build types",
+    "dev": "echo dev types",
+    "test": "echo test types"
+  }
+}

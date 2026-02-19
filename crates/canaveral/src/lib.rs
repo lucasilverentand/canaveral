@@ -2,6 +2,7 @@
 
 pub mod cli;
 pub mod exit_codes;
+pub mod scaffold;
 
 use clap::Parser;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};

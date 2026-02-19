@@ -1,0 +1,12 @@
+{
+  "name": "@{{project_slug}}/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "echo build db",
+    "dev": "echo dev db",
+    "test": "echo test db"
+  }
+}

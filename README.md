@@ -174,11 +174,21 @@ See [docs/architecture/configuration.md](docs/architecture/configuration.md) for
 
 ```bash
 canaveral init                   # Create a canaveral.toml config
-canaveral scaffold [--list]      # Scaffold a starter project from templates
+canaveral scaffold new           # Create a new scaffolded project
+canaveral scaffold add api       # Add a block to an existing scaffold
+canaveral scaffold list          # List presets and block types
 canaveral status                 # Show repo status, current version, pending changes
 canaveral validate               # Validate config and repo state
 canaveral doctor                 # Check environment for required tools
 ```
+
+### Scaffold migration
+
+| Old command | New command |
+|------|-------|
+| `canaveral scaffold astro` | `canaveral scaffold new --preset fullstack` |
+| `canaveral scaffold --list` | `canaveral scaffold list` |
+| _n/a_ | `canaveral scaffold add <api|dashboard|web|expo|ios|android>` |
 
 ### Versioning and releases
 
