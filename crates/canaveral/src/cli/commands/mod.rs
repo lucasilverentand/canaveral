@@ -24,6 +24,7 @@ mod signing_team;
 mod status;
 mod test;
 mod testflight;
+mod tools;
 mod validate;
 mod version;
 
@@ -50,5 +51,6 @@ pub use signing::SigningCommand;
 pub use status::StatusCommand;
 pub use test::TestCommand;
 pub use testflight::TestFlightCommand;
+pub use tools::ToolsCommand;
 pub use validate::ValidateCommand;
 pub use version::VersionCommand;

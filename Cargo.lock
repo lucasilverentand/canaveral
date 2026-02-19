@@ -411,6 +411,7 @@ dependencies = [
  "canaveral-stores",
  "canaveral-strategies",
  "canaveral-tasks",
+ "canaveral-tools",
  "chrono",
  "clap",
  "clap_complete",
@@ -422,6 +423,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -473,6 +475,7 @@ dependencies = [
  "anyhow",
  "canaveral-stores",
  "chrono",
+ "dirs",
  "git2",
  "glob",
  "globset",
@@ -627,6 +630,23 @@ dependencies = [
  "tokio",
  "tracing",
  "walkdir",
+]
+
+[[package]]
+name = "canaveral-tools"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "canaveral-core",
+ "dirs",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "which 7.0.3",
 ]
 
 [[package]]

@@ -116,6 +116,9 @@ path = "crates/canaveral-tasks"
 type = "cargo"
 publish = true
 
+[tools]
+rust = "1.75"
+
 [publish]
 enabled = true
 dry_run = false

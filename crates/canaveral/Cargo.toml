@@ -32,6 +32,7 @@ canaveral-stores = { workspace = true }
 canaveral-metadata = { workspace = true, features = ["sync"] }
 canaveral-frameworks = { workspace = true }
 canaveral-tasks = { workspace = true }
+canaveral-tools = { workspace = true }
 
 clap = { workspace = true }
 clap_complete = { workspace = true }
@@ -52,6 +53,7 @@ which = { workspace = true }
 semver = { workspace = true }
 dirs = { workspace = true }
 chrono = { workspace = true }
+sha2 = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

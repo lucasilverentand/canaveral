@@ -12,6 +12,7 @@ members = [
     "crates/canaveral-metadata",
     "crates/canaveral-frameworks",
     "crates/canaveral-tasks",
+    "crates/canaveral-tools",
 ]
 
 [workspace.package]
@@ -33,6 +34,7 @@ canaveral-stores = { path = "crates/canaveral-stores" }
 canaveral-metadata = { path = "crates/canaveral-metadata" }
 canaveral-frameworks = { path = "crates/canaveral-frameworks" }
 canaveral-tasks = { path = "crates/canaveral-tasks" }
+canaveral-tools = { path = "crates/canaveral-tools" }
 
 # CLI
 clap = { version = "4", features = ["derive", "env"] }

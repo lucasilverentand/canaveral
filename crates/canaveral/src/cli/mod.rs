@@ -11,7 +11,7 @@ use commands::{
     DoctorCommand, FirebaseCommand, FmtCommand, HooksCommand, InitCommand, LintCommand,
     MatchCommand, MetadataCommand, PrCommand, PublishCommand, ReleaseCommand, RunCommand,
     ScreenshotsCommand, SigningCommand, StatusCommand, TestCommand, TestFlightCommand,
-    ValidateCommand, VersionCommand,
+    ToolsCommand, ValidateCommand, VersionCommand,
 };
 
 /// Canaveral - Universal release management CLI
@@ -128,6 +128,9 @@ pub enum Commands {
 
     /// Git hook management (install, uninstall, run, status)
     Hooks(HooksCommand),
+
+    /// Manage tool versions (bun, node, etc.)
+    Tools(ToolsCommand),
 }
 
 impl Cli {
@@ -165,6 +168,7 @@ impl Cli {
             Commands::CI(_) => "ci",
             Commands::Pr(_) => "pr",
             Commands::Hooks(_) => "hooks",
+            Commands::Tools(_) => "tools",
         };
         info!(
             command = command_name,
@@ -199,6 +203,7 @@ impl Cli {
             Commands::CI(ref cmd) => cmd.execute(&self),
             Commands::Pr(ref cmd) => cmd.execute(&self),
             Commands::Hooks(ref cmd) => cmd.execute(&self),
+            Commands::Tools(ref cmd) => cmd.execute(&self),
         }
     }
 }

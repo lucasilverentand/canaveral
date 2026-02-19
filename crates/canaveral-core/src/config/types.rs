@@ -67,6 +67,10 @@ pub struct Config {
     /// Git hooks configuration (commit-msg, pre-commit, pre-push)
     #[serde(default)]
     pub git_hooks: GitHooksConfig,
+
+    /// Tool version pinning (mise/asdf-style)
+    #[serde(default)]
+    pub tools: ToolsConfig,
 }
 
 /// Versioning configuration
@@ -918,6 +922,82 @@ impl Default for ReleaseNotesConfig {
     }
 }
 
+/// Tool version specification — either a simple version string or detailed config
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ToolVersionSpec {
+    /// Simple version string, e.g. `"1.2"`
+    Version(String),
+    /// Detailed config with optional install method
+    Detailed(DetailedToolSpec),
+}
+
+/// Detailed tool specification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetailedToolSpec {
+    /// Tool version
+    pub version: String,
+
+    /// How to install the tool (e.g. "mise", "brew", "cargo")
+    #[serde(default)]
+    pub install_method: Option<String>,
+}
+
+fn default_tools_cache_dir() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".canaveral/tools")
+}
+
+fn default_max_age_days() -> u64 {
+    30
+}
+
+/// Cache configuration for installed tools
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolsCacheConfig {
+    /// Cache directory (default: ~/.canaveral/tools)
+    #[serde(default = "default_tools_cache_dir")]
+    pub dir: PathBuf,
+    /// Auto-prune versions not used in this many days (default: 30)
+    #[serde(default = "default_max_age_days")]
+    pub max_age_days: u64,
+    /// Optional max cache size (e.g. "10GB", "500MB")
+    #[serde(default)]
+    pub max_size: Option<String>,
+}
+
+impl Default for ToolsCacheConfig {
+    fn default() -> Self {
+        Self {
+            dir: default_tools_cache_dir(),
+            max_age_days: default_max_age_days(),
+            max_size: None,
+        }
+    }
+}
+
+/// Tool version pinning configuration
+///
+/// ```toml
+/// [tools]
+/// bun = "1.2"
+/// node = "22"
+/// rust = { version = "1.75", install_method = "rustup" }
+///
+/// [tools.cache]
+/// dir = "~/.canaveral/tools"
+/// max_age_days = 30
+/// max_size = "10GB"
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ToolsConfig {
+    #[serde(default)]
+    pub cache: ToolsCacheConfig,
+    #[serde(flatten)]
+    pub tools: HashMap<String, ToolVersionSpec>,
+}
+
 /// Git hooks configuration (commit-msg, pre-commit, pre-push validation)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -1005,5 +1085,86 @@ mod tests {
         let config = Config::default();
         let yaml = serde_yaml::to_string(&config).unwrap();
         assert!(yaml.contains("strategy: semver"));
+    }
+
+    #[test]
+    fn test_tools_config_simple_versions() {
+        let toml = r#"
+[tools]
+bun = "1.2"
+node = "22"
+rust = "1.75"
+"#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert!(matches!(
+            config.tools.tools.get("bun"),
+            Some(ToolVersionSpec::Version(v)) if v == "1.2"
+        ));
+        assert!(matches!(
+            config.tools.tools.get("node"),
+            Some(ToolVersionSpec::Version(v)) if v == "22"
+        ));
+        assert!(matches!(
+            config.tools.tools.get("rust"),
+            Some(ToolVersionSpec::Version(v)) if v == "1.75"
+        ));
+    }
+
+    #[test]
+    fn test_tools_config_detailed_spec() {
+        let toml = r#"
+[tools]
+rust = { version = "1.75", install_method = "rustup" }
+node = { version = "22" }
+"#;
+        let config: Config = toml::from_str(toml).unwrap();
+        match config.tools.tools.get("rust") {
+            Some(ToolVersionSpec::Detailed(spec)) => {
+                assert_eq!(spec.version, "1.75");
+                assert_eq!(spec.install_method.as_deref(), Some("rustup"));
+            }
+            other => panic!("expected Detailed, got {:?}", other),
+        }
+        match config.tools.tools.get("node") {
+            Some(ToolVersionSpec::Detailed(spec)) => {
+                assert_eq!(spec.version, "22");
+                assert!(spec.install_method.is_none());
+            }
+            other => panic!("expected Detailed, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_tools_config_mixed() {
+        let toml = r#"
+[tools]
+bun = "1.2"
+rust = { version = "1.75", install_method = "rustup" }
+go = "1.22"
+python = "3.12"
+"#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert_eq!(config.tools.tools.len(), 4);
+        assert!(matches!(
+            config.tools.tools.get("bun"),
+            Some(ToolVersionSpec::Version(_))
+        ));
+        assert!(matches!(
+            config.tools.tools.get("rust"),
+            Some(ToolVersionSpec::Detailed(_))
+        ));
+    }
+
+    #[test]
+    fn test_tools_config_default_is_empty() {
+        let config = Config::default();
+        assert!(config.tools.tools.is_empty());
+    }
+
+    #[test]
+    fn test_tools_config_absent_section() {
+        let toml = r#"name = "my-project""#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert!(config.tools.tools.is_empty());
     }
 }
