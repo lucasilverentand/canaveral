@@ -941,6 +941,10 @@ pub struct DetailedToolSpec {
     /// How to install the tool (e.g. "mise", "brew", "cargo")
     #[serde(default)]
     pub install_method: Option<String>,
+
+    /// Explicit aqua registry source as "owner/repo" (e.g. "BurntSushi/ripgrep")
+    #[serde(default)]
+    pub source: Option<String>,
 }
 
 fn default_tools_cache_dir() -> PathBuf {

@@ -63,7 +63,7 @@ struct ToolInstallJson {
 impl ToolsCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
         info!("executing tools command");
-        let rt = tokio::runtime::Handle::current();
+        let rt = tokio::runtime::Runtime::new()?;
         match &self.subcommand {
             None | Some(ToolsSubcommand::Status) => rt.block_on(self.run_status(cli)),
             Some(ToolsSubcommand::Install { name }) => {

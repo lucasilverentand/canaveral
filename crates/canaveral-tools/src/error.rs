@@ -18,6 +18,21 @@ pub enum ToolError {
     DetectionFailed(String),
     #[error("unsupported platform for tool '{0}'")]
     UnsupportedPlatform(String),
+    #[error("registry fetch failed for '{tool}': {reason}")]
+    RegistryFetchFailed { tool: String, reason: String },
+    #[error("checksum mismatch for {tool} {version}: expected {expected}, got {actual}")]
+    ChecksumMismatch {
+        tool: String,
+        version: String,
+        expected: String,
+        actual: String,
+    },
+    #[error("extraction failed for {tool} {version}: {reason}")]
+    ExtractionFailed {
+        tool: String,
+        version: String,
+        reason: String,
+    },
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]

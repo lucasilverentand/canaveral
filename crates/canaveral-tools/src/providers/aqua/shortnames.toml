@@ -1,0 +1,77 @@
+# Common tool shortnames → owner/repo mappings
+# Loaded at compile time via include_str!
+
+[tools]
+# JavaScript / TypeScript
+bun = "oven-sh/bun"
+deno = "denoland/deno"
+biome = "biomejs/biome"
+
+# Rust ecosystem
+ripgrep = "BurntSushi/ripgrep"
+rg = "BurntSushi/ripgrep"
+fd = "sharkdp/fd"
+bat = "sharkdp/bat"
+hyperfine = "sharkdp/hyperfine"
+tokei = "XAMPPRocky/tokei"
+just = "casey/just"
+cargo-binstall = "cargo-bins/cargo-binstall"
+cargo-watch = "watchexec/cargo-watch"
+watchexec = "watchexec/watchexec"
+cross = "cross-rs/cross"
+cargo-nextest = "nextest-rs/nextest"
+cargo-release = "crate-ci/cargo-release"
+cargo-deny = "EmbarkStudios/cargo-deny"
+cargo-audit = "rustsec/rustsec"
+typos = "crate-ci/typos"
+
+# Git tools
+delta = "dandavison/delta"
+gh = "cli/cli"
+glab = "gitlab-org/cli"
+lazygit = "jesseduffield/lazygit"
+gitui = "extrawurst/gitui"
+git-cliff = "orhun/git-cliff"
+
+# General CLI tools
+jq = "jqlang/jq"
+yq = "mikefarah/yq"
+fzf = "junegunn/fzf"
+eza = "eza-community/eza"
+zoxide = "ajeetdsouza/zoxide"
+starship = "starship/starship"
+atuin = "atuinsh/atuin"
+direnv = "direnv/direnv"
+mise = "jdx/mise"
+
+# DevOps / Infrastructure
+kubectl = "kubernetes/kubernetes"
+helm = "helm/helm"
+k9s = "derailed/k9s"
+terraform = "hashicorp/terraform"
+trivy = "aquasecurity/trivy"
+cosign = "sigstore/cosign"
+act = "nektos/act"
+task = "go-task/task"
+
+# Build / CI
+goreleaser = "goreleaser/goreleaser"
+actionlint = "rhysd/actionlint"
+shellcheck = "koalaman/shellcheck"
+shfmt = "mvdan/sh"
+
+# Networking / HTTP
+curlie = "rs/curlie"
+xh = "ducaale/xh"
+mkcert = "FiloSottile/mkcert"
+
+# Database tools
+usql = "xo/usql"
+
+# Container
+dive = "wagoodman/dive"
+lazydocker = "jesseduffield/lazydocker"
+
+# Editors / Formatters
+taplo = "tamasfe/taplo"
+prettier = "nicolo-ribaudo/prettier-compiled"

@@ -7,7 +7,7 @@ use tracing::debug;
 
 use crate::cache::ToolCache;
 use crate::error::ToolError;
-use crate::providers::{BunProvider, NodeProvider, NpmProvider};
+use crate::providers::{AquaProvider, BunProvider, NodeProvider, NpmProvider};
 use crate::traits::{ToolInfo, ToolProvider};
 
 /// Registry of available tool providers
@@ -46,15 +46,36 @@ impl ToolRegistry {
         self.providers.insert(id, provider);
     }
 
-    /// Get a provider by tool name
+    /// Get a provider by tool name.
+    ///
+    /// Falls back to the aqua registry shortnames index when no builtin
+    /// provider is registered for the given name.
     pub fn get(&self, name: &str) -> Option<Arc<dyn ToolProvider>> {
-        let result = self.providers.get(name).cloned();
-        debug!(
-            tool = name,
-            found = result.is_some(),
-            "tool provider lookup"
-        );
-        result
+        if let Some(provider) = self.providers.get(name).cloned() {
+            debug!(tool = name, "tool provider lookup: builtin");
+            return Some(provider);
+        }
+
+        // Fallback: try aqua registry
+        if let Some(aqua) = AquaProvider::from_shortname(name) {
+            debug!(tool = name, "tool provider lookup: aqua shortname");
+            return Some(Arc::new(aqua));
+        }
+
+        debug!(tool = name, "tool provider lookup: not found");
+        None
+    }
+
+    /// Get a provider by tool name with an explicit `source` override.
+    ///
+    /// When the user specifies `source = "owner/repo"` in the config,
+    /// this creates an aqua provider pointing at that repo directly.
+    pub fn get_with_source(&self, name: &str, source: &str) -> Arc<dyn ToolProvider> {
+        // Builtins take priority even if source is specified
+        if let Some(provider) = self.providers.get(name).cloned() {
+            return provider;
+        }
+        Arc::new(AquaProvider::from_source(name, source))
     }
 
     /// Get all registered providers

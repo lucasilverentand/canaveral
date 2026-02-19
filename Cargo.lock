@@ -640,13 +640,22 @@ dependencies = [
  "async-trait",
  "canaveral-core",
  "dirs",
+ "flate2",
+ "regex",
+ "reqwest",
+ "semver",
  "serde",
  "serde_json",
+ "serde_yaml",
+ "sha2",
+ "tar",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
+ "toml 0.8.23",
  "tracing",
  "which 7.0.3",
+ "zip",
 ]
 
 [[package]]
