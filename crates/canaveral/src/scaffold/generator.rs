@@ -83,11 +83,7 @@ pub fn generate_block(
 
 fn generate_root(context: &ProjectContext, target_dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     let mut written = Vec::new();
-    let mut vars = base_vars(context);
-    vars.insert(
-        "workspace_packages".to_string(),
-        workspace_packages(context.package_manager),
-    );
+    let vars = base_vars(context);
 
     for file in [
         "root/package.json",
@@ -173,15 +169,16 @@ fn base_vars(context: &ProjectContext) -> HashMap<String, String> {
         .to_string(),
     );
     vars.insert(
+        "package_manager_spec".to_string(),
+        match context.package_manager {
+            PackageManager::Bun => "bun@1.0.0".to_string(),
+            PackageManager::Pnpm => "pnpm@9.0.0".to_string(),
+            PackageManager::Npm => "npm@10.0.0".to_string(),
+        },
+    );
+    vars.insert(
         "run_dev".to_string(),
         format!("{} dev", context.package_manager.run_prefix()),
     );
     vars
-}
-
-fn workspace_packages(pm: PackageManager) -> String {
-    match pm {
-        PackageManager::Npm => r#""workspaces": ["apps/*", "packages/*"],"#.to_string(),
-        PackageManager::Bun | PackageManager::Pnpm => String::new(),
-    }
 }

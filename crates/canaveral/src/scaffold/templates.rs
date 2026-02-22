@@ -11,18 +11,47 @@ pub fn template_root() -> anyhow::Result<PathBuf> {
         }
     }
 
-    let mut dir = std::env::current_dir()?;
+    if let Some(path) = find_from_ancestors(std::env::current_dir()?.as_path()) {
+        return Ok(path);
+    }
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(path) = find_from_ancestors(exe_path.as_path()) {
+            return Ok(path);
+        }
+    }
+
+    let manifest_based = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("..")
+        .join("templates")
+        .join("scaffold");
+    if manifest_based.exists() {
+        return Ok(manifest_based);
+    }
+
+    Err(ScaffoldError::TemplateRootNotFound.into())
+}
+
+fn find_from_ancestors(start: &Path) -> Option<PathBuf> {
+    let mut dir = if start.is_dir() {
+        start.to_path_buf()
+    } else {
+        start.parent()?.to_path_buf()
+    };
+
     loop {
         let candidate = dir.join("templates").join("scaffold");
         if candidate.exists() {
-            return Ok(candidate);
+            return Some(candidate);
         }
         if !dir.pop() {
             break;
         }
     }
 
-    Err(ScaffoldError::TemplateRootNotFound.into())
+    None
 }
 
 pub fn load_template(relative_path: &str) -> anyhow::Result<String> {

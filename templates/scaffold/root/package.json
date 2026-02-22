@@ -1,7 +1,11 @@
 {
   "name": "{{project_slug}}",
   "private": true,
-  {{workspace_packages}}
+  "packageManager": "{{package_manager_spec}}",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
