@@ -4,7 +4,7 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://anthropics.github.io',
+	site: 'https://lucasilverentand.github.io',
 	base: '/canaveral',
 	integrations: [
 		starlight({
@@ -19,10 +19,10 @@ export default defineConfig({
 				replacesTitle: false,
 			},
 			social: [
-				{ icon: 'github', label: 'GitHub', href: 'https://github.com/anthropics/canaveral' },
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/lucasilverentand/canaveral' },
 			],
 			editLink: {
-				baseUrl: 'https://github.com/anthropics/canaveral/edit/main/website/',
+				baseUrl: 'https://github.com/lucasilverentand/canaveral/edit/main/website/',
 			},
 			customCss: [
 				'./src/styles/custom.css',
@@ -32,7 +32,7 @@ export default defineConfig({
 					tag: 'meta',
 					attrs: {
 						property: 'og:image',
-						content: 'https://anthropics.github.io/canaveral/og-image.png',
+						content: 'https://lucasilverentand.github.io/canaveral/og-image.png',
 					},
 				},
 				{
@@ -51,11 +51,11 @@ export default defineConfig({
 						{ label: 'Installation', slug: 'getting-started/installation' },
 						{ label: 'Quick Start', slug: 'getting-started/quick-start' },
 						{ label: 'Configuration', slug: 'getting-started/configuration' },
+						{ label: 'Doctor', slug: 'commands/doctor' },
 					],
 				},
 				{
 					label: 'Frameworks',
-					collapsed: false,
 					items: [
 						{ label: 'Overview', slug: 'frameworks/overview' },
 						{ label: 'Flutter', slug: 'frameworks/flutter' },
@@ -67,28 +67,38 @@ export default defineConfig({
 					],
 				},
 				{
-					label: 'Commands',
-					collapsed: true,
+					label: 'Build & Test',
 					items: [
-						{ label: 'build', slug: 'commands/build' },
-						{ label: 'test', slug: 'commands/test' },
-						{ label: 'version', slug: 'commands/version' },
-						{ label: 'upload', slug: 'commands/upload' },
-						{ label: 'testflight', slug: 'commands/testflight' },
-						{ label: 'match', slug: 'commands/match' },
-						{ label: 'screenshots', slug: 'commands/screenshots' },
-						{ label: 'metadata', slug: 'commands/metadata' },
-						{ label: 'doctor', slug: 'commands/doctor' },
+						{ label: 'Building', slug: 'commands/build' },
+						{ label: 'Testing', slug: 'commands/test' },
+					],
+				},
+				{
+					label: 'Versioning',
+					items: [
+						{ label: 'Version', slug: 'commands/version' },
+						{ label: 'Changelog', slug: 'reference/changelog' },
+					],
+				},
+				{
+					label: 'Code Signing',
+					items: [
+						{ label: 'Overview', slug: 'signing/overview' },
+						{ label: 'iOS Certificates', slug: 'signing/ios-certificates' },
+						{ label: 'Android Keystore', slug: 'signing/android-keystore' },
+						{ label: 'Match (Sync)', slug: 'commands/match' },
 					],
 				},
 				{
 					label: 'Distribution',
-					collapsed: true,
 					items: [
+						{ label: 'Publish', slug: 'commands/upload' },
 						{ label: 'App Store Connect', slug: 'distribution/app-store' },
 						{ label: 'Google Play', slug: 'distribution/google-play' },
-						{ label: 'TestFlight', slug: 'distribution/testflight' },
+						{ label: 'TestFlight', slug: 'commands/testflight' },
 						{ label: 'Firebase App Distribution', slug: 'distribution/firebase' },
+						{ label: 'Metadata', slug: 'commands/metadata' },
+						{ label: 'Screenshots', slug: 'commands/screenshots' },
 					],
 				},
 				{
@@ -100,16 +110,6 @@ export default defineConfig({
 						{ label: 'GitLab CI', slug: 'ci-cd/gitlab-ci' },
 						{ label: 'Bitrise', slug: 'ci-cd/bitrise' },
 						{ label: 'CircleCI', slug: 'ci-cd/circleci' },
-					],
-				},
-				{
-					label: 'Code Signing',
-					collapsed: true,
-					items: [
-						{ label: 'Overview', slug: 'signing/overview' },
-						{ label: 'iOS Certificates', slug: 'signing/ios-certificates' },
-						{ label: 'Android Keystore', slug: 'signing/android-keystore' },
-						{ label: 'Match (Sync)', slug: 'signing/match' },
 					],
 				},
 				{
@@ -127,7 +127,6 @@ export default defineConfig({
 						{ label: 'Configuration File', slug: 'reference/configuration' },
 						{ label: 'Environment Variables', slug: 'reference/environment-variables' },
 						{ label: 'Exit Codes', slug: 'reference/exit-codes' },
-						{ label: 'Changelog', slug: 'reference/changelog' },
 					],
 				},
 			],

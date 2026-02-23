@@ -1,65 +1,47 @@
 ---
-// Features Section - "Mission Capabilities" (Bento Grid)
 import SectionHeader from './shared/SectionHeader.astro';
 
 const features = [
 	{
-		size: 'large',
-		icon: '🏗️',
-		title: 'Universal Build System',
-		description: 'One command builds any mobile app. Flutter, Expo, React Native, native iOS/Android - all with the same interface. Auto-detects your framework and applies the right build pipeline.',
-		highlight: true
+		title: 'Universal builds',
+		description: 'One command builds any app. Flutter, Expo, React Native, native iOS/Android, Tauri — same interface, auto-detected.',
 	},
 	{
-		size: 'medium',
-		icon: '🔐',
-		title: 'Match-Style Signing',
-		description: 'Certificates and profiles stored in encrypted git repos. Team members sync with one command. No more sharing p12 files over Slack.'
+		title: 'Smart test selection',
+		description: 'Only run tests covering changed code. Uses the dependency graph and file-level change detection.',
 	},
 	{
-		size: 'medium',
-		icon: '🚀',
-		title: 'TestFlight & Play Store',
-		description: 'Upload builds directly to TestFlight and Google Play. Manage internal testing, beta groups, and staged rollouts from CLI.'
+		title: 'Version management',
+		description: 'SemVer, CalVer, or build numbers from conventional commits. Monorepo-aware with independent or coordinated versioning.',
 	},
 	{
-		size: 'small',
-		icon: '⚡',
-		title: 'CI/CD Integration',
-		description: 'GitHub Actions, GitLab CI, Bitrise, CircleCI - works everywhere with zero config changes.'
+		title: 'Code signing',
+		description: 'Match-style certificate sync from encrypted git repos. Team members get signing working in one command.',
 	},
 	{
-		size: 'small',
-		icon: '📸',
-		title: 'Screenshots',
-		description: 'Automated screenshot capture across devices and locales for App Store and Play Store.'
+		title: 'Store distribution',
+		description: 'Publish to TestFlight, Google Play, App Store, npm, crates.io. Manage metadata, screenshots, and staged rollouts.',
 	},
 	{
-		size: 'small',
-		icon: '🔢',
-		title: 'Version Management',
-		description: 'Semantic versioning with automatic build number incrementing across platforms.'
-	}
+		title: 'CI/CD integration',
+		description: 'Generate thin CI configs that delegate to Canaveral. GitHub Actions, GitLab CI, Bitrise, CircleCI.',
+	},
 ];
 ---
 
-<section class="features-section" id="features">
+<section class="features-section">
 	<div class="container">
 		<SectionHeader
 			label="Features"
-			title="Mission Capabilities"
-			description="Everything you need to ship mobile apps with confidence."
+			title="Everything you need to ship"
+			description="From first build to production release, in a single toolchain."
 		/>
 
-		<div class="bento-grid">
-			{features.map((feature, index) => (
-				<div class:list={['bento-card', `bento-${feature.size}`, { 'bento-highlight': feature.highlight }]} style={`--delay: ${index * 0.1}s`}>
-					<div class="card-glow"></div>
-					<div class="card-content">
-						<div class="card-icon">{feature.icon}</div>
-						<h3 class="card-title">{feature.title}</h3>
-						<p class="card-description">{feature.description}</p>
-					</div>
+		<div class="features-grid">
+			{features.map((feature) => (
+				<div class="feature-card">
+					<h3 class="feature-title">{feature.title}</h3>
+					<p class="feature-desc">{feature.description}</p>
 				</div>
 			))}
 		</div>
@@ -70,208 +52,59 @@ const features = [
 	.features-section {
 		position: relative;
 		padding: 6rem 1.5rem;
-		background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%);
-		overflow: hidden;
-	}
-
-	.features-section::before {
-		content: '';
-		position: absolute;
-		inset: 0;
-		background:
-			radial-gradient(ellipse at 20% 30%, rgba(255, 107, 53, 0.06) 0%, transparent 40%),
-			radial-gradient(ellipse at 80% 70%, rgba(255, 179, 71, 0.04) 0%, transparent 40%);
-		pointer-events: none;
+		background: #09090b;
+		border-top: 1px solid var(--c-border);
 	}
 
 	.container {
-		max-width: 1200px;
+		max-width: 1000px;
 		margin: 0 auto;
-		position: relative;
-		z-index: 1;
 	}
 
-	/* Bento Grid Layout */
-	.bento-grid {
+	.features-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		grid-template-rows: auto auto auto;
-		gap: 1.5rem;
-	}
-
-	.bento-card {
-		position: relative;
-		padding: 2rem;
-		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 20px;
-		transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		gap: 1px;
+		background: var(--c-border);
+		border: 1px solid var(--c-border);
+		border-radius: 12px;
 		overflow: hidden;
-		opacity: 0;
-		animation: fadeSlideUp 0.5s ease forwards;
-		animation-delay: var(--delay);
 	}
 
-	@keyframes fadeSlideUp {
-		from {
-			opacity: 0;
-			transform: translateY(20px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
+	.feature-card {
+		padding: 2rem;
+		background: #09090b;
+		transition: background 0.15s ease;
 	}
 
-	/* Size variants */
-	.bento-large {
-		grid-column: span 2;
-		grid-row: span 2;
-		padding: 2.5rem;
+	.feature-card:hover {
+		background: rgba(255, 255, 255, 0.02);
 	}
 
-	.bento-medium {
-		grid-column: span 1;
-		grid-row: span 1;
-	}
-
-	.bento-small {
-		grid-column: span 1;
-		grid-row: span 1;
-	}
-
-	/* Highlight card */
-	.bento-highlight {
-		background: linear-gradient(135deg, rgba(255, 107, 53, 0.08) 0%, rgba(255, 179, 71, 0.04) 100%);
-		border-color: rgba(255, 107, 53, 0.2);
-	}
-
-	/* Glassmorphism glow */
-	.card-glow {
-		position: absolute;
-		inset: 0;
-		background: radial-gradient(circle at 50% 0%, rgba(255, 107, 53, 0.15) 0%, transparent 50%);
-		opacity: 0;
-		transition: opacity 0.4s ease;
-		pointer-events: none;
-	}
-
-	.bento-card:hover {
-		transform: translateY(-4px);
-		border-color: rgba(255, 107, 53, 0.3);
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-	}
-
-	.bento-card:hover .card-glow {
-		opacity: 1;
-	}
-
-	/* Card content */
-	.card-content {
-		position: relative;
-		z-index: 1;
-		height: 100%;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.card-icon {
-		font-size: 2.5rem;
-		margin-bottom: 1rem;
-	}
-
-	.bento-large .card-icon {
-		font-size: 3rem;
-	}
-
-	.card-title {
-		font-size: 1.25rem;
+	.feature-title {
+		font-size: 1rem;
 		font-weight: 600;
-		color: #e8e8f0;
-		margin: 0 0 0.75rem 0;
+		color: var(--c-text-primary);
+		margin: 0 0 0.625rem 0;
 	}
 
-	.bento-large .card-title {
-		font-size: 1.5rem;
-	}
-
-	.card-description {
-		font-size: 0.9rem;
-		color: #a8a8b8;
+	.feature-desc {
+		font-size: 0.85rem;
+		color: var(--c-text-muted);
 		line-height: 1.6;
 		margin: 0;
-		flex: 1;
 	}
 
-	.bento-large .card-description {
-		font-size: 1rem;
+	@media (max-width: 768px) {
+		.features-grid { grid-template-columns: repeat(2, 1fr); }
 	}
 
-	/* Responsive */
-	@media (max-width: 900px) {
-		.bento-grid {
-			grid-template-columns: repeat(2, 1fr);
-		}
-
-		.bento-large {
-			grid-column: span 2;
-			grid-row: span 1;
-		}
+	@media (max-width: 480px) {
+		.features-section { padding: 4rem 1rem; }
+		.features-grid { grid-template-columns: 1fr; }
 	}
 
-	@media (max-width: 600px) {
-		.features-section {
-			padding: 4rem 1rem;
-		}
-
-		.bento-grid {
-			grid-template-columns: 1fr;
-		}
-
-		.bento-large,
-		.bento-medium,
-		.bento-small {
-			grid-column: span 1;
-			grid-row: span 1;
-		}
-
-		.bento-card {
-			padding: 1.5rem;
-		}
-	}
-
-	/* Light theme */
-	:root[data-theme='light'] .features-section {
-		background: linear-gradient(180deg, #f8f6f4 0%, #fff5f0 100%);
-	}
-
-	:root[data-theme='light'] .features-section::before {
-		background:
-			radial-gradient(ellipse at 20% 30%, rgba(255, 107, 53, 0.04) 0%, transparent 40%),
-			radial-gradient(ellipse at 80% 70%, rgba(255, 179, 71, 0.03) 0%, transparent 40%);
-	}
-
-	:root[data-theme='light'] .bento-card {
-		background: rgba(255, 255, 255, 0.8);
-		border-color: rgba(0, 0, 0, 0.08);
-	}
-
-	:root[data-theme='light'] .bento-highlight {
-		background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 179, 71, 0.03) 100%);
-		border-color: rgba(224, 90, 43, 0.2);
-	}
-
-	:root[data-theme='light'] .bento-card:hover {
-		background: rgba(255, 255, 255, 0.95);
-		border-color: rgba(224, 90, 43, 0.3);
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-	}
-
-	:root[data-theme='light'] .card-title {
-		color: #1a1a2e;
-	}
-
-	:root[data-theme='light'] .card-description {
-		color: #666;
-	}
+	:root[data-theme='light'] .features-section { background: #fafafa; border-top-color: var(--c-border); }
+	:root[data-theme='light'] .feature-card { background: #fafafa; }
+	:root[data-theme='light'] .feature-card:hover { background: rgba(0, 0, 0, 0.01); }
 </style>
