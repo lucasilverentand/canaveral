@@ -11,7 +11,8 @@ use canaveral_signing::{
     SignOptions, VerifyOptions,
 };
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 use super::signing_team::TeamCommand;
 
@@ -179,6 +180,7 @@ impl SigningCommand {
 
 impl ListCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
@@ -224,53 +226,46 @@ impl ListCommand {
             identities
         };
 
-        match cli.format {
-            OutputFormat::Json => {
-                let output = serde_json::json!({
-                    "provider": provider.name(),
-                    "identities": identities
-                });
-                println!("{}", serde_json::to_string_pretty(&output)?);
-            }
-            OutputFormat::Text => {
-                println!(
-                    "{} ({})",
-                    style("Signing Identities").bold(),
-                    provider.name()
-                );
-                println!();
+        if ui.is_json() {
+            let output = serde_json::json!({
+                "provider": provider.name(),
+                "identities": identities
+            });
+            ui.json(&output)?;
+        } else if ui.is_text() {
+            ui.header(&format!("Signing Identities ({})", provider.name()));
+            ui.blank();
 
-                if identities.is_empty() {
-                    println!("  {}", style("No signing identities found").dim());
-                } else {
-                    for id in &identities {
-                        let status = if id.is_expired() {
-                            style("EXPIRED").red()
-                        } else if !id.is_valid {
-                            style("INVALID").red()
-                        } else if id.expires_within_days(30) {
-                            style("EXPIRING SOON").yellow()
-                        } else {
-                            style("VALID").green()
-                        };
+            if identities.is_empty() {
+                ui.hint("No signing identities found");
+            } else {
+                for id in &identities {
+                    let status = if id.is_expired() {
+                        style("EXPIRED").red()
+                    } else if !id.is_valid {
+                        style("INVALID").red()
+                    } else if id.expires_within_days(30) {
+                        style("EXPIRING SOON").yellow()
+                    } else {
+                        style("VALID").green()
+                    };
 
-                        println!("  {} [{}]", style(&id.name).cyan(), status);
+                    println!("  {} [{}]", style(&id.name).cyan(), status);
 
-                        if let Some(fp) = &id.fingerprint {
-                            let short_fp = if fp.len() > 16 { &fp[..16] } else { fp };
-                            println!("    Fingerprint: {}...", style(short_fp).dim());
-                        }
-
-                        if let Some(team) = &id.team_id {
-                            println!("    Team ID:     {}", team);
-                        }
-
-                        if let Some(exp) = id.expires_at {
-                            println!("    Expires:     {}", exp.format("%Y-%m-%d"));
-                        }
-
-                        println!();
+                    if let Some(fp) = &id.fingerprint {
+                        let short_fp = if fp.len() > 16 { &fp[..16] } else { fp };
+                        ui.key_value("    Fingerprint", &format!("{}...", style(short_fp).dim()));
                     }
+
+                    if let Some(team) = &id.team_id {
+                        ui.key_value("    Team ID", team);
+                    }
+
+                    if let Some(exp) = id.expires_at {
+                        ui.key_value("    Expires", &exp.format("%Y-%m-%d").to_string());
+                    }
+
+                    ui.blank();
                 }
             }
         }
@@ -392,23 +387,26 @@ impl SignCommand {
             ..Default::default()
         };
 
-        if !cli.quiet {
-            println!(
-                "{} {} with {}",
-                if self.dry_run {
-                    style("Would sign").yellow()
-                } else {
-                    style("Signing").cyan()
-                },
+        let ui = Ui::new(cli);
+
+        if self.dry_run {
+            ui.info(&format!(
+                "Would sign {} with {}",
                 style(self.artifact.display()).bold(),
                 style(&identity.name).green()
-            );
+            ));
+        } else {
+            ui.info(&format!(
+                "Signing {} with {}",
+                style(self.artifact.display()).bold(),
+                style(&identity.name).green()
+            ));
         }
 
         provider.sign(&self.artifact, &identity, &options).await?;
 
-        if !cli.quiet && !self.dry_run {
-            println!("{}", style("✓ Signed successfully").green().bold());
+        if !self.dry_run {
+            ui.success("Signed successfully");
         }
 
         Ok(())
@@ -417,6 +415,7 @@ impl SignCommand {
 
 impl VerifyCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
@@ -452,64 +451,63 @@ impl VerifyCommand {
 
         let info = provider.verify(&self.artifact, &options).await?;
 
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&info)?);
+        if ui.is_json() {
+            ui.json(&info)?;
+        } else if ui.is_text() {
+            ui.info(&format!(
+                "Verifying {}",
+                style(self.artifact.display()).bold()
+            ));
+            ui.blank();
+
+            let status_style = match info.status {
+                canaveral_signing::SignatureStatus::Valid => style("VALID").green().bold(),
+                canaveral_signing::SignatureStatus::Invalid => style("INVALID").red().bold(),
+                canaveral_signing::SignatureStatus::Expired => style("EXPIRED").yellow().bold(),
+                canaveral_signing::SignatureStatus::Revoked => style("REVOKED").red().bold(),
+                canaveral_signing::SignatureStatus::NotSigned => style("NOT SIGNED").dim(),
+                canaveral_signing::SignatureStatus::Unknown => style("UNKNOWN").yellow(),
+            };
+
+            ui.key_value_styled("Status", status_style);
+
+            if let Some(signer) = &info.signer {
+                ui.key_value("Signer", &style(&signer.common_name).cyan().to_string());
+                if let Some(team) = &signer.team_id {
+                    ui.key_value("Team", team);
+                }
             }
-            OutputFormat::Text => {
-                println!(
-                    "{} {}",
-                    style("Verifying").cyan(),
-                    style(self.artifact.display()).bold()
+
+            if let Some(signed_at) = info.signed_at {
+                ui.key_value(
+                    "Signed",
+                    &signed_at.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
                 );
-                println!();
+            }
 
-                let status_style = match info.status {
-                    canaveral_signing::SignatureStatus::Valid => style("VALID").green().bold(),
-                    canaveral_signing::SignatureStatus::Invalid => style("INVALID").red().bold(),
-                    canaveral_signing::SignatureStatus::Expired => style("EXPIRED").yellow().bold(),
-                    canaveral_signing::SignatureStatus::Revoked => style("REVOKED").red().bold(),
-                    canaveral_signing::SignatureStatus::NotSigned => style("NOT SIGNED").dim(),
-                    canaveral_signing::SignatureStatus::Unknown => style("UNKNOWN").yellow(),
+            if let Some(notarized) = info.notarized {
+                let notary_status = if notarized {
+                    style("Yes").green()
+                } else {
+                    style("No").yellow()
                 };
+                ui.key_value_styled("Notarized", notary_status);
+            }
 
-                println!("  Status: {}", status_style);
-
-                if let Some(signer) = &info.signer {
-                    println!("  Signer: {}", style(&signer.common_name).cyan());
-                    if let Some(team) = &signer.team_id {
-                        println!("  Team:   {}", team);
-                    }
+            if !info.warnings.is_empty() {
+                ui.blank();
+                ui.section("Warnings");
+                for warning in &info.warnings {
+                    ui.warning(warning);
                 }
+            }
 
-                if let Some(signed_at) = info.signed_at {
-                    println!("  Signed: {}", signed_at.format("%Y-%m-%d %H:%M:%S UTC"));
-                }
-
-                if let Some(notarized) = info.notarized {
-                    let notary_status = if notarized {
-                        style("Yes").green()
-                    } else {
-                        style("No").yellow()
-                    };
-                    println!("  Notarized: {}", notary_status);
-                }
-
-                if !info.warnings.is_empty() {
-                    println!();
-                    println!("  {}", style("Warnings:").yellow());
-                    for warning in &info.warnings {
-                        println!("    - {}", warning);
-                    }
-                }
-
-                if self.verbose {
-                    if let Some(details) = &info.details {
-                        println!();
-                        println!("  {}", style("Details:").dim());
-                        for line in details.lines().take(20) {
-                            println!("    {}", line);
-                        }
+            if self.verbose {
+                if let Some(details) = &info.details {
+                    ui.blank();
+                    ui.section("Details");
+                    for line in details.lines().take(20) {
+                        println!("    {}", line);
                     }
                 }
             }
@@ -526,6 +524,7 @@ impl VerifyCommand {
 
 impl InfoCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
@@ -554,77 +553,74 @@ impl InfoCommand {
         let provider = create_provider(provider_type)?;
         let identity = provider.find_identity(&self.identity).await?;
 
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&identity)?);
+        if ui.is_json() {
+            ui.json(&identity)?;
+        } else if ui.is_text() {
+            ui.header("Signing Identity");
+            ui.blank();
+            ui.key_value("Name", &style(&identity.name).cyan().to_string());
+            ui.key_value("Type", &identity.identity_type.to_string());
+            ui.key_value("ID", &identity.id);
+
+            if let Some(fp) = &identity.fingerprint {
+                ui.key_value("Fingerprint", fp);
             }
-            OutputFormat::Text => {
-                println!("{}", style("Signing Identity").bold());
-                println!();
-                println!("  Name:       {}", style(&identity.name).cyan());
-                println!("  Type:       {}", identity.identity_type);
-                println!("  ID:         {}", &identity.id);
 
-                if let Some(fp) = &identity.fingerprint {
-                    println!("  Fingerprint: {}", fp);
-                }
+            if let Some(team) = &identity.team_id {
+                ui.key_value("Team ID", team);
+            }
 
-                if let Some(team) = &identity.team_id {
-                    println!("  Team ID:    {}", team);
-                }
+            if let Some(subject) = &identity.subject {
+                ui.key_value("Subject", subject);
+            }
 
-                if let Some(subject) = &identity.subject {
-                    println!("  Subject:    {}", subject);
-                }
+            if let Some(issuer) = &identity.issuer {
+                ui.key_value("Issuer", issuer);
+            }
 
-                if let Some(issuer) = &identity.issuer {
-                    println!("  Issuer:     {}", issuer);
-                }
+            if let Some(serial) = &identity.serial_number {
+                ui.key_value("Serial", serial);
+            }
 
-                if let Some(serial) = &identity.serial_number {
-                    println!("  Serial:     {}", serial);
-                }
+            if let Some(created) = identity.created_at {
+                ui.key_value("Created", &created.format("%Y-%m-%d").to_string());
+            }
 
-                if let Some(created) = identity.created_at {
-                    println!("  Created:    {}", created.format("%Y-%m-%d"));
-                }
-
-                if let Some(expires) = identity.expires_at {
-                    let days_left = identity.days_until_expiration().unwrap_or(0);
-                    let exp_style = if days_left < 0 {
-                        style(format!("{} (EXPIRED)", expires.format("%Y-%m-%d"))).red()
-                    } else if days_left < 30 {
-                        style(format!(
-                            "{} ({} days left)",
-                            expires.format("%Y-%m-%d"),
-                            days_left
-                        ))
-                        .yellow()
-                    } else {
-                        style(format!(
-                            "{} ({} days left)",
-                            expires.format("%Y-%m-%d"),
-                            days_left
-                        ))
-                        .green()
-                    };
-                    println!("  Expires:    {}", exp_style);
-                }
-
-                let valid_style = if identity.is_valid && !identity.is_expired() {
-                    style("Yes").green()
+            if let Some(expires) = identity.expires_at {
+                let days_left = identity.days_until_expiration().unwrap_or(0);
+                let exp_style = if days_left < 0 {
+                    style(format!("{} (EXPIRED)", expires.format("%Y-%m-%d"))).red()
+                } else if days_left < 30 {
+                    style(format!(
+                        "{} ({} days left)",
+                        expires.format("%Y-%m-%d"),
+                        days_left
+                    ))
+                    .yellow()
                 } else {
-                    style("No").red()
+                    style(format!(
+                        "{} ({} days left)",
+                        expires.format("%Y-%m-%d"),
+                        days_left
+                    ))
+                    .green()
                 };
-                println!("  Valid:      {}", valid_style);
+                ui.key_value_styled("Expires", exp_style);
+            }
 
-                if let Some(keychain) = &identity.keychain {
-                    println!("  Keychain:   {}", keychain);
-                }
+            let valid_style = if identity.is_valid && !identity.is_expired() {
+                style("Yes").green()
+            } else {
+                style("No").red()
+            };
+            ui.key_value_styled("Valid", valid_style);
 
-                if let Some(alias) = &identity.key_alias {
-                    println!("  Key Alias:  {}", alias);
-                }
+            if let Some(keychain) = &identity.keychain {
+                ui.key_value("Keychain", keychain);
+            }
+
+            if let Some(alias) = &identity.key_alias {
+                ui.key_value("Key Alias", alias);
             }
         }
 

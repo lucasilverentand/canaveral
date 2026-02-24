@@ -4,11 +4,11 @@ use std::path::PathBuf;
 
 use clap::Args;
 use console::style;
-use dialoguer::Confirm;
 use tracing::info;
 
 use canaveral_core::config::defaults::{DEFAULT_CONFIG_TEMPLATE, DEFAULT_CONFIG_TOML};
 
+use crate::cli::output::Ui;
 use crate::cli::Cli;
 
 /// Initialize a new Canaveral configuration
@@ -31,6 +31,7 @@ impl InitCommand {
     /// Execute the init command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
         info!(force = self.force, yes = self.yes, "executing init command");
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let config_path = self
             .output
@@ -46,16 +47,16 @@ impl InitCommand {
                 );
             }
 
-            let overwrite = Confirm::new()
-                .with_prompt(format!(
+            let overwrite = ui.confirm(
+                &format!(
                     "Configuration file already exists at {}. Overwrite?",
                     config_path.display()
-                ))
-                .default(false)
-                .interact()?;
+                ),
+                false,
+            )?;
 
             if !overwrite {
-                println!("{}", style("Aborted.").yellow());
+                ui.warning("Aborted.");
                 return Ok(());
             }
         }
@@ -72,46 +73,33 @@ impl InitCommand {
             if let Ok(repo_root) = find_git_root(&cwd) {
                 match canaveral_git::hooks::install_all(&repo_root) {
                     Ok(()) => {
-                        if !cli.quiet {
-                            println!(
-                                "{} Installed git hooks (commit-msg, pre-commit, pre-push)",
-                                style("✓").green().bold()
-                            );
-                        }
+                        ui.success("Installed git hooks (commit-msg, pre-commit, pre-push)");
                     }
                     Err(e) => {
-                        if !cli.quiet {
-                            println!(
-                                "{} Could not install git hooks: {e}",
-                                style("⚠").yellow().bold()
-                            );
-                        }
+                        ui.warning(&format!("Could not install git hooks: {e}"));
                     }
                 }
             }
         }
 
-        if !cli.quiet {
-            println!(
-                "{} Created configuration at {}",
-                style("✓").green().bold(),
-                style(config_path.display()).cyan()
-            );
-            println!();
-            println!("Next steps:");
-            println!(
-                "  1. Edit {} to customize your release workflow",
-                config_path.display()
-            );
-            println!(
-                "  2. Run {} to verify your setup",
-                style("canaveral validate").cyan()
-            );
-            println!(
-                "  3. Run {} to create your first release",
-                style("canaveral release").cyan()
-            );
-        }
+        ui.success(&format!(
+            "Created configuration at {}",
+            style(config_path.display()).cyan()
+        ));
+        ui.blank();
+        ui.info("Next steps:");
+        ui.step(&format!(
+            "1. Edit {} to customize your release workflow",
+            config_path.display()
+        ));
+        ui.step(&format!(
+            "2. Run {} to verify your setup",
+            style("canaveral validate").cyan()
+        ));
+        ui.step(&format!(
+            "3. Run {} to create your first release",
+            style("canaveral release").cyan()
+        ));
 
         Ok(())
     }

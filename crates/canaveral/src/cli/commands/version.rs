@@ -10,7 +10,8 @@ use canaveral_core::types::ReleaseType;
 use canaveral_git::GitRepo;
 use canaveral_strategies::{BumpType, SemVerStrategy, VersionStrategy};
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Calculate the next version
 #[derive(Debug, Args)]
@@ -32,6 +33,7 @@ impl VersionCommand {
     /// Execute the version command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
         info!(release_type = ?self.release_type, current = self.current, package = ?self.package, "executing version command");
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
@@ -45,7 +47,7 @@ impl VersionCommand {
             .unwrap_or_else(|| "0.0.0".to_string());
 
         if self.current {
-            self.output_current(&current_version, cli)?;
+            self.output_current(&current_version, &ui)?;
             return Ok(());
         }
 
@@ -98,23 +100,21 @@ impl VersionCommand {
             bump_type,
             commits.len(),
             &config,
-            cli,
+            &ui,
         )?;
 
         Ok(())
     }
 
-    fn output_current(&self, version: &str, cli: &Cli) -> anyhow::Result<()> {
-        match cli.format {
-            OutputFormat::Json => {
-                let output = serde_json::json!({
-                    "current": version
-                });
-                println!("{}", serde_json::to_string_pretty(&output)?);
-            }
-            OutputFormat::Text => {
-                println!("{}", version);
-            }
+    fn output_current(&self, version: &str, ui: &Ui) -> anyhow::Result<()> {
+        if ui.is_json() {
+            let output = serde_json::json!({
+                "current": version
+            });
+            ui.json(&output)?;
+        } else {
+            // In quiet mode, still print the version (it's the primary output)
+            println!("{}", version);
         }
         Ok(())
     }
@@ -126,33 +126,28 @@ impl VersionCommand {
         bump_type: BumpType,
         commit_count: usize,
         _config: &canaveral_core::config::Config,
-        cli: &Cli,
+        ui: &Ui,
     ) -> anyhow::Result<()> {
-        match cli.format {
-            OutputFormat::Json => {
-                let output = serde_json::json!({
-                    "current": current,
-                    "next": next,
-                    "bump_type": bump_type.to_string(),
-                    "commits": commit_count
-                });
-                println!("{}", serde_json::to_string_pretty(&output)?);
-            }
-            OutputFormat::Text => {
-                if !cli.quiet {
-                    println!("{}", style("Version Calculation").bold());
-                    println!();
-                    println!("  Current version:  {}", style(current).cyan());
-                    println!("  Next version:     {}", style(next).green().bold());
-                    println!(
-                        "  Bump type:        {}",
-                        style(bump_type.to_string()).yellow()
-                    );
-                    println!("  Commits analyzed: {}", commit_count);
-                } else {
-                    println!("{}", next);
-                }
-            }
+        if ui.is_json() {
+            let output = serde_json::json!({
+                "current": current,
+                "next": next,
+                "bump_type": bump_type.to_string(),
+                "commits": commit_count
+            });
+            ui.json(&output)?;
+        } else if ui.is_quiet() {
+            println!("{}", next);
+        } else {
+            ui.header("Version Calculation");
+            ui.blank();
+            ui.key_value("Current version", &style(current).cyan().to_string());
+            ui.key_value("Next version", &ui.fmt_version(next));
+            ui.key_value(
+                "Bump type",
+                &style(bump_type.to_string()).yellow().to_string(),
+            );
+            ui.key_value("Commits analyzed", &commit_count.to_string());
         }
         Ok(())
     }

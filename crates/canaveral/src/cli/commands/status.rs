@@ -8,7 +8,8 @@ use canaveral_adapters::detect_packages;
 use canaveral_core::config::load_config_or_default;
 use canaveral_git::GitRepo;
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Show repository status
 #[derive(Debug, Args)]
@@ -22,6 +23,7 @@ impl StatusCommand {
     /// Execute the status command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
         info!("executing status command");
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, config_path) = load_config_or_default(&cwd);
 
@@ -41,110 +43,107 @@ impl StatusCommand {
             repo.all_commits().map(|c| c.len()).unwrap_or(0)
         };
 
-        // Output
-        match cli.format {
-            OutputFormat::Json => {
-                let output = serde_json::json!({
-                    "config_found": config_path.is_some(),
-                    "config_path": config_path.map(|p| p.to_string_lossy().to_string()),
-                    "git": {
-                        "clean": is_clean,
-                        "branch": current_branch,
-                        "latest_tag": latest_tag.as_ref().map(|t| &t.name),
-                        "current_version": latest_tag.as_ref().and_then(|t| t.version.clone()),
-                        "commits_since_tag": commits_since
-                    },
-                    "packages": packages.iter().map(|p| serde_json::json!({
-                        "name": p.name,
-                        "version": p.version,
-                        "type": p.package_type,
-                        "path": p.manifest_path.to_string_lossy().to_string()
-                    })).collect::<Vec<_>>()
-                });
-                println!("{}", serde_json::to_string_pretty(&output)?);
+        // JSON output
+        if ui.is_json() {
+            let output = serde_json::json!({
+                "config_found": config_path.is_some(),
+                "config_path": config_path.map(|p| p.to_string_lossy().to_string()),
+                "git": {
+                    "clean": is_clean,
+                    "branch": current_branch,
+                    "latest_tag": latest_tag.as_ref().map(|t| &t.name),
+                    "current_version": latest_tag.as_ref().and_then(|t| t.version.clone()),
+                    "commits_since_tag": commits_since
+                },
+                "packages": packages.iter().map(|p| serde_json::json!({
+                    "name": p.name,
+                    "version": p.version,
+                    "type": p.package_type,
+                    "path": p.manifest_path.to_string_lossy().to_string()
+                })).collect::<Vec<_>>()
+            });
+            ui.json(&output)?;
+            return Ok(());
+        }
+
+        // Text output
+        ui.header("Canaveral Status");
+        ui.blank();
+
+        // Configuration
+        ui.section("Configuration");
+        if let Some(path) = config_path {
+            ui.key_value("Config file", &ui.fmt_path(&path.display()));
+        } else {
+            ui.key_value_styled("Config file", style("not found").yellow());
+            ui.hint("using defaults");
+        }
+        ui.key_value("Strategy", &config.versioning.strategy.to_string());
+        ui.blank();
+
+        // Git status
+        ui.section("Git");
+        if let Some(branch) = &current_branch {
+            let branch_display = if *branch == config.git.branch {
+                style(branch).green()
+            } else {
+                style(branch).yellow()
+            };
+            ui.key_value_styled("Branch", branch_display);
+        }
+
+        let clean_display = if is_clean {
+            style("clean").green()
+        } else {
+            style("dirty").red()
+        };
+        ui.key_value_styled("Status", clean_display);
+
+        if let Some(tag) = &latest_tag {
+            ui.key_value("Latest tag", &ui.fmt_path(&tag.name));
+            if let Some(v) = &tag.version {
+                ui.key_value("Version", &ui.fmt_version(v));
             }
-            OutputFormat::Text => {
-                println!("{}", style("Canaveral Status").bold());
-                println!();
+        } else {
+            ui.key_value_styled("Latest tag", style("none").dim());
+        }
 
-                // Configuration
-                println!("{}", style("Configuration").underlined());
-                if let Some(path) = config_path {
-                    println!("  Config file: {}", style(path.display()).cyan());
-                } else {
-                    println!(
-                        "  Config file: {} (using defaults)",
-                        style("not found").yellow()
-                    );
-                }
-                println!("  Strategy:    {}", config.versioning.strategy);
-                println!();
+        ui.key_value("Commits since", &commits_since.to_string());
+        ui.blank();
 
-                // Git status
-                println!("{}", style("Git").underlined());
-                if let Some(branch) = current_branch {
-                    let branch_status = if branch == config.git.branch {
-                        style(&branch).green()
-                    } else {
-                        style(&branch).yellow()
-                    };
-                    println!("  Branch:      {}", branch_status);
-                }
+        // Packages
+        if !packages.is_empty() {
+            ui.section("Packages");
+            for pkg in &packages {
+                ui.step(&format!(
+                    "{} {} ({})",
+                    style(&pkg.name).cyan(),
+                    style(&pkg.version).green(),
+                    pkg.package_type
+                ));
+            }
+            ui.blank();
+        }
 
-                let clean_status = if is_clean {
-                    style("clean").green()
-                } else {
-                    style("dirty").red()
-                };
-                println!("  Status:      {}", clean_status);
+        // Readiness
+        ui.section("Release Readiness");
+        let mut issues = Vec::new();
 
-                if let Some(tag) = &latest_tag {
-                    println!("  Latest tag:  {}", style(&tag.name).cyan());
-                    if let Some(v) = &tag.version {
-                        println!("  Version:     {}", style(v).green().bold());
-                    }
-                } else {
-                    println!("  Latest tag:  {}", style("none").dim());
-                }
+        if !is_clean {
+            issues.push("Working directory has uncommitted changes");
+        }
 
-                println!("  Commits since: {}", commits_since);
-                println!();
+        if let Some(branch) = repo.current_branch()? {
+            if branch != config.git.branch {
+                issues.push("Not on release branch");
+            }
+        }
 
-                // Packages
-                if !packages.is_empty() {
-                    println!("{}", style("Packages").underlined());
-                    for pkg in &packages {
-                        println!(
-                            "  {} {} ({})",
-                            style(&pkg.name).cyan(),
-                            style(&pkg.version).green(),
-                            pkg.package_type
-                        );
-                    }
-                    println!();
-                }
-
-                // Readiness
-                println!("{}", style("Release Readiness").underlined());
-                let mut issues = Vec::new();
-
-                if !is_clean {
-                    issues.push("Working directory has uncommitted changes");
-                }
-
-                if let Some(branch) = repo.current_branch()? {
-                    if branch != config.git.branch {
-                        issues.push("Not on release branch");
-                    }
-                }
-
-                if issues.is_empty() {
-                    println!("  {}", style("✓ Ready to release").green().bold());
-                } else {
-                    for issue in issues {
-                        println!("  {} {}", style("✗").red(), issue);
-                    }
-                }
+        if issues.is_empty() {
+            ui.success("Ready to release");
+        } else {
+            for issue in issues {
+                ui.error(issue);
             }
         }
 

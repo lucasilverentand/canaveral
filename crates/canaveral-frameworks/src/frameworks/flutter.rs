@@ -195,7 +195,7 @@ impl BuildAdapter for FlutterAdapter {
     #[instrument(skip(self, ctx), fields(framework = "flutter", platform = %ctx.platform.as_str()))]
     async fn build(&self, ctx: &BuildContext) -> Result<Vec<Artifact>> {
         info!(platform = %ctx.platform.as_str(), profile = ?ctx.profile, "building Flutter project");
-        let mut args = vec!["build"];
+        let mut args: Vec<String> = vec!["build".into()];
 
         // Platform-specific subcommand
         let subcommand = match ctx.platform {
@@ -206,46 +206,44 @@ impl BuildAdapter for FlutterAdapter {
             Platform::Linux => "linux",
             Platform::Web => "web",
         };
-        args.push(subcommand);
+        args.push(subcommand.into());
 
         // Profile
         match ctx.profile {
-            crate::context::BuildProfile::Debug => args.push("--debug"),
-            crate::context::BuildProfile::Release => args.push("--release"),
-            crate::context::BuildProfile::Profile => args.push("--profile"),
+            crate::context::BuildProfile::Debug => args.push("--debug".into()),
+            crate::context::BuildProfile::Release => args.push("--release".into()),
+            crate::context::BuildProfile::Profile => args.push("--profile".into()),
         }
 
         // Build number
         if let Some(bn) = ctx.build_number {
-            args.push("--build-number");
-            let bn_str = bn.to_string();
-            args.push(Box::leak(bn_str.into_boxed_str())); // FIXME: proper lifetime
+            args.push("--build-number".into());
+            args.push(bn.to_string());
         }
 
         // Version
         if let Some(ref version) = ctx.version {
-            args.push("--build-name");
-            args.push(Box::leak(version.clone().into_boxed_str())); // FIXME: proper lifetime
+            args.push("--build-name".into());
+            args.push(version.clone());
         }
 
         // Flavor
         if let Some(ref flavor) = ctx.flavor {
-            args.push("--flavor");
-            args.push(Box::leak(flavor.clone().into_boxed_str())); // FIXME: proper lifetime
+            args.push("--flavor".into());
+            args.push(flavor.clone());
         }
 
         // Framework-specific config (dart defines)
         for (key, value) in &ctx.config {
             if let Some(v) = value.as_str() {
-                args.push("--dart-define");
-                let define = format!("{}={}", key, v);
-                args.push(Box::leak(define.into_boxed_str())); // FIXME: proper lifetime
+                args.push("--dart-define".into());
+                args.push(format!("{}={}", key, v));
             }
         }
 
         // Execute build
-        let args_str: Vec<&str> = args.to_vec();
-        let output = self.run_flutter(&args_str, &ctx.path)?;
+        let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let output = self.run_flutter(&args_ref, &ctx.path)?;
 
         if !output.status.success() {
             return Err(FrameworkError::BuildFailed {

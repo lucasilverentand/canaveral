@@ -473,7 +473,6 @@ name = "canaveral-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "canaveral-stores",
  "chrono",
  "dirs",
  "git2",

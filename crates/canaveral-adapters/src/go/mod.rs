@@ -140,7 +140,7 @@ impl PackageAdapter for GoAdapter {
 
     fn get_info(&self, path: &Path) -> Result<PackageInfo> {
         let manifest_path = self.manifest_path(path);
-        let gomod = GoMod::load(&manifest_path)?;
+        let gomod = GoMod::load_from_path(&manifest_path)?;
 
         // Get version from git tags
         let version = self
@@ -176,7 +176,7 @@ impl PackageAdapter for GoAdapter {
     fn set_version(&self, path: &Path, version: &str) -> Result<()> {
         info!(adapter = "go", version, path = %path.display(), "setting version");
         let manifest_path = self.manifest_path(path);
-        let gomod = GoMod::load(&manifest_path)?;
+        let gomod = GoMod::load_from_path(&manifest_path)?;
 
         // For Go, "setting version" means creating a git tag
         self.create_tag(path, &gomod.module, version)?;
@@ -253,7 +253,7 @@ impl PackageAdapter for GoAdapter {
         }
 
         // Load and validate go.mod
-        let gomod = match GoMod::load(&manifest_path) {
+        let gomod = match GoMod::load_from_path(&manifest_path) {
             Ok(m) => m,
             Err(e) => {
                 result.add_error(format!("Cannot parse go.mod: {}", e));

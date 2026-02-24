@@ -8,6 +8,7 @@ use tracing::info;
 
 use canaveral_adapters::AdapterRegistry;
 
+use crate::cli::output::Ui;
 use crate::cli::Cli;
 
 /// Run all checks: format verification, linting, and tests
@@ -33,6 +34,7 @@ pub struct CheckCommand {
 impl CheckCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
         info!(affected = self.affected, skip = ?self.skip, "executing check command");
+        let ui = Ui::new(cli);
 
         let path = if self.path.is_absolute() {
             self.path.clone()
@@ -50,15 +52,12 @@ impl CheckCommand {
             .detect(&path)
             .ok_or_else(|| anyhow::anyhow!("No package adapter detected for {}", path.display()))?;
 
-        if !cli.quiet {
-            println!();
-            println!(
-                "{} Running checks ({})...",
-                style("→").cyan(),
-                style(adapter.name()).bold()
-            );
-            println!();
-        }
+        ui.blank();
+        ui.info(&format!(
+            "Running checks ({})...",
+            style(adapter.name()).bold()
+        ));
+        ui.blank();
 
         let skip_fmt = self.skip.iter().any(|s| s == "fmt");
         let skip_lint = self.skip.iter().any(|s| s == "lint");
@@ -66,50 +65,42 @@ impl CheckCommand {
 
         // Step 1: Format check
         if !skip_fmt {
-            if !cli.quiet {
-                println!("  {} Checking formatting...", style("1/3").dim());
-            }
+            ui.step(&format!("Checking formatting... ({})", style("1/3").dim()));
             adapter.fmt(&path, true)?;
-            if !cli.quiet {
-                println!("       {} Formatting OK", style("✓").green());
-            }
+            ui.success("Formatting OK");
         }
 
         // Step 2: Lint
         if !skip_lint {
-            if !cli.quiet {
-                let step = if skip_fmt { "1" } else { "2" };
-                println!("  {} Running linter...", style(format!("{}/3", step)).dim());
-            }
+            let step = if skip_fmt { "1" } else { "2" };
+            ui.step(&format!(
+                "Running linter... ({})",
+                style(format!("{}/3", step)).dim()
+            ));
             adapter.lint(&path)?;
-            if !cli.quiet {
-                println!("       {} Lint OK", style("✓").green());
-            }
+            ui.success("Lint OK");
         }
 
         // Step 3: Test
         if !skip_test {
-            if !cli.quiet {
-                let step = if skip_fmt && skip_lint {
-                    "1"
-                } else if skip_fmt || skip_lint {
-                    "2"
-                } else {
-                    "3"
-                };
-                println!("  {} Running tests...", style(format!("{}/3", step)).dim());
-            }
+            let step = if skip_fmt && skip_lint {
+                "1"
+            } else if skip_fmt || skip_lint {
+                "2"
+            } else {
+                "3"
+            };
+            ui.step(&format!(
+                "Running tests... ({})",
+                style(format!("{}/3", step)).dim()
+            ));
             adapter.test(&path)?;
-            if !cli.quiet {
-                println!("       {} Tests OK", style("✓").green());
-            }
+            ui.success("Tests OK");
         }
 
-        if !cli.quiet {
-            println!();
-            println!("{} All checks passed!", style("✓").green().bold());
-            println!();
-        }
+        ui.blank();
+        ui.success("All checks passed!");
+        ui.blank();
 
         Ok(())
     }

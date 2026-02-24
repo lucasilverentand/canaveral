@@ -4,6 +4,8 @@ use std::path::Path;
 
 use canaveral_core::error::{AdapterError, Result};
 
+use crate::manifest::ManifestFile;
+
 /// Parsed go.mod file
 #[derive(Debug, Clone)]
 pub struct GoMod {
@@ -46,8 +48,8 @@ pub struct Replace {
 }
 
 impl GoMod {
-    /// Load a go.mod file
-    pub fn load(path: &Path) -> Result<Self> {
+    /// Load a go.mod file from a file path
+    pub fn load_from_path(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path).map_err(|e| {
             AdapterError::ManifestParseError(format!("Failed to read go.mod: {}", e))
         })?;
@@ -207,6 +209,41 @@ impl GoMod {
     /// Check if this is a v2+ module
     pub fn is_v2_plus(&self) -> bool {
         self.major_version().map(|v| v >= 2).unwrap_or(false)
+    }
+}
+
+impl ManifestFile for GoMod {
+    fn filename() -> &'static str {
+        "go.mod"
+    }
+
+    fn load(dir: &Path) -> anyhow::Result<Self> {
+        let path = dir.join(Self::filename());
+        GoMod::load_from_path(&path).map_err(Into::into)
+    }
+
+    fn save(&self, _dir: &Path) -> anyhow::Result<()> {
+        // Go modules don't store version in go.mod; versioning is via git tags.
+        Ok(())
+    }
+
+    fn version(&self) -> Option<&str> {
+        // Go modules derive their version from git tags, not from go.mod.
+        None
+    }
+
+    fn set_version(&mut self, _version: &str) -> anyhow::Result<()> {
+        // Go modules derive their version from git tags, not from go.mod.
+        // Version setting is handled by the GoAdapter via git tag creation.
+        Ok(())
+    }
+
+    fn name(&self) -> Option<&str> {
+        if self.module.is_empty() {
+            None
+        } else {
+            Some(&self.module)
+        }
     }
 }
 

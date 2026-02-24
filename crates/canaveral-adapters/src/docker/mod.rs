@@ -2,6 +2,9 @@
 //!
 //! Supports building and pushing Docker images to multiple registries.
 
+mod parser;
+mod registry;
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -66,168 +69,6 @@ impl DockerAdapter {
     fn dockerfile_path(&self, path: &Path) -> PathBuf {
         path.join("Dockerfile")
     }
-
-    /// Parse image name and version from Dockerfile or directory name
-    fn parse_image_info(&self, path: &Path) -> Result<(String, String)> {
-        // Try to read image name from Dockerfile labels
-        let dockerfile = self.dockerfile_path(path);
-        if dockerfile.exists() {
-            if let Ok(content) = std::fs::read_to_string(&dockerfile) {
-                // Look for LABEL with version
-                for line in content.lines() {
-                    let line = line.trim();
-                    if line.starts_with("LABEL") {
-                        if let Some(version) = Self::extract_label(line, "version") {
-                            let name = Self::extract_label(line, "name")
-                                .or_else(|| {
-                                    Self::extract_label(line, "org.opencontainers.image.title")
-                                })
-                                .unwrap_or_else(|| {
-                                    path.file_name()
-                                        .map(|n| n.to_string_lossy().to_string())
-                                        .unwrap_or_else(|| "app".to_string())
-                                });
-                            return Ok((name, version));
-                        }
-                    }
-
-                    // OCI-style labels
-                    if line.starts_with("LABEL org.opencontainers.image.version=") {
-                        let version = line
-                            .strip_prefix("LABEL org.opencontainers.image.version=")
-                            .unwrap_or("0.0.0")
-                            .trim_matches('"')
-                            .to_string();
-
-                        let name = path
-                            .file_name()
-                            .map(|n| n.to_string_lossy().to_string())
-                            .unwrap_or_else(|| "app".to_string());
-
-                        return Ok((name, version));
-                    }
-                }
-            }
-        }
-
-        // Try to get from package.json or similar if it exists
-        let package_json = path.join("package.json");
-        if package_json.exists() {
-            if let Ok(content) = std::fs::read_to_string(&package_json) {
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                    let name = json["name"]
-                        .as_str()
-                        .map(|s| s.replace('@', "").replace('/', "-"))
-                        .unwrap_or_else(|| "app".to_string());
-                    let version = json["version"].as_str().unwrap_or("0.0.0").to_string();
-                    return Ok((name, version));
-                }
-            }
-        }
-
-        // Fallback to directory name and 0.0.0
-        let name = path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "app".to_string());
-
-        Ok((name, "0.0.0".to_string()))
-    }
-
-    /// Extract a label value from a LABEL line
-    fn extract_label(line: &str, key: &str) -> Option<String> {
-        let pattern = format!("{}=", key);
-        if let Some(pos) = line.find(&pattern) {
-            let rest = &line[pos + pattern.len()..];
-            let value = if rest.starts_with('"') {
-                rest.trim_start_matches('"').split('"').next().unwrap_or("")
-            } else {
-                rest.split_whitespace().next().unwrap_or("")
-            };
-            if !value.is_empty() {
-                return Some(value.to_string());
-            }
-        }
-        None
-    }
-
-    /// Build Docker image with tag
-    fn build_image(&self, path: &Path, tag: &str) -> Result<()> {
-        let mut cmd = Command::new("docker");
-        cmd.arg("build");
-        cmd.arg("-t").arg(tag);
-
-        // Add build args
-        for (key, value) in &self.build_args {
-            cmd.arg("--build-arg").arg(format!("{}={}", key, value));
-        }
-
-        // Multi-platform build
-        if !self.platforms.is_empty() {
-            cmd.arg("--platform").arg(self.platforms.join(","));
-        }
-
-        cmd.arg(".");
-        cmd.current_dir(path);
-
-        let output = cmd.output().map_err(|e| AdapterError::CommandFailed {
-            command: "docker build".to_string(),
-            reason: e.to_string(),
-        })?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(AdapterError::CommandFailed {
-                command: "docker build".to_string(),
-                reason: stderr.to_string(),
-            }
-            .into());
-        }
-
-        Ok(())
-    }
-
-    /// Push Docker image to registry
-    fn push_image(&self, tag: &str) -> Result<()> {
-        let output = Command::new("docker")
-            .args(["push", tag])
-            .output()
-            .map_err(|e| AdapterError::CommandFailed {
-                command: "docker push".to_string(),
-                reason: e.to_string(),
-            })?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(
-                AdapterError::PublishFailed(format!("Failed to push {}: {}", tag, stderr)).into(),
-            );
-        }
-
-        Ok(())
-    }
-
-    /// Tag an image
-    fn tag_image(&self, source: &str, target: &str) -> Result<()> {
-        let output = Command::new("docker")
-            .args(["tag", source, target])
-            .output()
-            .map_err(|e| AdapterError::CommandFailed {
-                command: "docker tag".to_string(),
-                reason: e.to_string(),
-            })?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(AdapterError::CommandFailed {
-                command: "docker tag".to_string(),
-                reason: stderr.to_string(),
-            }
-            .into());
-        }
-
-        Ok(())
-    }
 }
 
 impl Default for DockerAdapter {
@@ -256,7 +97,7 @@ impl PackageAdapter for DockerAdapter {
     }
 
     fn get_info(&self, path: &Path) -> Result<PackageInfo> {
-        let (name, version) = self.parse_image_info(path)?;
+        let (name, version) = parser::parse_image_info(path)?;
 
         Ok(PackageInfo {
             name,
@@ -268,7 +109,7 @@ impl PackageAdapter for DockerAdapter {
     }
 
     fn get_version(&self, path: &Path) -> Result<String> {
-        let (_, version) = self.parse_image_info(path)?;
+        let (_, version) = parser::parse_image_info(path)?;
         debug!(adapter = "docker", version = %version, "read version");
         Ok(version)
     }
@@ -322,55 +163,44 @@ impl PackageAdapter for DockerAdapter {
 
     fn publish_with_options(&self, path: &Path, options: &PublishOptions) -> Result<()> {
         info!(adapter = "docker", path = %path.display(), dry_run = options.dry_run, "publishing image");
-        let (name, version) = self.parse_image_info(path)?;
+        let (name, version) = parser::parse_image_info(path)?;
 
         // Determine registries to push to
         let registries: Vec<String> = if !self.registries.is_empty() {
             self.registries.clone()
-        } else if let Some(ref registry) = options.registry {
-            vec![registry.clone()]
+        } else if let Some(ref reg) = options.registry {
+            vec![reg.clone()]
         } else {
             vec![self.default_registry().to_string()]
         };
 
         // Build the primary tag
-        let primary_registry = &registries[0];
-        let primary_tag = if primary_registry == "docker.io" {
-            format!("{}:{}", name, version)
-        } else {
-            format!("{}/{}:{}", primary_registry, name, version)
-        };
+        let primary_tag = registry::format_tag(&registries[0], &name, &version);
 
         if options.dry_run {
-            // Just build, don't push
-            return self.build_image(path, &primary_tag);
+            return registry::build_image(path, &primary_tag, &self.build_args, &self.platforms);
         }
 
         // Build the image
-        self.build_image(path, &primary_tag)?;
+        registry::build_image(path, &primary_tag, &self.build_args, &self.platforms)?;
 
         // Collect all tags to push
         let mut tags_to_push = vec![primary_tag.clone()];
 
-        // Add version tags to all registries
-        for registry in &registries {
-            let base = if registry == "docker.io" {
-                name.clone()
-            } else {
-                format!("{}/{}", registry, name)
-            };
+        for reg in &registries {
+            let base = registry::format_base(reg, &name);
 
             // Version tag
             let version_tag = format!("{}:{}", base, version);
             if !tags_to_push.contains(&version_tag) {
-                self.tag_image(&primary_tag, &version_tag)?;
+                registry::tag_image(&primary_tag, &version_tag)?;
                 tags_to_push.push(version_tag);
             }
 
             // Additional tags (latest, etc.)
             for extra_tag in &self.additional_tags {
                 let full_tag = format!("{}:{}", base, extra_tag);
-                self.tag_image(&primary_tag, &full_tag)?;
+                registry::tag_image(&primary_tag, &full_tag)?;
                 tags_to_push.push(full_tag);
             }
 
@@ -378,7 +208,7 @@ impl PackageAdapter for DockerAdapter {
             if let Some(ref tag) = options.tag {
                 let full_tag = format!("{}:{}", base, tag);
                 if !tags_to_push.contains(&full_tag) {
-                    self.tag_image(&primary_tag, &full_tag)?;
+                    registry::tag_image(&primary_tag, &full_tag)?;
                     tags_to_push.push(full_tag);
                 }
             }
@@ -386,7 +216,7 @@ impl PackageAdapter for DockerAdapter {
 
         // Push all tags
         for tag in &tags_to_push {
-            self.push_image(tag)?;
+            registry::push_image(tag)?;
         }
 
         Ok(())
@@ -464,13 +294,11 @@ impl PackageAdapter for DockerAdapter {
 
     fn check_auth(&self, credentials: &mut CredentialProvider) -> Result<bool> {
         debug!(adapter = "docker", "checking authentication");
-        // Check if docker login has been done
         let config_path = dirs::home_dir().map(|h| h.join(".docker").join("config.json"));
 
         if let Some(path) = config_path {
             if path.exists() {
                 if let Ok(content) = std::fs::read_to_string(&path) {
-                    // Check for auths in docker config
                     if content.contains("\"auths\"") && content.contains("\"auth\"") {
                         return Ok(true);
                     }
@@ -478,7 +306,6 @@ impl PackageAdapter for DockerAdapter {
             }
         }
 
-        // Check our credential provider
         if credentials.has_credentials("docker") {
             return Ok(true);
         }
@@ -507,23 +334,19 @@ impl PackageAdapter for DockerAdapter {
                 }
                 .into())
             }
-            Err(_) => {
-                // hadolint not installed, skip silently
-                Ok(())
-            }
+            Err(_) => Ok(()),
             _ => Ok(()),
         }
     }
 
     fn build(&self, path: &Path) -> Result<()> {
-        let (name, version) = self.parse_image_info(path)?;
+        let (name, version) = parser::parse_image_info(path)?;
         let tag = format!("{}:{}", name, version);
-        self.build_image(path, &tag)
+        registry::build_image(path, &tag, &self.build_args, &self.platforms)
     }
 
     fn clean(&self, path: &Path) -> Result<()> {
-        // Remove dangling images from this build
-        let (name, _) = self.parse_image_info(path)?;
+        let (name, _) = parser::parse_image_info(path)?;
 
         let output = Command::new("docker")
             .args([
@@ -540,7 +363,6 @@ impl PackageAdapter for DockerAdapter {
             })?;
 
         if !output.status.success() {
-            // Non-fatal - just log
             tracing::warn!("Failed to prune Docker images");
         }
 

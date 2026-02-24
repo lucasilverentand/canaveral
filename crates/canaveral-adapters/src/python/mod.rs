@@ -1,5 +1,7 @@
 //! Python package adapter
 
+mod manifest;
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -7,11 +9,12 @@ use tracing::{debug, info};
 
 use canaveral_core::error::{AdapterError, Result};
 use canaveral_core::types::PackageInfo;
-use toml_edit::{value, DocumentMut};
 
 use crate::credentials::CredentialProvider;
+use crate::manifest::ManifestFile;
 use crate::publish::{PublishOptions, ValidationResult};
 use crate::traits::PackageAdapter;
+pub use manifest::PyProjectToml;
 
 /// Python package adapter (using pyproject.toml)
 pub struct PythonAdapter;
@@ -24,51 +27,12 @@ impl PythonAdapter {
 
     /// Get the pyproject.toml path
     fn manifest_path(&self, path: &Path) -> PathBuf {
-        path.join("pyproject.toml")
+        path.join(PyProjectToml::filename())
     }
 
-    /// Load pyproject.toml
-    fn load_manifest(&self, path: &Path) -> Result<DocumentMut> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|_| AdapterError::ManifestNotFound(path.to_path_buf()))?;
-
-        content.parse().map_err(|e: toml_edit::TomlError| {
-            AdapterError::ManifestParseError(e.to_string()).into()
-        })
-    }
-
-    /// Get project name from pyproject.toml
-    fn get_name(&self, doc: &DocumentMut) -> Option<String> {
-        doc.get("project")
-            .and_then(|p| p.get("name"))
-            .and_then(|n| n.as_str())
-            .map(|s| s.to_string())
-    }
-
-    /// Get project version from pyproject.toml
-    fn get_version_from_doc(&self, doc: &DocumentMut) -> Option<String> {
-        doc.get("project")
-            .and_then(|p| p.get("version"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-    }
-
-    /// Get project description from pyproject.toml
-    fn get_description(&self, doc: &DocumentMut) -> Option<String> {
-        doc.get("project")
-            .and_then(|p| p.get("description"))
-            .and_then(|d| d.as_str())
-            .map(|s| s.to_string())
-    }
-
-    /// Check if project has readme
-    fn has_readme(&self, doc: &DocumentMut) -> bool {
-        doc.get("project").and_then(|p| p.get("readme")).is_some()
-    }
-
-    /// Check if project has license
-    fn has_license(&self, doc: &DocumentMut) -> bool {
-        doc.get("project").and_then(|p| p.get("license")).is_some()
+    /// Load the manifest from a project directory
+    fn load_manifest(&self, dir: &Path) -> Result<PyProjectToml> {
+        PyProjectToml::load_from_path(&self.manifest_path(dir))
     }
 
     /// Get the dist directory
@@ -93,15 +57,15 @@ impl PackageAdapter for PythonAdapter {
     }
 
     fn detect(&self, path: &Path) -> bool {
-        let manifest = self.manifest_path(path);
-        if !manifest.exists() {
+        let manifest_path = self.manifest_path(path);
+        if !manifest_path.exists() {
             debug!(adapter = "python", path = %path.display(), found = false, "detecting package");
             return false;
         }
 
         // Check if it has [project] section
-        let found = if let Ok(doc) = self.load_manifest(&manifest) {
-            doc.get("project").is_some()
+        let found = if let Ok(manifest) = self.load_manifest(path) {
+            manifest.has_project_section()
         } else {
             false
         };
@@ -115,13 +79,14 @@ impl PackageAdapter for PythonAdapter {
 
     fn get_info(&self, path: &Path) -> Result<PackageInfo> {
         let manifest_path = self.manifest_path(path);
-        let doc = self.load_manifest(&manifest_path)?;
+        let manifest = self.load_manifest(path)?;
 
-        let name = self
-            .get_name(&doc)
+        let name = manifest
+            .name()
+            .map(|s| s.to_string())
             .ok_or_else(|| AdapterError::ManifestParseError("No project.name found".to_string()))?;
 
-        let version = self.get_version_from_doc(&doc).ok_or_else(|| {
+        let version = manifest.version().map(|s| s.to_string()).ok_or_else(|| {
             AdapterError::ManifestParseError("No project.version found".to_string())
         })?;
 
@@ -135,9 +100,9 @@ impl PackageAdapter for PythonAdapter {
     }
 
     fn get_version(&self, path: &Path) -> Result<String> {
-        let doc = self.load_manifest(&self.manifest_path(path))?;
+        let manifest = self.load_manifest(path)?;
 
-        let version = self.get_version_from_doc(&doc).ok_or_else(|| {
+        let version = manifest.version().map(|s| s.to_string()).ok_or_else(|| {
             AdapterError::ManifestParseError("No project.version found".to_string())
         })?;
         debug!(adapter = "python", version = %version, "read version");
@@ -146,25 +111,12 @@ impl PackageAdapter for PythonAdapter {
 
     fn set_version(&self, path: &Path, version: &str) -> Result<()> {
         info!(adapter = "python", version, path = %path.display(), "setting version");
-        let manifest_path = self.manifest_path(path);
-        let content = std::fs::read_to_string(&manifest_path)
-            .map_err(|_| AdapterError::ManifestNotFound(manifest_path.clone()))?;
-
-        let mut doc: DocumentMut = content
-            .parse()
-            .map_err(|e: toml_edit::TomlError| AdapterError::ManifestParseError(e.to_string()))?;
-
-        if let Some(project) = doc.get_mut("project") {
-            if let Some(table) = project.as_table_mut() {
-                table["version"] = value(version);
-            }
-        } else {
-            return Err(
-                AdapterError::ManifestParseError("No [project] section found".to_string()).into(),
-            );
-        }
-
-        std::fs::write(&manifest_path, doc.to_string())
+        let mut manifest = self.load_manifest(path)?;
+        manifest
+            .set_version(version)
+            .map_err(|e| AdapterError::ManifestParseError(e.to_string()))?;
+        manifest
+            .save_to_path(&self.manifest_path(path))
             .map_err(|e| AdapterError::ManifestUpdateError(e.to_string()).into())
     }
 
@@ -243,9 +195,8 @@ impl PackageAdapter for PythonAdapter {
         let mut result = ValidationResult::pass();
 
         // Check manifest
-        let manifest_path = self.manifest_path(path);
-        let doc = match self.load_manifest(&manifest_path) {
-            Ok(d) => d,
+        let manifest = match self.load_manifest(path) {
+            Ok(m) => m,
             Err(e) => {
                 result.add_error(format!("Cannot read pyproject.toml: {}", e));
                 return Ok(result);
@@ -253,8 +204,8 @@ impl PackageAdapter for PythonAdapter {
         };
 
         // Check name
-        let name = match self.get_name(&doc) {
-            Some(n) => n,
+        let name = match manifest.name() {
+            Some(n) => n.to_string(),
             None => {
                 result.add_error("No project.name found");
                 return Ok(result);
@@ -271,8 +222,8 @@ impl PackageAdapter for PythonAdapter {
         }
 
         // Check version
-        match self.get_version_from_doc(&doc) {
-            Some(v) if v.is_empty() => {
+        match manifest.version() {
+            Some("") => {
                 result.add_error("Version is empty");
             }
             None => {
@@ -282,22 +233,22 @@ impl PackageAdapter for PythonAdapter {
         }
 
         // Check for description
-        if self.get_description(&doc).is_none() {
+        if manifest.description().is_none() {
             result.add_warning("No description found (recommended for PyPI)");
         }
 
         // Check for readme
-        if !self.has_readme(&doc) {
+        if !manifest.has_readme() {
             result.add_warning("No readme specified (recommended for PyPI)");
         }
 
         // Check for license
-        if !self.has_license(&doc) {
+        if !manifest.has_license() {
             result.add_warning("No license specified (recommended for PyPI)");
         }
 
         // Check for build system
-        if doc.get("build-system").is_none() {
+        if !manifest.has_build_system() {
             result.add_warning("No [build-system] section found");
         }
 

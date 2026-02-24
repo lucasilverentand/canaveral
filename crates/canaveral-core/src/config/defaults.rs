@@ -1,6 +1,6 @@
 //! Default configuration values
 
-use super::types::Config;
+use super::root::Config;
 
 /// Default configuration file name (TOML — preferred)
 pub const DEFAULT_CONFIG_TOML: &str = "canaveral.toml";

@@ -4,6 +4,8 @@ use std::path::Path;
 
 use canaveral_core::error::{AdapterError, Result};
 
+use crate::manifest::ManifestFile;
+
 /// Parsed pom.xml file
 #[derive(Debug, Clone, Default)]
 pub struct PomXml {
@@ -76,8 +78,8 @@ pub struct Parent {
 }
 
 impl PomXml {
-    /// Load a pom.xml file
-    pub fn load(path: &Path) -> Result<Self> {
+    /// Load a pom.xml file from a file path
+    pub fn load_from_path(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path).map_err(|e| {
             AdapterError::ManifestParseError(format!("Failed to read pom.xml: {}", e))
         })?;
@@ -307,6 +309,40 @@ impl PomXml {
     }
 }
 
+impl ManifestFile for PomXml {
+    fn filename() -> &'static str {
+        "pom.xml"
+    }
+
+    fn load(dir: &Path) -> anyhow::Result<Self> {
+        let path = dir.join(Self::filename());
+        PomXml::load_from_path(&path).map_err(Into::into)
+    }
+
+    fn save(&self, dir: &Path) -> anyhow::Result<()> {
+        // PomXml uses line-based XML manipulation to preserve formatting.
+        // Save the current version using the existing update_version mechanism.
+        if let Some(ref version) = self.version {
+            let path = dir.join(Self::filename());
+            PomXml::update_version(&path, version)?;
+        }
+        Ok(())
+    }
+
+    fn version(&self) -> Option<&str> {
+        self.version.as_deref()
+    }
+
+    fn set_version(&mut self, version: &str) -> anyhow::Result<()> {
+        self.version = Some(version.to_string());
+        Ok(())
+    }
+
+    fn name(&self) -> Option<&str> {
+        self.artifact_id.as_deref()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -416,7 +452,7 @@ mod tests {
 
         PomXml::update_version(&pom_path, "2.0.0").unwrap();
 
-        let updated = PomXml::load(&pom_path).unwrap();
+        let updated = PomXml::load_from_path(&pom_path).unwrap();
         assert_eq!(updated.version, Some("2.0.0".to_string()));
     }
 

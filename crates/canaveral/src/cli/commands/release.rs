@@ -2,7 +2,6 @@
 
 use clap::Args;
 use console::style;
-use dialoguer::Confirm;
 use std::process::Command;
 use tracing::info;
 
@@ -15,7 +14,8 @@ use canaveral_core::workflow::{format_tag, ReleaseOptions, ReleaseWorkflow};
 use canaveral_git::GitRepo;
 use canaveral_strategies::{BumpType, SemVerStrategy, VersionStrategy};
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Create a new release
 #[derive(Debug, Args)]
@@ -70,17 +70,17 @@ impl ReleaseCommand {
             package = ?self.package,
             "executing release command"
         );
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, config_path) = load_config_or_default(&cwd);
         let adapter_registry = AdapterRegistry::new();
         let adapter = adapter_registry.detect(&cwd);
 
-        if config_path.is_none() && !cli.quiet {
-            println!(
-                "{} No configuration found, using defaults. Run {} to create one.",
-                style("!").yellow().bold(),
+        if config_path.is_none() {
+            ui.warning(&format!(
+                "No configuration found, using defaults. Run {} to create one.",
                 style("canaveral init").cyan()
-            );
+            ));
         }
 
         let repo = GitRepo::discover(&cwd)?;
@@ -154,12 +154,7 @@ impl ReleaseCommand {
             }
 
             if bump_type == BumpType::None {
-                if !cli.quiet {
-                    println!(
-                        "{}",
-                        style("No version bump required - no relevant commits found.").yellow()
-                    );
-                }
+                ui.warning("No version bump required - no relevant commits found.");
                 return Ok(());
             }
 
@@ -172,32 +167,23 @@ impl ReleaseCommand {
         let tag = format_tag(&config, &next_version, self.package.as_deref());
 
         // Show release preview
-        if !cli.quiet {
-            println!("{}", style("Release Preview").bold());
-            println!();
-            println!("  Current version: {}", style(&current_version).cyan());
-            println!("  Next version:    {}", style(&next_version).green().bold());
-            println!("  Tag:             {}", style(&tag).yellow());
-            println!();
+        ui.header("Release Preview");
+        ui.blank();
+        ui.key_value("Current version", &ui.fmt_path(&current_version));
+        ui.key_value("Next version", &ui.fmt_version(&next_version));
+        ui.key_value("Tag", &ui.fmt_tag(&tag));
+        ui.blank();
 
-            if self.dry_run {
-                println!(
-                    "  {}",
-                    style("[DRY RUN - no changes will be made]").yellow().bold()
-                );
-                println!();
-            }
+        if self.dry_run {
+            ui.warning("[DRY RUN - no changes will be made]");
+            ui.blank();
         }
 
         // Confirm release
         if !self.yes && !self.dry_run {
-            let confirmed = Confirm::new()
-                .with_prompt("Proceed with release?")
-                .default(true)
-                .interact()?;
-
+            let confirmed = ui.confirm("Proceed with release?", true)?;
             if !confirmed {
-                println!("{}", style("Aborted.").yellow());
+                ui.warning("Aborted.");
                 return Ok(());
             }
         }
@@ -225,21 +211,17 @@ impl ReleaseCommand {
         if let Some(adapter) = &adapter {
             if !self.dry_run {
                 adapter.set_version(&cwd, &next_version)?;
-                if !cli.quiet {
-                    println!(
-                        "{} Updated {} version to {}",
-                        style("✓").green(),
-                        style(adapter.name()).cyan(),
-                        style(&next_version).green()
-                    );
-                }
-            } else if !cli.quiet {
-                println!(
-                    "{} Would update {} version to {}",
-                    style("→").blue(),
+                ui.success(&format!(
+                    "Updated {} version to {}",
                     style(adapter.name()).cyan(),
-                    style(&next_version).green()
-                );
+                    ui.fmt_version(&next_version)
+                ));
+            } else {
+                ui.info(&format!(
+                    "Would update {} version to {}",
+                    style(adapter.name()).cyan(),
+                    ui.fmt_version(&next_version)
+                ));
             }
         }
 
@@ -264,13 +246,10 @@ impl ReleaseCommand {
                     std::fs::write(&changelog_path, &changelog)?;
                 }
 
-                if !cli.quiet {
-                    println!(
-                        "{} Updated changelog at {}",
-                        style("✓").green(),
-                        style(config.changelog.file.display()).cyan()
-                    );
-                }
+                ui.success(&format!(
+                    "Updated changelog at {}",
+                    ui.fmt_path(&config.changelog.file.display())
+                ));
             }
         }
 
@@ -286,35 +265,28 @@ impl ReleaseCommand {
                     );
                 }
 
-                if !cli.quiet {
-                    for warning in &validation.warnings {
-                        println!("{} {}", style("!").yellow(), warning);
-                    }
+                for warning in &validation.warnings {
+                    ui.warning(warning);
                 }
 
                 if !self.dry_run {
                     adapter.publish(&cwd, false)?;
                     published = true;
-                    if !cli.quiet {
-                        println!(
-                            "{} Published package via {}",
-                            style("✓").green(),
-                            style(adapter.name()).cyan()
-                        );
-                    }
-                } else if !cli.quiet {
-                    println!(
-                        "{} Would publish package via {}",
-                        style("→").blue(),
+                    ui.success(&format!(
+                        "Published package via {}",
                         style(adapter.name()).cyan()
-                    );
+                    ));
+                } else {
+                    ui.info(&format!(
+                        "Would publish package via {}",
+                        style(adapter.name()).cyan()
+                    ));
                 }
-            } else if !cli.quiet {
-                println!(
-                    "{} No publish adapter detected in {}, skipping publish.",
-                    style("!").yellow(),
+            } else {
+                ui.warning(&format!(
+                    "No publish adapter detected in {}, skipping publish.",
                     style(cwd.display()).dim()
-                );
+                ));
             }
         }
         result.published = published;
@@ -348,54 +320,37 @@ impl ReleaseCommand {
                     );
                 }
 
-                if !cli.quiet {
-                    println!("{} Committed release changes", style("✓").green());
-                }
+                ui.success("Committed release changes");
             }
 
             // Create tag
             repo.create_tag(&tag, Some(&format!("Release {}", next_version)))?;
+            ui.success(&format!("Created tag {}", ui.fmt_tag(&tag)));
 
-            if !cli.quiet {
-                println!(
-                    "{} Created tag {}",
-                    style("✓").green(),
-                    style(&tag).yellow()
-                );
-            }
-
-            // Note: Push is typically done via git CLI for proper auth handling
-            if config.git.push_tags && !cli.quiet {
-                println!(
-                    "{} To push, run: {}",
-                    style("→").blue(),
+            // Push hint
+            if config.git.push_tags {
+                ui.info(&format!(
+                    "To push, run: {}",
                     style(format!("git push {} {}", config.git.remote, tag)).cyan()
-                );
+                ));
             }
         }
 
-        // Output result
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&result)?);
-            }
-            OutputFormat::Text => {
-                if !cli.quiet {
-                    println!();
-                    if self.dry_run {
-                        println!(
-                            "{} Dry run complete. Version {} would be released.",
-                            style("✓").green().bold(),
-                            style(&next_version).green().bold()
-                        );
-                    } else {
-                        println!(
-                            "{} Released version {}",
-                            style("✓").green().bold(),
-                            style(&next_version).green().bold()
-                        );
-                    }
-                }
+        // Final output
+        if ui.is_json() {
+            ui.json(&result)?;
+        } else {
+            ui.blank();
+            if self.dry_run {
+                ui.success(&format!(
+                    "Dry run complete. Version {} would be released.",
+                    ui.fmt_version(&next_version)
+                ));
+            } else {
+                ui.success(&format!(
+                    "Released version {}",
+                    ui.fmt_version(&next_version)
+                ));
             }
         }
 

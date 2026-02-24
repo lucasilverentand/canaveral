@@ -3,6 +3,7 @@
 //! This module provides integration with App Store Connect API v2 for
 //! syncing app metadata between local storage and the App Store.
 
+use super::common::{self, TokenCache};
 use super::{MetadataChange, MetadataDiff, MetadataSync, PushResult};
 use crate::{
     AppleLocalizedMetadata, AppleMetadata, FastlaneStorage, Locale, MetadataError, MetadataStorage,
@@ -15,18 +16,11 @@ use reqwest::{Client, Method, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
 use tokio::time::sleep;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Base URL for App Store Connect API v1.
 const API_BASE_URL: &str = "https://api.appstoreconnect.apple.com/v1";
-
-/// Default retry delay in milliseconds.
-const RETRY_DELAY_MS: u64 = 1000;
-
-/// Maximum number of retries for rate-limited requests.
-const MAX_RETRIES: u32 = 3;
 
 /// Configuration for Apple App Store Connect sync.
 #[derive(Debug, Clone)]
@@ -93,13 +87,7 @@ pub struct AppleMetadataSync {
     /// HTTP client.
     client: Client,
     /// Cached JWT token.
-    jwt_cache: RwLock<Option<JwtCache>>,
-}
-
-/// Cached JWT token with expiration.
-struct JwtCache {
-    token: String,
-    expires_at: chrono::DateTime<Utc>,
+    jwt_cache: TokenCache,
 }
 
 impl AppleMetadataSync {
@@ -123,21 +111,15 @@ impl AppleMetadataSync {
             config,
             storage,
             client,
-            jwt_cache: RwLock::new(None),
+            jwt_cache: TokenCache::new(),
         })
     }
 
     /// Generate a JWT token for App Store Connect API authentication.
     fn generate_jwt(&self) -> Result<String> {
         // Check cache first
-        {
-            let cache = self.jwt_cache.read().unwrap();
-            if let Some(ref cached) = *cache {
-                // Return cached token if it's still valid (with 5 minute buffer)
-                if Utc::now() < cached.expires_at - Duration::minutes(5) {
-                    return Ok(cached.token.clone());
-                }
-            }
+        if let Some(cached) = self.jwt_cache.get(Duration::minutes(5)) {
+            return Ok(cached);
         }
 
         // Generate new token
@@ -161,13 +143,7 @@ impl AppleMetadataSync {
             .map_err(|e| MetadataError::SyncError(format!("Failed to generate JWT: {}", e)))?;
 
         // Cache the token
-        {
-            let mut cache = self.jwt_cache.write().unwrap();
-            *cache = Some(JwtCache {
-                token: token.clone(),
-                expires_at: exp,
-            });
-        }
+        self.jwt_cache.set(token.clone(), exp);
 
         Ok(token)
     }
@@ -206,25 +182,17 @@ impl AppleMetadataSync {
 
             // Handle rate limiting
             if status == StatusCode::TOO_MANY_REQUESTS {
-                if retries >= MAX_RETRIES {
+                if retries >= common::DEFAULT_MAX_RETRIES {
                     return Err(MetadataError::SyncError(
                         "Rate limited: too many requests".to_string(),
                     ));
                 }
 
-                let retry_after = response
-                    .headers()
-                    .get("Retry-After")
-                    .and_then(|v| v.to_str().ok())
-                    .and_then(|v| v.parse::<u64>().ok())
-                    .unwrap_or(RETRY_DELAY_MS / 1000);
-
-                warn!(
-                    "Rate limited, waiting {} seconds before retry ({}/{})",
-                    retry_after,
-                    retries + 1,
-                    MAX_RETRIES
+                let retry_after = common::parse_retry_after(
+                    response.headers(),
+                    common::DEFAULT_RETRY_DELAY_MS / 1000,
                 );
+                common::log_rate_limit_warning(retry_after, retries, common::DEFAULT_MAX_RETRIES);
 
                 sleep(std::time::Duration::from_secs(retry_after)).await;
                 retries += 1;
@@ -450,12 +418,6 @@ impl AppleMetadataSync {
         self.api_patch(&endpoint, body).await
     }
 
-    /// Convert App Store Connect locale to our Locale type.
-    fn parse_locale(locale_str: &str) -> Result<Locale> {
-        // App Store Connect uses formats like "en-US", "de-DE", etc.
-        Locale::new(locale_str)
-    }
-
     /// Convert remote localizations to AppleLocalizedMetadata.
     fn convert_to_local_metadata(
         &self,
@@ -476,16 +438,6 @@ impl AppleMetadataSync {
             support_url: attrs.support_url.clone(),
             marketing_url: attrs.marketing_url.clone(),
             privacy_policy_url: None, // This is at app level, not locale level
-        }
-    }
-
-    /// Compare two optional strings and determine if they differ.
-    fn strings_differ(local: Option<&str>, remote: Option<&str>) -> bool {
-        match (local, remote) {
-            (Some(l), Some(r)) => l.trim() != r.trim(),
-            (Some(l), None) => !l.trim().is_empty(),
-            (None, Some(r)) => !r.trim().is_empty(),
-            (None, None) => false,
         }
     }
 }
@@ -525,7 +477,7 @@ impl MetadataSync for AppleMetadataSync {
 
             // Filter by requested locales if specified
             if let Some(filter_locales) = locales {
-                let locale = Self::parse_locale(locale_str)?;
+                let locale = common::parse_locale(locale_str)?;
                 if !filter_locales.iter().any(|l| l.code() == locale.code()) {
                     continue;
                 }
@@ -543,7 +495,7 @@ impl MetadataSync for AppleMetadataSync {
 
         // Set primary locale (first one or en-US if available)
         if let Some(locale_str) = metadata.localizations.keys().next() {
-            metadata.primary_locale = Self::parse_locale(locale_str)?;
+            metadata.primary_locale = common::parse_locale(locale_str)?;
         }
 
         // Save to local storage
@@ -599,7 +551,7 @@ impl MetadataSync for AppleMetadataSync {
         for (locale_str, local_loc) in &local_metadata.localizations {
             // Filter by requested locales if specified
             if let Some(filter_locales) = locales {
-                let locale = Self::parse_locale(locale_str)?;
+                let locale = common::parse_locale(locale_str)?;
                 if !filter_locales.iter().any(|l| l.code() == locale.code()) {
                     continue;
                 }
@@ -676,6 +628,10 @@ impl MetadataSync for AppleMetadataSync {
         Ok(result)
     }
 
+    fn platform_name(&self) -> &'static str {
+        "apple"
+    }
+
     async fn diff(&self, app_id: &str) -> Result<MetadataDiff> {
         info!("Comparing metadata for {} with App Store Connect", app_id);
 
@@ -713,7 +669,7 @@ impl MetadataSync for AppleMetadataSync {
                 let remote_attrs = &version_loc.attributes;
 
                 // Compare description
-                if Self::strings_differ(
+                if common::strings_differ(
                     Some(&local_loc.description),
                     remote_attrs.description.as_deref(),
                 ) {
@@ -726,7 +682,7 @@ impl MetadataSync for AppleMetadataSync {
                 }
 
                 // Compare keywords
-                if Self::strings_differ(
+                if common::strings_differ(
                     local_loc.keywords.as_deref(),
                     remote_attrs.keywords.as_deref(),
                 ) {
@@ -739,7 +695,7 @@ impl MetadataSync for AppleMetadataSync {
                 }
 
                 // Compare what's new
-                if Self::strings_differ(
+                if common::strings_differ(
                     local_loc.whats_new.as_deref(),
                     remote_attrs.whats_new.as_deref(),
                 ) {
@@ -752,7 +708,7 @@ impl MetadataSync for AppleMetadataSync {
                 }
 
                 // Compare promotional text
-                if Self::strings_differ(
+                if common::strings_differ(
                     local_loc.promotional_text.as_deref(),
                     remote_attrs.promotional_text.as_deref(),
                 ) {
@@ -765,7 +721,7 @@ impl MetadataSync for AppleMetadataSync {
                 }
 
                 // Compare URLs
-                if Self::strings_differ(
+                if common::strings_differ(
                     local_loc.support_url.as_deref(),
                     remote_attrs.support_url.as_deref(),
                 ) {
@@ -777,7 +733,7 @@ impl MetadataSync for AppleMetadataSync {
                     ));
                 }
 
-                if Self::strings_differ(
+                if common::strings_differ(
                     local_loc.marketing_url.as_deref(),
                     remote_attrs.marketing_url.as_deref(),
                 ) {
@@ -981,28 +937,6 @@ struct AppInfoLocalizationAttributes {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_strings_differ() {
-        assert!(!AppleMetadataSync::strings_differ(None, None));
-        assert!(!AppleMetadataSync::strings_differ(Some(""), None));
-        assert!(!AppleMetadataSync::strings_differ(None, Some("")));
-        assert!(!AppleMetadataSync::strings_differ(
-            Some("hello"),
-            Some("hello")
-        ));
-        assert!(!AppleMetadataSync::strings_differ(
-            Some(" hello "),
-            Some("hello")
-        ));
-
-        assert!(AppleMetadataSync::strings_differ(
-            Some("hello"),
-            Some("world")
-        ));
-        assert!(AppleMetadataSync::strings_differ(Some("hello"), None));
-        assert!(AppleMetadataSync::strings_differ(None, Some("world")));
-    }
 
     #[test]
     fn test_localization_update_serialization() {

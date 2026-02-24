@@ -1,50 +1,68 @@
-//! Output formatting utilities
+//! Centralized CLI output, prompts, and progress
 
-#![allow(dead_code)]
+mod messages;
+mod prompts;
+mod spinner;
+mod structure;
+mod theme;
 
-use console::{style, Style};
+pub use spinner::Spinner;
+pub use structure::BadgeStyle;
+pub use theme::prompt_theme;
 
-/// Print a success message
-pub fn success(message: &str) {
-    println!("{} {}", style("✓").green().bold(), message);
+use crate::cli::{Cli, OutputFormat};
+
+/// Output mode derived from CLI flags
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputMode {
+    Text,
+    Quiet,
+    Json,
 }
 
-/// Print an error message
-pub fn error(message: &str) {
-    eprintln!("{} {}", style("✗").red().bold(), message);
+/// Centralized UI context for all CLI output.
+///
+/// Cheap value type — construct at the top of each `execute()`.
+/// All output methods are no-ops when the mode doesn't match.
+pub struct Ui {
+    mode: OutputMode,
+    verbose: bool,
 }
 
-/// Print a warning message
-pub fn warning(message: &str) {
-    println!("{} {}", style("!").yellow().bold(), message);
-}
+impl Ui {
+    /// Create from CLI flags. Priority: JSON > quiet > text.
+    pub fn new(cli: &Cli) -> Self {
+        let mode = if cli.format == OutputFormat::Json {
+            OutputMode::Json
+        } else if cli.quiet {
+            OutputMode::Quiet
+        } else {
+            OutputMode::Text
+        };
+        Self {
+            mode,
+            verbose: cli.verbose,
+        }
+    }
 
-/// Print an info message
-pub fn info(message: &str) {
-    println!("{} {}", style("→").blue(), message);
-}
+    pub fn is_text(&self) -> bool {
+        self.mode == OutputMode::Text
+    }
 
-/// Create a styled header
-pub fn header(text: &str) -> String {
-    style(text).bold().to_string()
-}
+    pub fn is_json(&self) -> bool {
+        self.mode == OutputMode::Json
+    }
 
-/// Create a styled key-value line
-pub fn key_value(key: &str, value: &str) -> String {
-    format!("  {}: {}", style(key).dim(), value)
-}
+    pub fn is_quiet(&self) -> bool {
+        self.mode == OutputMode::Quiet
+    }
 
-/// Style for version numbers
-pub fn version_style() -> Style {
-    Style::new().green().bold()
-}
+    pub fn is_verbose(&self) -> bool {
+        self.verbose
+    }
 
-/// Style for tags
-pub fn tag_style() -> Style {
-    Style::new().yellow()
-}
-
-/// Style for paths
-pub fn path_style() -> Style {
-    Style::new().cyan()
+    /// True when interactive prompts are safe: text mode + TTY.
+    pub fn is_interactive(&self) -> bool {
+        self.mode == OutputMode::Text && console::Term::stderr().is_term()
+    }
 }

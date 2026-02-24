@@ -8,7 +8,8 @@ use canaveral_adapters::detect_packages;
 use canaveral_core::config::{load_config_from_dir, validation::validate_config};
 use canaveral_git::GitRepo;
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Validate configuration and repository state
 #[derive(Debug, Args)]
@@ -30,6 +31,7 @@ impl ValidateCommand {
             strict = self.strict,
             "executing validate command"
         );
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
 
         let mut errors: Vec<String> = Vec::new();
@@ -123,60 +125,50 @@ impl ValidateCommand {
         // Output
         let passed = errors.is_empty();
 
-        match cli.format {
-            OutputFormat::Json => {
-                let output = serde_json::json!({
-                    "valid": passed,
-                    "config_path": config_path.map(|p| p.to_string_lossy().to_string()),
-                    "errors": errors,
-                    "warnings": warnings
-                });
-                println!("{}", serde_json::to_string_pretty(&output)?);
+        if ui.is_json() {
+            let output = serde_json::json!({
+                "valid": passed,
+                "config_path": config_path.map(|p| p.to_string_lossy().to_string()),
+                "errors": errors,
+                "warnings": warnings
+            });
+            ui.json(&output)?;
+        } else {
+            ui.header("Validation Results");
+            ui.blank();
+
+            if let Some(path) = config_path {
+                ui.key_value("Config", &style(path.display()).cyan().to_string());
+                ui.blank();
             }
-            OutputFormat::Text => {
-                if !cli.quiet {
-                    println!("{}", style("Validation Results").bold());
-                    println!();
 
-                    if let Some(path) = config_path {
-                        println!("Config: {}", style(path.display()).cyan());
-                        println!();
-                    }
-
-                    if !errors.is_empty() {
-                        println!("{}", style("Errors:").red().bold());
-                        for error in &errors {
-                            println!("  {} {}", style("✗").red(), error);
-                        }
-                        println!();
-                    }
-
-                    if !warnings.is_empty() {
-                        println!("{}", style("Warnings:").yellow().bold());
-                        for warning in &warnings {
-                            println!("  {} {}", style("!").yellow(), warning);
-                        }
-                        println!();
-                    }
-
-                    if passed {
-                        if warnings.is_empty() {
-                            println!("{}", style("✓ All checks passed").green().bold());
-                        } else {
-                            println!(
-                                "{} with {} warning(s)",
-                                style("✓ Validation passed").green().bold(),
-                                warnings.len()
-                            );
-                        }
-                    } else {
-                        println!(
-                            "{} with {} error(s)",
-                            style("✗ Validation failed").red().bold(),
-                            errors.len()
-                        );
-                    }
+            if !errors.is_empty() {
+                ui.section("Errors");
+                for error in &errors {
+                    ui.error(error);
                 }
+                ui.blank();
+            }
+
+            if !warnings.is_empty() {
+                ui.section("Warnings");
+                for warning in &warnings {
+                    ui.warning(warning);
+                }
+                ui.blank();
+            }
+
+            if passed {
+                if warnings.is_empty() {
+                    ui.success("All checks passed");
+                } else {
+                    ui.success(&format!(
+                        "Validation passed with {} warning(s)",
+                        warnings.len()
+                    ));
+                }
+            } else {
+                ui.error(&format!("Validation failed with {} error(s)", errors.len()));
             }
         }
 

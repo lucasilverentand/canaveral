@@ -13,7 +13,8 @@ use canaveral_core::monorepo::{ChangeDetector, DependencyGraph, PackageDiscovery
 use canaveral_tasks::scheduler::SchedulerOptions;
 use canaveral_tasks::{TaskCache, TaskDag, TaskDefinition, TaskEvent, TaskReporter, TaskScheduler};
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Run tasks across the workspace
 #[derive(Debug, Args)]
@@ -65,6 +66,7 @@ impl RunCommand {
     }
 
     async fn execute_async(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
@@ -91,13 +93,10 @@ impl RunCommand {
             let changed = detector.detect_changes(&discovered, &changed_files, Some(&graph))?;
 
             if changed.is_empty() {
-                if !cli.quiet {
-                    println!(
-                        "{} No affected packages found since {}",
-                        style("✓").green(),
-                        style(&self.base).cyan()
-                    );
-                }
+                ui.success(&format!(
+                    "No affected packages found since {}",
+                    style(&self.base).cyan()
+                ));
                 return Ok(());
             }
 
@@ -119,43 +118,35 @@ impl RunCommand {
             .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         if dag.is_empty() {
-            if !cli.quiet {
-                println!("{} No tasks to run.", style("✓").green());
-            }
+            ui.success("No tasks to run.");
             return Ok(());
         }
 
         // Show plan
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!(
-                "{} {} task{} across {} package{}",
-                style("→").blue(),
+        if ui.is_text() {
+            ui.blank();
+            ui.info(&format!(
+                "{} task{} across {} package{}",
                 dag.len(),
                 if dag.len() == 1 { "" } else { "s" },
                 packages.len(),
                 if packages.len() == 1 { "" } else { "s" },
-            );
+            ));
 
-            if cli.verbose || self.dry_run {
-                println!();
+            if ui.is_verbose() || self.dry_run {
+                ui.blank();
                 println!("{}", dag.execution_plan());
             }
 
             if self.dry_run {
-                println!(
-                    "{}",
-                    style("[DRY RUN - no tasks will be executed]")
-                        .yellow()
-                        .bold()
-                );
+                ui.warning("[DRY RUN - no tasks will be executed]");
                 return Ok(());
             }
 
-            println!();
+            ui.blank();
         }
 
-        if self.dry_run && cli.format == OutputFormat::Json {
+        if self.dry_run && ui.is_json() {
             let plan: Vec<serde_json::Value> = dag
                 .waves()
                 .iter()
@@ -178,8 +169,8 @@ impl RunCommand {
             None
         };
 
-        // Set up reporter
-        let reporter: Arc<dyn TaskReporter> = if cli.quiet {
+        // Set up reporter — ConsoleReporter implements TaskReporter trait directly
+        let reporter: Arc<dyn TaskReporter> = if ui.is_quiet() || ui.is_json() {
             Arc::new(canaveral_tasks::reporter::TracingReporter)
         } else {
             Arc::new(ConsoleReporter::new(cli.verbose))
@@ -209,7 +200,7 @@ impl RunCommand {
             .filter(|r| matches!(r.status, canaveral_tasks::TaskStatus::CacheHit))
             .count();
 
-        if cli.format == OutputFormat::Json {
+        if ui.is_json() {
             let summary = serde_json::json!({
                 "total": results.len(),
                 "succeeded": succeeded,
@@ -223,21 +214,16 @@ impl RunCommand {
                     })
                 }).collect::<Vec<_>>(),
             });
-            println!("{}", serde_json::to_string_pretty(&summary)?);
+            ui.json(&summary)?;
         }
 
         if !failed.is_empty() {
-            if !cli.quiet && cli.format == OutputFormat::Text {
-                println!();
-                println!(
-                    "  {} {}/{} tasks failed:",
-                    style("✗").red().bold(),
-                    failed.len(),
-                    results.len()
-                );
+            if ui.is_text() {
+                ui.blank();
+                ui.error(&format!("{}/{} tasks failed:", failed.len(), results.len()));
                 for r in &failed {
                     if let canaveral_tasks::TaskStatus::Failed(ref err) = r.status {
-                        println!("    {} {}: {}", style("✗").red(), r.id, err);
+                        ui.error(&format!("{}: {}", r.id, err));
                     }
                 }
             }

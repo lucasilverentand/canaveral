@@ -20,7 +20,8 @@ use canaveral_stores::{
     StoreAdapter, UploadOptions,
 };
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Publish to app stores or package registries
 #[derive(Debug, Args)]
@@ -240,6 +241,7 @@ impl PublishCommand {
 
 impl NpmPublishCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let config = NpmConfig {
             registry_url: self.registry.clone(),
             token: self.token.clone(),
@@ -247,22 +249,20 @@ impl NpmPublishCommand {
 
         let registry = NpmRegistry::new(config)?;
 
-        if !cli.quiet {
-            println!(
-                "{} {} to NPM{}",
-                if self.dry_run {
-                    style("Validating").yellow()
-                } else {
-                    style("Publishing").cyan()
-                },
-                style(self.artifact.display()).bold(),
-                if self.tag != "latest" {
-                    format!(" (tag: {})", self.tag)
-                } else {
-                    String::new()
-                }
-            );
-        }
+        ui.info(&format!(
+            "{} {} to NPM{}",
+            if self.dry_run {
+                "Validating"
+            } else {
+                "Publishing"
+            },
+            style(self.artifact.display()).bold(),
+            if self.tag != "latest" {
+                format!(" (tag: {})", self.tag)
+            } else {
+                String::new()
+            }
+        ));
 
         let options = UploadOptions {
             dry_run: self.dry_run,
@@ -274,9 +274,7 @@ impl NpmPublishCommand {
 
         // If not dry run and tag is not "latest", add the custom tag
         if !self.dry_run && self.tag != "latest" {
-            if !cli.quiet {
-                println!("{}", style("Adding custom dist-tag...").dim());
-            }
+            ui.hint("Adding custom dist-tag...");
 
             // Extract package name from validation result
             let validation = registry.validate_artifact(&self.artifact).await?;
@@ -287,23 +285,20 @@ impl NpmPublishCommand {
             }
         }
 
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&result)?);
-            }
-            OutputFormat::Text => {
-                if result.success {
-                    println!("{}", style("Publish successful!").green().bold());
-                    if let Some(build_id) = &result.build_id {
-                        println!("  Version:  {}", style(build_id).cyan());
-                    }
-                    println!("  Tag:      {}", self.tag);
-                    if let Some(url) = &result.console_url {
-                        println!("  Package:  {}", style(url).dim());
-                    }
-                } else {
-                    println!("{}", style("Publish failed").red().bold());
+        if ui.is_json() {
+            ui.json(&result)?;
+        } else if ui.is_text() {
+            if result.success {
+                ui.success("Publish successful!");
+                if let Some(build_id) = &result.build_id {
+                    ui.key_value("Version", &style(build_id).cyan().to_string());
                 }
+                ui.key_value("Tag", &self.tag);
+                if let Some(url) = &result.console_url {
+                    ui.key_value("Package", &style(url).dim().to_string());
+                }
+            } else {
+                ui.error("Publish failed");
             }
         }
 
@@ -313,6 +308,7 @@ impl NpmPublishCommand {
 
 impl CratesPublishCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let config = CratesIoConfig {
             registry_url: self.registry.clone(),
             token: self.token.clone(),
@@ -320,17 +316,15 @@ impl CratesPublishCommand {
 
         let registry = CratesIoRegistry::new(config)?;
 
-        if !cli.quiet {
-            println!(
-                "{} {} to Crates.io",
-                if self.dry_run {
-                    style("Validating").yellow()
-                } else {
-                    style("Publishing").cyan()
-                },
-                style(self.artifact.display()).bold()
-            );
-        }
+        ui.info(&format!(
+            "{} {} to Crates.io",
+            if self.dry_run {
+                "Validating"
+            } else {
+                "Publishing"
+            },
+            style(self.artifact.display()).bold()
+        ));
 
         let options = UploadOptions {
             dry_run: self.dry_run,
@@ -340,28 +334,24 @@ impl CratesPublishCommand {
 
         let result = registry.upload(&self.artifact, &options).await?;
 
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&result)?);
-            }
-            OutputFormat::Text => {
-                if result.success {
-                    println!("{}", style("Publish successful!").green().bold());
-                    if let Some(build_id) = &result.build_id {
-                        println!("  Crate:    {}", style(build_id).cyan());
-                    }
-                    if let Some(url) = &result.console_url {
-                        println!("  Page:     {}", style(url).dim());
-                    }
-                    if !result.warnings.is_empty() {
-                        println!("  Warnings:");
-                        for warning in &result.warnings {
-                            println!("    - {}", style(warning).yellow());
-                        }
-                    }
-                } else {
-                    println!("{}", style("Publish failed").red().bold());
+        if ui.is_json() {
+            ui.json(&result)?;
+        } else if ui.is_text() {
+            if result.success {
+                ui.success("Publish successful!");
+                if let Some(build_id) = &result.build_id {
+                    ui.key_value("Crate", &style(build_id).cyan().to_string());
                 }
+                if let Some(url) = &result.console_url {
+                    ui.key_value("Page", &style(url).dim().to_string());
+                }
+                if !result.warnings.is_empty() {
+                    for warning in &result.warnings {
+                        ui.warning(warning);
+                    }
+                }
+            } else {
+                ui.error("Publish failed");
             }
         }
 
@@ -371,6 +361,7 @@ impl CratesPublishCommand {
 
 impl ApplePublishCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let config = AppleStoreConfig {
             api_key_id: self.api_key_id.clone(),
             api_issuer_id: self.api_issuer_id.clone(),
@@ -384,17 +375,15 @@ impl ApplePublishCommand {
 
         let store = AppStoreConnect::new(config)?;
 
-        if !cli.quiet {
-            println!(
-                "{} {} to App Store Connect",
-                if self.dry_run {
-                    style("Validating").yellow()
-                } else {
-                    style("Publishing").cyan()
-                },
-                style(self.artifact.display()).bold()
-            );
-        }
+        ui.info(&format!(
+            "{} {} to App Store Connect",
+            if self.dry_run {
+                "Validating"
+            } else {
+                "Publishing"
+            },
+            style(self.artifact.display()).bold()
+        ));
 
         let options = UploadOptions {
             dry_run: self.dry_run,
@@ -404,23 +393,20 @@ impl ApplePublishCommand {
 
         let result = store.upload(&self.artifact, &options).await?;
 
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&result)?);
-            }
-            OutputFormat::Text => {
-                if result.success {
-                    println!("{}", style("Publish successful!").green().bold());
-                    if let Some(build_id) = &result.build_id {
-                        println!("  Build ID: {}", style(build_id).cyan());
-                    }
-                    if let Some(url) = &result.console_url {
-                        println!("  Console:  {}", style(url).dim());
-                    }
-                    println!("  Status:   {}", result.status);
-                } else {
-                    println!("{}", style("Publish failed").red().bold());
+        if ui.is_json() {
+            ui.json(&result)?;
+        } else if ui.is_text() {
+            if result.success {
+                ui.success("Publish successful!");
+                if let Some(build_id) = &result.build_id {
+                    ui.key_value("Build ID", &style(build_id).cyan().to_string());
                 }
+                if let Some(url) = &result.console_url {
+                    ui.key_value("Console", &style(url).dim().to_string());
+                }
+                ui.key_value("Status", &result.status.to_string());
+            } else {
+                ui.error("Publish failed");
             }
         }
 
@@ -430,6 +416,7 @@ impl ApplePublishCommand {
 
 impl GooglePlayPublishCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let config = GooglePlayConfig {
             package_name: self.package_name.clone(),
             service_account_key: self.service_account.clone(),
@@ -438,18 +425,16 @@ impl GooglePlayPublishCommand {
 
         let store = GooglePlayStore::new(config)?;
 
-        if !cli.quiet {
-            println!(
-                "{} {} to Google Play ({})",
-                if self.dry_run {
-                    style("Validating").yellow()
-                } else {
-                    style("Publishing").cyan()
-                },
-                style(self.artifact.display()).bold(),
-                self.track
-            );
-        }
+        ui.info(&format!(
+            "{} {} to Google Play ({})",
+            if self.dry_run {
+                "Validating"
+            } else {
+                "Publishing"
+            },
+            style(self.artifact.display()).bold(),
+            self.track
+        ));
 
         // Parse release notes
         let release_notes = self
@@ -480,26 +465,23 @@ impl GooglePlayPublishCommand {
 
         let result = store.upload(&self.artifact, &options).await?;
 
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&result)?);
-            }
-            OutputFormat::Text => {
-                if result.success {
-                    println!("{}", style("Publish successful!").green().bold());
-                    if let Some(build_id) = &result.build_id {
-                        println!("  Version Code: {}", style(build_id).cyan());
-                    }
-                    println!("  Track:        {}", self.track);
-                    if let Some(rollout) = self.rollout {
-                        println!("  Rollout:      {}%", (rollout * 100.0) as u32);
-                    }
-                    if let Some(url) = &result.console_url {
-                        println!("  Console:      {}", style(url).dim());
-                    }
-                } else {
-                    println!("{}", style("Publish failed").red().bold());
+        if ui.is_json() {
+            ui.json(&result)?;
+        } else if ui.is_text() {
+            if result.success {
+                ui.success("Publish successful!");
+                if let Some(build_id) = &result.build_id {
+                    ui.key_value("Version Code", &style(build_id).cyan().to_string());
                 }
+                ui.key_value("Track", &self.track);
+                if let Some(rollout) = self.rollout {
+                    ui.key_value("Rollout", &format!("{}%", (rollout * 100.0) as u32));
+                }
+                if let Some(url) = &result.console_url {
+                    ui.key_value("Console", &style(url).dim().to_string());
+                }
+            } else {
+                ui.error("Publish failed");
             }
         }
 
@@ -509,6 +491,7 @@ impl GooglePlayPublishCommand {
 
 impl MicrosoftPublishCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let config = MicrosoftStoreConfig {
             tenant_id: self.tenant_id.clone(),
             client_id: self.client_id.clone(),
@@ -519,19 +502,17 @@ impl MicrosoftPublishCommand {
 
         let store = MicrosoftStore::new(config)?;
 
-        if !cli.quiet {
-            println!(
-                "{} {} to Microsoft Store",
-                if self.dry_run {
-                    style("Validating").yellow()
-                } else {
-                    style("Publishing").cyan()
-                },
-                style(self.artifact.display()).bold()
-            );
-            if let Some(flight) = &self.flight {
-                println!("  Flight: {}", style(flight).dim());
-            }
+        ui.info(&format!(
+            "{} {} to Microsoft Store",
+            if self.dry_run {
+                "Validating"
+            } else {
+                "Publishing"
+            },
+            style(self.artifact.display()).bold()
+        ));
+        if let Some(flight) = &self.flight {
+            ui.key_value("Flight", &style(flight).dim().to_string());
         }
 
         // Parse release notes
@@ -562,23 +543,20 @@ impl MicrosoftPublishCommand {
 
         let result = store.upload(&self.artifact, &options).await?;
 
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&result)?);
-            }
-            OutputFormat::Text => {
-                if result.success {
-                    println!("{}", style("Publish successful!").green().bold());
-                    if let Some(build_id) = &result.build_id {
-                        println!("  Submission ID: {}", style(build_id).cyan());
-                    }
-                    if let Some(url) = &result.console_url {
-                        println!("  Console:       {}", style(url).dim());
-                    }
-                    println!("  Status:        {}", result.status);
-                } else {
-                    println!("{}", style("Publish failed").red().bold());
+        if ui.is_json() {
+            ui.json(&result)?;
+        } else if ui.is_text() {
+            if result.success {
+                ui.success("Publish successful!");
+                if let Some(build_id) = &result.build_id {
+                    ui.key_value("Submission ID", &style(build_id).cyan().to_string());
                 }
+                if let Some(url) = &result.console_url {
+                    ui.key_value("Console", &style(url).dim().to_string());
+                }
+                ui.key_value("Status", &result.status.to_string());
+            } else {
+                ui.error("Publish failed");
             }
         }
 

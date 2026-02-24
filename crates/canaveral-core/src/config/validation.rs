@@ -4,7 +4,7 @@ use tracing::debug;
 
 use crate::error::{ConfigError, Result};
 
-use super::types::Config;
+use super::root::Config;
 
 /// Validate configuration
 pub fn validate_config(config: &Config) -> Result<()> {

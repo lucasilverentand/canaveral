@@ -15,6 +15,7 @@
 //! 2. Make changes within the edit
 //! 3. Commit the edit to apply changes (or delete to discard)
 
+use super::common::{self, TokenCache};
 use super::{ChangeType, MetadataChange, MetadataDiff, MetadataSync, PushResult};
 use crate::{
     FastlaneStorage, GooglePlayLocalizedMetadata, GooglePlayMetadata, Locale, MetadataError,
@@ -27,7 +28,6 @@ use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
 
@@ -39,12 +39,6 @@ const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 
 /// Scope required for Google Play Developer API.
 const ANDROID_PUBLISHER_SCOPE: &str = "https://www.googleapis.com/auth/androidpublisher";
-
-/// Default retry delay in milliseconds.
-const RETRY_DELAY_MS: u64 = 1000;
-
-/// Maximum number of retries for rate-limited requests.
-const MAX_RETRIES: u32 = 3;
 
 /// Google Play image types for screenshots and graphics.
 pub mod image_types {
@@ -165,13 +159,7 @@ pub struct GooglePlayMetadataSync {
     /// HTTP client.
     client: Client,
     /// Cached access token.
-    access_token: RwLock<Option<AccessTokenCache>>,
-}
-
-/// Cached access token with expiration.
-struct AccessTokenCache {
-    token: String,
-    expires_at: chrono::DateTime<Utc>,
+    access_token: TokenCache,
 }
 
 impl GooglePlayMetadataSync {
@@ -195,21 +183,15 @@ impl GooglePlayMetadataSync {
             config,
             storage,
             client,
-            access_token: RwLock::new(None),
+            access_token: TokenCache::new(),
         })
     }
 
     /// Authenticate using service account and obtain an access token.
     async fn authenticate(&self) -> Result<String> {
-        // Check cache first
-        {
-            let cache = self.access_token.read().unwrap();
-            if let Some(ref cached) = *cache {
-                // Return cached token if it's still valid (with 5 minute buffer)
-                if Utc::now() < cached.expires_at - Duration::minutes(5) {
-                    return Ok(cached.token.clone());
-                }
-            }
+        // Check cache first (with 5 minute buffer before expiry)
+        if let Some(token) = self.access_token.get(Duration::minutes(5)) {
+            return Ok(token);
         }
 
         // Load service account key
@@ -268,13 +250,8 @@ impl GooglePlayMetadataSync {
         let expires_at = Utc::now() + Duration::seconds(token_response.expires_in as i64);
 
         // Cache the token
-        {
-            let mut cache = self.access_token.write().unwrap();
-            *cache = Some(AccessTokenCache {
-                token: token_response.access_token.clone(),
-                expires_at,
-            });
-        }
+        self.access_token
+            .set(token_response.access_token.clone(), expires_at);
 
         Ok(token_response.access_token)
     }
@@ -328,23 +305,15 @@ impl GooglePlayMetadataSync {
             let status = response.status();
 
             if status == StatusCode::TOO_MANY_REQUESTS {
-                if retries >= MAX_RETRIES {
+                if retries >= common::DEFAULT_MAX_RETRIES {
                     return Err(MetadataError::RateLimited("Too many requests".to_string()));
                 }
 
-                let retry_after = response
-                    .headers()
-                    .get("Retry-After")
-                    .and_then(|v| v.to_str().ok())
-                    .and_then(|v| v.parse::<u64>().ok())
-                    .unwrap_or(RETRY_DELAY_MS / 1000);
-
-                warn!(
-                    "Rate limited, waiting {} seconds before retry ({}/{})",
-                    retry_after,
-                    retries + 1,
-                    MAX_RETRIES
+                let retry_after = common::parse_retry_after(
+                    response.headers(),
+                    common::DEFAULT_RETRY_DELAY_MS / 1000,
                 );
+                common::log_rate_limit_warning(retry_after, retries, common::DEFAULT_MAX_RETRIES);
 
                 sleep(std::time::Duration::from_secs(retry_after)).await;
                 retries += 1;
@@ -408,23 +377,15 @@ impl GooglePlayMetadataSync {
 
             // Handle rate limiting
             if status == StatusCode::TOO_MANY_REQUESTS {
-                if retries >= MAX_RETRIES {
+                if retries >= common::DEFAULT_MAX_RETRIES {
                     return Err(MetadataError::RateLimited("Too many requests".to_string()));
                 }
 
-                let retry_after = response
-                    .headers()
-                    .get("Retry-After")
-                    .and_then(|v| v.to_str().ok())
-                    .and_then(|v| v.parse::<u64>().ok())
-                    .unwrap_or(RETRY_DELAY_MS / 1000);
-
-                warn!(
-                    "Rate limited, waiting {} seconds before retry ({}/{})",
-                    retry_after,
-                    retries + 1,
-                    MAX_RETRIES
+                let retry_after = common::parse_retry_after(
+                    response.headers(),
+                    common::DEFAULT_RETRY_DELAY_MS / 1000,
                 );
+                common::log_rate_limit_warning(retry_after, retries, common::DEFAULT_MAX_RETRIES);
 
                 sleep(std::time::Duration::from_secs(retry_after)).await;
                 retries += 1;
@@ -652,12 +613,6 @@ impl GooglePlayMetadataSync {
     // Helper methods
     // ========================================================================
 
-    /// Convert a Google Play locale string to our Locale type.
-    fn parse_locale(locale_str: &str) -> Result<Locale> {
-        // Google Play uses formats like "en-US", "de-DE", etc.
-        Locale::new(locale_str)
-    }
-
     /// Convert a Listing to GooglePlayLocalizedMetadata.
     fn listing_to_local_metadata(&self, listing: &Listing) -> GooglePlayLocalizedMetadata {
         GooglePlayLocalizedMetadata {
@@ -667,21 +622,6 @@ impl GooglePlayMetadataSync {
             video_url: listing.video.clone(),
             changelogs: HashMap::new(), // Changelogs are handled separately
         }
-    }
-
-    /// Compare two optional strings and determine if they differ.
-    fn strings_differ(local: Option<&str>, remote: Option<&str>) -> bool {
-        match (local, remote) {
-            (Some(l), Some(r)) => l.trim() != r.trim(),
-            (Some(l), None) => !l.trim().is_empty(),
-            (None, Some(r)) => !r.trim().is_empty(),
-            (None, None) => false,
-        }
-    }
-
-    /// Compare two strings and determine if they differ.
-    fn strings_differ_required(local: &str, remote: &str) -> bool {
-        local.trim() != remote.trim()
     }
 }
 
@@ -707,7 +647,7 @@ impl MetadataSync for GooglePlayMetadataSync {
 
                 // Filter by requested locales if specified
                 if let Some(filter_locales) = locales {
-                    let locale = Self::parse_locale(locale_str)?;
+                    let locale = common::parse_locale(locale_str)?;
                     if !filter_locales.iter().any(|l| l.code() == locale.code()) {
                         continue;
                     }
@@ -725,7 +665,7 @@ impl MetadataSync for GooglePlayMetadataSync {
             if metadata.localizations.contains_key("en-US") {
                 metadata.default_locale = Locale::new("en-US")?;
             } else if let Some(locale_str) = metadata.localizations.keys().next() {
-                metadata.default_locale = Self::parse_locale(locale_str)?;
+                metadata.default_locale = common::parse_locale(locale_str)?;
             }
 
             // Save to local storage
@@ -778,22 +718,22 @@ impl MetadataSync for GooglePlayMetadataSync {
 
                 for (locale_str, local_loc) in &local_metadata.localizations {
                     if let Some(filter_locales) = locales {
-                        let locale = Self::parse_locale(locale_str)?;
+                        let locale = common::parse_locale(locale_str)?;
                         if !filter_locales.iter().any(|l| l.code() == locale.code()) {
                             continue;
                         }
                     }
 
                     if let Some(remote) = remote_map.get(locale_str) {
-                        let title_differs = Self::strings_differ_required(
+                        let title_differs = common::strings_differ_required(
                             &local_loc.title,
                             remote.title.as_deref().unwrap_or(""),
                         );
-                        let short_desc_differs = Self::strings_differ_required(
+                        let short_desc_differs = common::strings_differ_required(
                             &local_loc.short_description,
                             remote.short_description.as_deref().unwrap_or(""),
                         );
-                        let full_desc_differs = Self::strings_differ_required(
+                        let full_desc_differs = common::strings_differ_required(
                             &local_loc.full_description,
                             remote.full_description.as_deref().unwrap_or(""),
                         );
@@ -850,7 +790,7 @@ impl MetadataSync for GooglePlayMetadataSync {
             for (locale_str, local_loc) in &local_metadata.localizations {
                 // Filter by requested locales if specified
                 if let Some(filter_locales) = locales {
-                    let locale = Self::parse_locale(locale_str)?;
+                    let locale = common::parse_locale(locale_str)?;
                     if !filter_locales.iter().any(|l| l.code() == locale.code()) {
                         continue;
                     }
@@ -866,16 +806,16 @@ impl MetadataSync for GooglePlayMetadataSync {
 
                 // Check if we need to update
                 let needs_update = if let Some(remote) = remote_map.get(locale_str) {
-                    Self::strings_differ_required(
+                    common::strings_differ_required(
                         &local_loc.title,
                         remote.title.as_deref().unwrap_or(""),
-                    ) || Self::strings_differ_required(
+                    ) || common::strings_differ_required(
                         &local_loc.short_description,
                         remote.short_description.as_deref().unwrap_or(""),
-                    ) || Self::strings_differ_required(
+                    ) || common::strings_differ_required(
                         &local_loc.full_description,
                         remote.full_description.as_deref().unwrap_or(""),
-                    ) || Self::strings_differ(
+                    ) || common::strings_differ(
                         local_loc.video_url.as_deref(),
                         remote.video.as_deref(),
                     )
@@ -936,7 +876,7 @@ impl MetadataSync for GooglePlayMetadataSync {
                 if let Some(remote) = remote_map.get(locale_str) {
                     // Compare title
                     let remote_title = remote.title.as_deref().unwrap_or("");
-                    if Self::strings_differ_required(&local_loc.title, remote_title) {
+                    if common::strings_differ_required(&local_loc.title, remote_title) {
                         diff.changes.push(MetadataChange {
                             locale: locale_str.clone(),
                             field: "title".to_string(),
@@ -948,7 +888,7 @@ impl MetadataSync for GooglePlayMetadataSync {
 
                     // Compare short_description
                     let remote_short = remote.short_description.as_deref().unwrap_or("");
-                    if Self::strings_differ_required(&local_loc.short_description, remote_short) {
+                    if common::strings_differ_required(&local_loc.short_description, remote_short) {
                         diff.changes.push(MetadataChange {
                             locale: locale_str.clone(),
                             field: "short_description".to_string(),
@@ -960,7 +900,7 @@ impl MetadataSync for GooglePlayMetadataSync {
 
                     // Compare full_description
                     let remote_full = remote.full_description.as_deref().unwrap_or("");
-                    if Self::strings_differ_required(&local_loc.full_description, remote_full) {
+                    if common::strings_differ_required(&local_loc.full_description, remote_full) {
                         diff.changes.push(MetadataChange {
                             locale: locale_str.clone(),
                             field: "full_description".to_string(),
@@ -971,8 +911,10 @@ impl MetadataSync for GooglePlayMetadataSync {
                     }
 
                     // Compare video URL
-                    if Self::strings_differ(local_loc.video_url.as_deref(), remote.video.as_deref())
-                    {
+                    if common::strings_differ(
+                        local_loc.video_url.as_deref(),
+                        remote.video.as_deref(),
+                    ) {
                         diff.changes.push(MetadataChange {
                             locale: locale_str.clone(),
                             field: "video_url".to_string(),
@@ -1023,6 +965,10 @@ impl MetadataSync for GooglePlayMetadataSync {
         info!("Found {} differences", diff.len());
 
         Ok(diff)
+    }
+
+    fn platform_name(&self) -> &'static str {
+        "google_play"
     }
 }
 
@@ -1167,41 +1113,6 @@ struct ImageInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_strings_differ() {
-        assert!(!GooglePlayMetadataSync::strings_differ(None, None));
-        assert!(!GooglePlayMetadataSync::strings_differ(Some(""), None));
-        assert!(!GooglePlayMetadataSync::strings_differ(None, Some("")));
-        assert!(!GooglePlayMetadataSync::strings_differ(
-            Some("hello"),
-            Some("hello")
-        ));
-        assert!(!GooglePlayMetadataSync::strings_differ(
-            Some(" hello "),
-            Some("hello")
-        ));
-
-        assert!(GooglePlayMetadataSync::strings_differ(
-            Some("hello"),
-            Some("world")
-        ));
-        assert!(GooglePlayMetadataSync::strings_differ(Some("hello"), None));
-        assert!(GooglePlayMetadataSync::strings_differ(None, Some("world")));
-    }
-
-    #[test]
-    fn test_strings_differ_required() {
-        assert!(!GooglePlayMetadataSync::strings_differ_required(
-            "hello", "hello"
-        ));
-        assert!(!GooglePlayMetadataSync::strings_differ_required(
-            " hello ", "hello"
-        ));
-        assert!(GooglePlayMetadataSync::strings_differ_required(
-            "hello", "world"
-        ));
-    }
 
     #[test]
     fn test_listing_update_serialization() {

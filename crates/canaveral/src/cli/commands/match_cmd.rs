@@ -9,7 +9,8 @@ use tracing::info;
 use canaveral_signing::sync::{MatchConfig, MatchSync, ProfileType, SyncStorage};
 use canaveral_signing::team::generate_keypair;
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Certificate and profile synchronization (match-style)
 #[derive(Debug, Args)]
@@ -188,6 +189,8 @@ impl MatchCommand {
 
 impl InitCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         // Create storage configuration
         let storage = match self.storage {
             StorageType::Git => {
@@ -233,13 +236,11 @@ impl InitCommand {
             }
         };
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!("{}", style("Initializing match repository...").bold());
-            println!("  Team ID: {}", style(&self.team_id).cyan());
-            println!("  Storage: {:?}", style(&self.storage).cyan());
-            println!();
-        }
+        ui.blank();
+        ui.header("Initializing match repository...");
+        ui.key_value("Team ID", &style(&self.team_id).cyan().to_string());
+        ui.key_value("Storage", &format!("{:?}", self.storage));
+        ui.blank();
 
         // Generate encryption keypair
         let keypair = generate_keypair();
@@ -270,30 +271,31 @@ impl InitCommand {
         let sync = MatchSync::new(config)?.with_keypair(keypair);
         sync.init().await?;
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!("{} Match repository initialized", style("✓").green());
-            println!();
-            println!("Important files:");
-            println!(
-                "  {} - Keep this secret, needed to decrypt",
-                style(keyfile.display()).cyan()
-            );
-            println!(
-                "  {} - Share with team members",
-                style(pubfile.display()).cyan()
-            );
-            println!(
-                "  {} - Storage configuration",
-                style(config_file.display()).cyan()
-            );
-            println!();
-            println!("Next steps:");
-            println!("  1. Add {} to .gitignore", style("match.key").cyan());
-            println!(
-                "  2. Run {} to sync certificates",
-                style("canaveral match sync").cyan()
-            );
-        }
+        ui.success("Match repository initialized");
+        ui.blank();
+        ui.section("Important files:");
+        ui.key_value(
+            &style(keyfile.display()).cyan().to_string(),
+            "Keep this secret, needed to decrypt",
+        );
+        ui.key_value(
+            &style(pubfile.display()).cyan().to_string(),
+            "Share with team members",
+        );
+        ui.key_value(
+            &style(config_file.display()).cyan().to_string(),
+            "Storage configuration",
+        );
+        ui.blank();
+        ui.section("Next steps:");
+        ui.step(&format!(
+            "1. Add {} to .gitignore",
+            style("match.key").cyan()
+        ));
+        ui.step(&format!(
+            "2. Run {} to sync certificates",
+            style("canaveral match sync").cyan()
+        ));
 
         Ok(())
     }
@@ -301,6 +303,8 @@ impl InitCommand {
 
 impl SyncCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         // Load configuration
         let config_content = std::fs::read_to_string(&self.config)
             .map_err(|_| anyhow::anyhow!("Config not found. Run 'canaveral match init' first."))?;
@@ -329,36 +333,34 @@ impl SyncCommand {
             private_key,
         };
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!("{}", style("Syncing certificates and profiles...").bold());
-            println!(
-                "  Profile type: {}",
-                style(format!("{:?}", self.profile_type)).cyan()
-            );
-            if self.readonly {
-                println!("  Mode: {}", style("read-only").yellow());
-            }
-            println!();
+        ui.blank();
+        ui.header("Syncing certificates and profiles...");
+        ui.key_value(
+            "Profile type",
+            &style(format!("{:?}", self.profile_type)).cyan().to_string(),
+        );
+        if self.readonly {
+            ui.key_value("Mode", &style("read-only").yellow().to_string());
         }
+        ui.blank();
 
         // Run sync
         let sync = MatchSync::new(config)?.with_keypair(keypair);
         let manifest = sync.sync().await?;
 
         // Output results
-        if cli.format == OutputFormat::Json {
-            println!("{}", serde_json::to_string_pretty(&manifest)?);
-        } else if !cli.quiet {
+        if ui.is_json() {
+            ui.json(&manifest)?;
+        } else if ui.is_text() {
             let cert_count: usize = manifest.certificates.values().map(|v| v.len()).sum();
             let profile_count: usize = manifest.profiles.values().map(|v| v.len()).sum();
 
-            println!("{} Sync complete", style("✓").green());
-            println!(
-                "  {} certificates, {} profiles",
+            ui.success("Sync complete");
+            ui.info(&format!(
+                "{} certificates, {} profiles",
                 style(cert_count).cyan(),
                 style(profile_count).cyan()
-            );
+            ));
 
             // Show certificate info
             for (cert_type, certs) in &manifest.certificates {
@@ -394,26 +396,24 @@ impl SyncCommand {
 
 impl NukeCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         // Confirmation prompt
         if !self.yes {
-            eprintln!(
-                "{} This will remove {} from the match repository.",
-                style("WARNING:").red().bold(),
-                if self.profile_type.is_some() {
-                    format!("{:?} profiles", self.profile_type.unwrap())
-                } else {
-                    "ALL certificates and profiles".to_string()
-                }
-            );
-            eprintln!("This action cannot be undone.");
-            eprintln!();
-            eprint!("Type 'yes' to confirm: ");
+            let target = if self.profile_type.is_some() {
+                format!("{:?} profiles", self.profile_type.unwrap())
+            } else {
+                "ALL certificates and profiles".to_string()
+            };
 
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input)?;
+            ui.warning(&format!(
+                "This will remove {} from the match repository. This action cannot be undone.",
+                target
+            ));
 
-            if input.trim() != "yes" {
-                eprintln!("Aborted.");
+            let confirmed = ui.confirm("Are you sure?", false)?;
+            if !confirmed {
+                ui.info("Aborted.");
                 return Ok(());
             }
         }
@@ -434,20 +434,19 @@ impl NukeCommand {
             private_key,
         };
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!("{}", style("Removing certificates and profiles...").bold());
-        }
+        ui.blank();
+        ui.header("Removing certificates and profiles...");
 
         // Run nuke
         let sync = MatchSync::new(config)?.with_keypair(keypair);
         sync.nuke(self.profile_type.map(|p| p.into())).await?;
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!("{} Certificates and profiles removed", style("✓").green());
-            println!();
-            println!("Run {} to regenerate", style("canaveral match sync").cyan());
-        }
+        ui.success("Certificates and profiles removed");
+        ui.blank();
+        ui.hint(&format!(
+            "Run {} to regenerate",
+            style("canaveral match sync").cyan()
+        ));
 
         Ok(())
     }
@@ -455,6 +454,8 @@ impl NukeCommand {
 
 impl StatusCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         // Load configuration
         let config_content = std::fs::read_to_string(&self.config)
             .map_err(|_| anyhow::anyhow!("Config not found. Run 'canaveral match init' first."))?;
@@ -475,23 +476,21 @@ impl StatusCommand {
             private_key,
         };
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!("{}", style("Match Status").bold());
-            println!();
-            println!("Team ID: {}", style(&config.team_id).cyan());
-            println!("Storage: {:?}", config.storage);
-            println!();
-        }
+        ui.blank();
+        ui.header("Match Status");
+        ui.blank();
+        ui.key_value("Team ID", &style(&config.team_id).cyan().to_string());
+        ui.key_value("Storage", &format!("{:?}", config.storage));
+        ui.blank();
 
         // Read manifest
         let sync = MatchSync::new(config)?.with_keypair(keypair);
         let manifest = sync.sync().await?;
 
-        if cli.format == OutputFormat::Json {
-            println!("{}", serde_json::to_string_pretty(&manifest)?);
-        } else if !cli.quiet {
-            println!("{}", style("Certificates:").bold().underlined());
+        if ui.is_json() {
+            ui.json(&manifest)?;
+        } else if ui.is_text() {
+            ui.section("Certificates:");
             for (cert_type, certs) in &manifest.certificates {
                 for cert in certs {
                     let expired = chrono::DateTime::parse_from_rfc3339(&cert.expires)
@@ -518,8 +517,8 @@ impl StatusCommand {
                 println!("  {}", style("No certificates").dim());
             }
 
-            println!();
-            println!("{}", style("Profiles:").bold().underlined());
+            ui.blank();
+            ui.section("Profiles:");
             for (app_id, profiles) in &manifest.profiles {
                 for (profile_type, profile) in profiles {
                     let expired = chrono::DateTime::parse_from_rfc3339(&profile.expires)
@@ -547,8 +546,8 @@ impl StatusCommand {
                 println!("  {}", style("No profiles").dim());
             }
 
-            println!();
-            println!("Last sync: {}", style(&manifest.last_sync).dim());
+            ui.blank();
+            ui.key_value("Last sync", &style(&manifest.last_sync).dim().to_string());
         }
 
         Ok(())

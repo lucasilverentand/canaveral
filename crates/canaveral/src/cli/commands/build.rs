@@ -11,6 +11,7 @@ use canaveral_frameworks::{
     OutputFormat as FrameworkOutputFormat,
 };
 
+use crate::cli::output::Ui;
 use crate::cli::{Cli, OutputFormat};
 
 /// Build a project for specified platform(s)
@@ -173,6 +174,7 @@ impl BuildCommand {
     }
 
     async fn execute_async(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let platform: Platform = self.platform.into();
 
@@ -226,8 +228,8 @@ impl BuildCommand {
 
         // Create orchestrator with config
         let orchestrator_config = OrchestratorConfig {
-            quiet: cli.quiet,
-            json_output: cli.format == OutputFormat::Json,
+            quiet: ui.is_quiet() || ui.is_json(),
+            json_output: ui.is_json(),
             check_prerequisites: !self.skip_checks,
             ..Default::default()
         };
@@ -237,34 +239,28 @@ impl BuildCommand {
         // If framework is specified, validate it
         if let Some(ref framework) = self.framework {
             let adapter_id = framework.as_adapter_id();
-            if !cli.quiet && cli.format == OutputFormat::Text {
-                println!(
-                    "{} Using framework: {}",
-                    style("→").cyan(),
-                    style(adapter_id).bold()
-                );
-            }
+            ui.step(&format!("Using framework: {}", style(adapter_id).bold()));
         }
 
         // Print build info
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!("{}", style("Building project...").bold());
-            println!("  Platform: {}", style(platform.as_str()).cyan());
-            println!("  Profile:  {}", style(self.profile.as_str()).cyan());
+        if ui.is_text() {
+            ui.blank();
+            ui.header("Building project...");
+            ui.key_value("Platform", &style(platform.as_str()).cyan().to_string());
+            ui.key_value("Profile", &style(self.profile.as_str()).cyan().to_string());
             if let Some(ref flavor) = self.flavor {
-                println!("  Flavor:   {}", style(flavor).cyan());
+                ui.key_value("Flavor", &style(flavor).cyan().to_string());
             }
             if let Some(ref version) = self.build_version {
-                println!("  Version:  {}", style(version).cyan());
+                ui.key_value("Version", &style(version).cyan().to_string());
             }
             if self.dry_run {
-                println!("  {}", style("DRY RUN").yellow().bold());
+                ui.warning("DRY RUN");
             }
-            println!();
+            ui.blank();
         }
 
-        // Execute build
+        // Execute build — keep OutputFormat mapping for the framework layer
         let output_format = match cli.format {
             OutputFormat::Text => FrameworkOutputFormat::Text,
             OutputFormat::Json => FrameworkOutputFormat::Json,
@@ -274,46 +270,43 @@ impl BuildCommand {
 
         // Handle result
         if exit_code != 0 {
-            if cli.format == OutputFormat::Text && !cli.quiet {
-                println!();
-                println!("{} Build failed", style("✗").red().bold());
+            if ui.is_text() {
+                ui.blank();
+                ui.error("Build failed");
             }
             std::process::exit(exit_code);
         }
 
         // Print success message for text output
-        if cli.format == OutputFormat::Text && !cli.quiet {
-            println!();
-            println!(
-                "{} Build completed successfully!",
-                style("✓").green().bold()
-            );
+        if ui.is_text() {
+            ui.blank();
+            ui.success("Build completed successfully!");
 
             // Print artifact paths
             if !output.artifacts.is_empty() {
-                println!();
-                println!("{}:", style("Artifacts").bold());
+                ui.blank();
+                ui.section("Artifacts");
                 for artifact in &output.artifacts {
-                    println!("  • {}", style(&artifact.path).cyan());
+                    ui.step(&style(&artifact.path).cyan().to_string());
                 }
             }
 
             // Print CI outputs
             if std::env::var("GITHUB_OUTPUT").is_ok() {
-                println!();
-                println!("{}:", style("GitHub Actions outputs set").dim());
+                ui.blank();
+                ui.info("GitHub Actions outputs set");
                 for (key, value) in &output.outputs {
-                    println!("  {}={}", style(key).dim(), value);
+                    ui.key_value(&style(key).dim().to_string(), value);
                 }
             }
 
             // Print GitLab CI variables
             if std::env::var("CI_PROJECT_DIR").is_ok() {
-                println!();
-                println!("{}:", style("GitLab CI variables").dim());
+                ui.blank();
+                ui.info("GitLab CI variables");
                 for (key, value) in &output.outputs {
                     let env_var = format!("CANAVERAL_{}", key.to_uppercase());
-                    println!("  {}={}", style(env_var).dim(), value);
+                    ui.key_value(&style(env_var).dim().to_string(), value);
                 }
             }
         }

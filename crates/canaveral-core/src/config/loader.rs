@@ -7,7 +7,7 @@ use tracing::{debug, info, warn};
 use crate::error::{ConfigError, Result};
 
 use super::defaults::config_file_names;
-use super::types::Config;
+use super::root::Config;
 use super::validation::validate_config;
 
 /// Load configuration from a file

@@ -8,6 +8,7 @@ use tracing::info;
 
 use canaveral_adapters::AdapterRegistry;
 
+use crate::cli::output::Ui;
 use crate::cli::Cli;
 
 /// Format source code
@@ -37,6 +38,7 @@ impl FmtCommand {
             affected = self.affected,
             "executing fmt command"
         );
+        let ui = Ui::new(cli);
 
         let path = if self.path.is_absolute() {
             self.path.clone()
@@ -54,24 +56,19 @@ impl FmtCommand {
             .detect(&path)
             .ok_or_else(|| anyhow::anyhow!("No package adapter detected for {}", path.display()))?;
 
-        if !cli.quiet {
-            let mode = if self.check { "Checking" } else { "Formatting" };
-            println!(
-                "{} {} code ({})...",
-                style("→").cyan(),
-                mode,
-                style(adapter.name()).bold()
-            );
-        }
+        let mode = if self.check { "Checking" } else { "Formatting" };
+        ui.info(&format!(
+            "{} code ({})...",
+            mode,
+            style(adapter.name()).bold()
+        ));
 
         adapter.fmt(&path, self.check)?;
 
-        if !cli.quiet {
-            if self.check {
-                println!("{} Formatting check passed!", style("✓").green().bold());
-            } else {
-                println!("{} Code formatted successfully!", style("✓").green().bold());
-            }
+        if self.check {
+            ui.success("Formatting check passed!");
+        } else {
+            ui.success("Code formatted successfully!");
         }
 
         Ok(())

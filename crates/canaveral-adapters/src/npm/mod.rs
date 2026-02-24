@@ -43,7 +43,7 @@ impl NpmAdapter {
     }
 
     fn detect_package_manager(&self, path: &Path) -> JsPackageManager {
-        let manifest = PackageJson::load(&self.manifest_path(path)).ok();
+        let manifest = PackageJson::load_from_path(&self.manifest_path(path)).ok();
         if let Some(manager) = manifest
             .as_ref()
             .and_then(|m| m.other.get("packageManager"))
@@ -156,7 +156,7 @@ impl PackageAdapter for NpmAdapter {
 
     fn get_info(&self, path: &Path) -> Result<PackageInfo> {
         let manifest_path = self.manifest_path(path);
-        let manifest = PackageJson::load(&manifest_path)?;
+        let manifest = PackageJson::load_from_path(&manifest_path)?;
 
         Ok(PackageInfo {
             name: manifest.name,
@@ -168,7 +168,7 @@ impl PackageAdapter for NpmAdapter {
     }
 
     fn get_version(&self, path: &Path) -> Result<String> {
-        let manifest = PackageJson::load(&self.manifest_path(path))?;
+        let manifest = PackageJson::load_from_path(&self.manifest_path(path))?;
         debug!(adapter = "npm", version = %manifest.version, "read version");
         Ok(manifest.version)
     }
@@ -176,9 +176,9 @@ impl PackageAdapter for NpmAdapter {
     fn set_version(&self, path: &Path, version: &str) -> Result<()> {
         info!(adapter = "npm", version, path = %path.display(), "setting version");
         let manifest_path = self.manifest_path(path);
-        let mut manifest = PackageJson::load(&manifest_path)?;
+        let mut manifest = PackageJson::load_from_path(&manifest_path)?;
         manifest.version = version.to_string();
-        manifest.save(&manifest_path)?;
+        manifest.save_to_path(&manifest_path)?;
         Ok(())
     }
 
@@ -238,7 +238,7 @@ impl PackageAdapter for NpmAdapter {
         let mut result = ValidationResult::pass();
 
         // Check manifest
-        let manifest = match PackageJson::load(&self.manifest_path(path)) {
+        let manifest = match PackageJson::load_from_path(&self.manifest_path(path)) {
             Ok(m) => m,
             Err(e) => {
                 result.add_error(format!("Cannot read package.json: {}", e));
@@ -311,7 +311,7 @@ impl PackageAdapter for NpmAdapter {
     }
 
     fn fmt(&self, path: &Path, check: bool) -> Result<()> {
-        let manifest = PackageJson::load(&self.manifest_path(path))?;
+        let manifest = PackageJson::load_from_path(&self.manifest_path(path))?;
         let manager = self.detect_package_manager(path);
         let script = if check { "format:check" } else { "format" };
 
@@ -345,7 +345,7 @@ impl PackageAdapter for NpmAdapter {
     }
 
     fn lint(&self, path: &Path) -> Result<()> {
-        let manifest = PackageJson::load(&self.manifest_path(path))?;
+        let manifest = PackageJson::load_from_path(&self.manifest_path(path))?;
         let manager = self.detect_package_manager(path);
 
         if manifest
@@ -378,7 +378,7 @@ impl PackageAdapter for NpmAdapter {
 
     fn build(&self, path: &Path) -> Result<()> {
         // Check if there's a build script
-        let manifest = PackageJson::load(&self.manifest_path(path))?;
+        let manifest = PackageJson::load_from_path(&self.manifest_path(path))?;
         let manager = self.detect_package_manager(path);
 
         if manifest
@@ -410,7 +410,7 @@ impl PackageAdapter for NpmAdapter {
     }
 
     fn test(&self, path: &Path) -> Result<()> {
-        let manifest = PackageJson::load(&self.manifest_path(path))?;
+        let manifest = PackageJson::load_from_path(&self.manifest_path(path))?;
         let manager = self.detect_package_manager(path);
 
         if manifest

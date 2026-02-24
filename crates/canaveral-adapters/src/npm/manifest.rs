@@ -6,6 +6,8 @@ use std::path::Path;
 use canaveral_core::error::{AdapterError, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::manifest::ManifestFile;
+
 /// package.json structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -86,8 +88,8 @@ pub struct PackageJson {
 }
 
 impl PackageJson {
-    /// Load package.json from path
-    pub fn load(path: &Path) -> Result<Self> {
+    /// Load package.json from a file path
+    pub fn load_from_path(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)
             .map_err(|_| AdapterError::ManifestNotFound(path.to_path_buf()))?;
 
@@ -95,8 +97,8 @@ impl PackageJson {
             .map_err(|e| AdapterError::ManifestParseError(e.to_string()).into())
     }
 
-    /// Save package.json to path
-    pub fn save(&self, path: &Path) -> Result<()> {
+    /// Save package.json to a file path
+    pub fn save_to_path(&self, path: &Path) -> Result<()> {
         let content = serde_json::to_string_pretty(self)
             .map_err(|e| AdapterError::ManifestUpdateError(e.to_string()))?;
 
@@ -112,6 +114,43 @@ impl PackageJson {
     }
 }
 
+impl ManifestFile for PackageJson {
+    fn filename() -> &'static str {
+        "package.json"
+    }
+
+    fn load(dir: &Path) -> anyhow::Result<Self> {
+        let path = dir.join(Self::filename());
+        PackageJson::load_from_path(&path).map_err(Into::into)
+    }
+
+    fn save(&self, dir: &Path) -> anyhow::Result<()> {
+        let path = dir.join(Self::filename());
+        self.save_to_path(&path).map_err(Into::into)
+    }
+
+    fn version(&self) -> Option<&str> {
+        if self.version.is_empty() {
+            None
+        } else {
+            Some(&self.version)
+        }
+    }
+
+    fn set_version(&mut self, version: &str) -> anyhow::Result<()> {
+        self.version = version.to_string();
+        Ok(())
+    }
+
+    fn name(&self) -> Option<&str> {
+        if self.name.is_empty() {
+            None
+        } else {
+            Some(&self.name)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,7 +163,7 @@ mod tests {
 
         std::fs::write(&path, r#"{"name": "test", "version": "1.0.0"}"#).unwrap();
 
-        let pkg = PackageJson::load(&path).unwrap();
+        let pkg = PackageJson::load_from_path(&path).unwrap();
         assert_eq!(pkg.name, "test");
         assert_eq!(pkg.version, "1.0.0");
     }
@@ -157,7 +196,7 @@ mod tests {
         )
         .unwrap();
 
-        let pkg = PackageJson::load(&path).unwrap();
+        let pkg = PackageJson::load_from_path(&path).unwrap();
         assert_eq!(pkg.name, "test-package");
         assert_eq!(pkg.version, "1.2.3");
         assert_eq!(pkg.description, Some("A test package".to_string()));
@@ -172,11 +211,11 @@ mod tests {
 
         std::fs::write(&path, r#"{"name": "test", "version": "1.0.0"}"#).unwrap();
 
-        let mut pkg = PackageJson::load(&path).unwrap();
+        let mut pkg = PackageJson::load_from_path(&path).unwrap();
         pkg.version = "2.0.0".to_string();
-        pkg.save(&path).unwrap();
+        pkg.save_to_path(&path).unwrap();
 
-        let loaded = PackageJson::load(&path).unwrap();
+        let loaded = PackageJson::load_from_path(&path).unwrap();
         assert_eq!(loaded.version, "2.0.0");
     }
 
@@ -191,11 +230,11 @@ mod tests {
         )
         .unwrap();
 
-        let mut pkg = PackageJson::load(&path).unwrap();
+        let mut pkg = PackageJson::load_from_path(&path).unwrap();
         assert!(pkg.other.contains_key("customField"));
 
         pkg.version = "2.0.0".to_string();
-        pkg.save(&path).unwrap();
+        pkg.save_to_path(&path).unwrap();
 
         let content = std::fs::read_to_string(&path).unwrap();
         assert!(content.contains("customField"));

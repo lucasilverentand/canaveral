@@ -8,7 +8,8 @@ use canaveral_changelog::{CommitParser, ConventionalParser};
 use canaveral_core::config::load_config_or_default;
 use canaveral_git::GitRepo;
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// PR validation and preview
 #[derive(Debug, Args)]
@@ -78,15 +79,14 @@ impl PrCommand {
 
 impl PrValidateCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
         let repo = GitRepo::discover(&cwd)?;
 
-        if !cli.quiet {
-            println!("{} Validating PR...", style("→").blue());
-            println!("  Base branch: {}", style(&self.base).cyan());
-            println!();
-        }
+        ui.info("Validating PR...");
+        ui.key_value("Base branch", &style(&self.base).cyan().to_string());
+        ui.blank();
 
         let checks_to_run = if self.checks.is_empty() {
             config.pr.checks.clone()
@@ -152,43 +152,33 @@ impl PrValidateCommand {
         }
 
         // Output results
-        if cli.format == OutputFormat::Json {
+        if ui.is_json() {
             let result = serde_json::json!({
                 "passed": passed,
                 "failed": failed,
                 "warnings": warnings,
                 "success": failed.is_empty(),
             });
-            println!("{}", serde_json::to_string_pretty(&result)?);
+            ui.json(&result)?;
             return Ok(());
         }
 
-        if !cli.quiet {
-            for msg in &passed {
-                println!("  {} {}", style("✓").green(), msg);
-            }
-            for msg in &warnings {
-                println!("  {} {}", style("⚠").yellow(), msg);
-            }
-            for msg in &failed {
-                println!("  {} {}", style("✗").red(), msg);
-            }
+        for msg in &passed {
+            ui.success(msg);
+        }
+        for msg in &warnings {
+            ui.warning(msg);
+        }
+        for msg in &failed {
+            ui.error(msg);
+        }
 
-            println!();
+        ui.blank();
 
-            if failed.is_empty() && (warnings.is_empty() || !self.strict) {
-                println!(
-                    "  {} {}",
-                    style("✓").green().bold(),
-                    style("PR validation passed.").green()
-                );
-            } else if !failed.is_empty() || (self.strict && !warnings.is_empty()) {
-                println!(
-                    "  {} {}",
-                    style("✗").red().bold(),
-                    style("PR validation failed.").red()
-                );
-            }
+        if failed.is_empty() && (warnings.is_empty() || !self.strict) {
+            ui.success("PR validation passed.");
+        } else if !failed.is_empty() || (self.strict && !warnings.is_empty()) {
+            ui.error("PR validation failed.");
         }
 
         if !failed.is_empty() || (self.strict && !warnings.is_empty()) {
@@ -201,6 +191,7 @@ impl PrValidateCommand {
 
 impl PrPreviewCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
         let repo = GitRepo::discover(&cwd)?;
@@ -248,31 +239,32 @@ impl PrPreviewCommand {
             "none"
         };
 
-        if cli.format == OutputFormat::Json {
+        if ui.is_json() {
             let preview = serde_json::json!({
                 "current_version": current_version,
                 "bump_type": bump_type,
                 "commit_count": commit_count,
                 "has_breaking_changes": has_breaking,
             });
-            println!("{}", serde_json::to_string_pretty(&preview)?);
+            ui.json(&preview)?;
             return Ok(());
         }
 
-        if !cli.quiet {
-            println!("{}", style("Release Preview").bold());
-            println!();
-            println!("  Current version: {}", style(&current_version).cyan());
-            println!("  Bump type:       {}", style(bump_type).yellow());
-            println!("  Commits:         {}", commit_count);
-            if has_breaking {
-                println!("  {}", style("⚠ Contains breaking changes").red().bold());
-            }
-
-            let tag_format = &config.versioning.tag_format;
-            println!("  Tag format:      {}", style(tag_format).dim());
-            println!();
+        ui.header("Release Preview");
+        ui.blank();
+        ui.key_value(
+            "Current version",
+            &style(&current_version).cyan().to_string(),
+        );
+        ui.key_value("Bump type", &style(bump_type).yellow().to_string());
+        ui.key_value("Commits", &commit_count.to_string());
+        if has_breaking {
+            ui.warning("Contains breaking changes");
         }
+
+        let tag_format = &config.versioning.tag_format;
+        ui.key_value("Tag format", &style(tag_format).dim().to_string());
+        ui.blank();
 
         Ok(())
     }
@@ -280,42 +272,38 @@ impl PrPreviewCommand {
 
 impl PrCheckConflictsCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (_config, _) = load_config_or_default(&cwd);
         let repo = GitRepo::discover(&cwd)?;
 
-        if !cli.quiet {
-            println!(
-                "{} Checking for version conflicts against {}...",
-                style("→").blue(),
-                style(&self.base).cyan()
-            );
-        }
+        ui.info(&format!(
+            "Checking for version conflicts against {}...",
+            style(&self.base).cyan()
+        ));
 
         // Check if current branch has tag conflicts
         let current_branch = repo.current_branch()?;
         let latest_tag = repo.find_latest_tag(None)?;
 
-        if cli.format == OutputFormat::Json {
+        if ui.is_json() {
             let result = serde_json::json!({
                 "branch": current_branch,
                 "latest_tag": latest_tag.as_ref().map(|t| &t.name),
                 "conflicts": false,
             });
-            println!("{}", serde_json::to_string_pretty(&result)?);
+            ui.json(&result)?;
             return Ok(());
         }
 
-        if !cli.quiet {
-            if let Some(branch) = &current_branch {
-                println!("  Branch: {}", style(branch).cyan());
-            }
-            if let Some(tag) = &latest_tag {
-                println!("  Latest tag: {}", style(&tag.name).yellow());
-            }
-            println!();
-            println!("  {} No version conflicts detected.", style("✓").green());
+        if let Some(branch) = &current_branch {
+            ui.key_value("Branch", &style(branch).cyan().to_string());
         }
+        if let Some(tag) = &latest_tag {
+            ui.key_value("Latest tag", &style(&tag.name).yellow().to_string());
+        }
+        ui.blank();
+        ui.success("No version conflicts detected.");
 
         Ok(())
     }

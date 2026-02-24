@@ -5,10 +5,10 @@ use std::process::Command;
 
 use clap::{Args, Subcommand};
 use console::style;
-use dialoguer::{Confirm, Input, MultiSelect, Select};
 use serde::Serialize;
 use tracing::info;
 
+use crate::cli::output::Ui;
 use crate::cli::Cli;
 use crate::scaffold::context::{
     AndroidBlock, ApiBlock, BillingConfig, Block, BlockType, DashboardBlock, ExpoBlock, IosBlock,
@@ -127,6 +127,7 @@ impl ScaffoldCommand {
 
 impl ScaffoldListCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let reg = registry();
         let mut blocks: Vec<&'static str> = reg
             .all_specs()
@@ -152,16 +153,14 @@ impl ScaffoldListCommand {
             return Ok(());
         }
 
-        if !cli.quiet {
-            println!("{}", style("Scaffold presets:").bold());
-            for preset in &catalog.presets {
-                println!("  {}", style(preset).cyan());
-            }
-            println!();
-            println!("{}", style("Scaffold blocks:").bold());
-            for block in &catalog.blocks {
-                println!("  {}", style(block).green());
-            }
+        ui.header("Scaffold presets:");
+        for preset in &catalog.presets {
+            println!("  {}", style(preset).cyan());
+        }
+        ui.blank();
+        ui.header("Scaffold blocks:");
+        for block in &catalog.blocks {
+            println!("  {}", style(block).green());
         }
 
         Ok(())
@@ -170,14 +169,12 @@ impl ScaffoldListCommand {
 
 impl ScaffoldNewCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let project_name = match &self.name {
             Some(name) => name.clone(),
             None if self.yes => "my-project".to_string(),
-            None => Input::<String>::new()
-                .with_prompt("Project name")
-                .default("my-project".to_string())
-                .interact_text()?,
+            None => ui.input("Project name", "my-project")?,
         };
 
         let slug = slugify(&project_name);
@@ -196,12 +193,7 @@ impl ScaffoldNewCommand {
         let package_manager = match self.package_manager {
             Some(pm) => pm,
             None if self.yes => PackageManager::Bun,
-            None => match Select::new()
-                .with_prompt("Package manager")
-                .items(&["bun", "pnpm", "npm"])
-                .default(0)
-                .interact()?
-            {
+            None => match ui.select("Package manager", &["bun", "pnpm", "npm"], 0)? {
                 0 => PackageManager::Bun,
                 1 => PackageManager::Pnpm,
                 _ => PackageManager::Npm,
@@ -221,9 +213,9 @@ impl ScaffoldNewCommand {
         apply_package_overrides(self, &mut ctx);
 
         if !self.yes {
-            prompt_business_choices(&mut ctx)?;
+            prompt_business_choices(&ui, &mut ctx)?;
             if self.preset.is_none() && !any_block_flag_set(self) {
-                prompt_block_selection(&mut ctx)?;
+                prompt_block_selection(&ui, &mut ctx)?;
             }
         }
 
@@ -238,10 +230,7 @@ impl ScaffoldNewCommand {
         } else if self.yes {
             true
         } else {
-            Confirm::new()
-                .with_prompt("Initialize git repository?")
-                .default(true)
-                .interact()?
+            ui.confirm("Initialize git repository?", true)?
         };
 
         let do_install = if self.no_install {
@@ -249,10 +238,7 @@ impl ScaffoldNewCommand {
         } else if self.yes {
             true
         } else {
-            Confirm::new()
-                .with_prompt("Install dependencies?")
-                .default(true)
-                .interact()?
+            ui.confirm("Install dependencies?", true)?
         };
 
         if do_git {
@@ -262,21 +248,18 @@ impl ScaffoldNewCommand {
             run_shell_command(&output_dir, ctx.package_manager.install_cmd())?;
         }
 
-        if !cli.quiet {
-            println!(
-                "{} Scaffolded project at {}",
-                style("✓").green().bold(),
-                style(output_dir.display()).cyan()
-            );
-            println!("{} files created", generated.len());
-            println!();
-            println!("Next steps:");
-            println!("  cd {}", style(output_dir.display()).cyan());
-            if !do_install {
-                println!("  {}", ctx.package_manager.install_cmd());
-            }
-            println!("  {} dev", ctx.package_manager.run_prefix());
+        ui.success(&format!(
+            "Scaffolded project at {}",
+            ui.fmt_path(&output_dir.display())
+        ));
+        ui.hint(&format!("{} files created", generated.len()));
+        ui.blank();
+        ui.header("Next steps:");
+        ui.hint(&format!("cd {}", ui.fmt_path(&output_dir.display())));
+        if !do_install {
+            ui.hint(ctx.package_manager.install_cmd());
         }
+        ui.hint(&format!("{} dev", ctx.package_manager.run_prefix()));
 
         Ok(())
     }
@@ -284,6 +267,7 @@ impl ScaffoldNewCommand {
 
 impl ScaffoldAddCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let detected = detect_project(&cwd)?.ok_or_else(|| {
             anyhow::anyhow!("No scaffolded project found. Run `canaveral scaffold new` first.")
@@ -312,14 +296,11 @@ impl ScaffoldAddCommand {
         ctx.apply_derivations();
         save_scaffold_state(&root, &ctx)?;
 
-        if !cli.quiet {
-            println!(
-                "{} Added {} block",
-                style("✓").green().bold(),
-                style(format!("{:?}", self.block_type).to_lowercase()).cyan()
-            );
-            println!("{} files created", generated.len());
-        }
+        ui.success(&format!(
+            "Added {} block",
+            style(format!("{:?}", self.block_type).to_lowercase()).cyan()
+        ));
+        ui.hint(&format!("{} files created", generated.len()));
 
         Ok(())
     }
@@ -385,20 +366,11 @@ fn apply_package_overrides(cmd: &ScaffoldNewCommand, ctx: &mut ProjectContext) {
     }
 }
 
-fn prompt_business_choices(ctx: &mut ProjectContext) -> anyhow::Result<()> {
-    ctx.auth.workspaces = Confirm::new()
-        .with_prompt("Users belong to workspaces/organizations?")
-        .default(false)
-        .interact()?;
-    ctx.auth.roles = Confirm::new()
-        .with_prompt("Enable role-based access?")
-        .default(false)
-        .interact()?;
+fn prompt_business_choices(ui: &Ui, ctx: &mut ProjectContext) -> anyhow::Result<()> {
+    ctx.auth.workspaces = ui.confirm("Users belong to workspaces/organizations?", false)?;
+    ctx.auth.roles = ui.confirm("Enable role-based access?", false)?;
 
-    let providers = MultiSelect::new()
-        .with_prompt("Social login providers")
-        .items(&["google", "github", "apple"])
-        .interact()?;
+    let providers = ui.multi_select("Social login providers", &["google", "github", "apple"])?;
     ctx.auth.social_providers = providers
         .into_iter()
         .filter_map(|idx| match idx {
@@ -409,11 +381,7 @@ fn prompt_business_choices(ctx: &mut ProjectContext) -> anyhow::Result<()> {
         })
         .collect();
 
-    let billing = Select::new()
-        .with_prompt("Billing model")
-        .items(&["none", "stripe", "iap", "both"])
-        .default(0)
-        .interact()?;
+    let billing = ui.select("Billing model", &["none", "stripe", "iap", "both"], 0)?;
     ctx.billing = match billing {
         1 => BillingConfig {
             stripe: true,
@@ -435,11 +403,11 @@ fn prompt_business_choices(ctx: &mut ProjectContext) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn prompt_block_selection(ctx: &mut ProjectContext) -> anyhow::Result<()> {
-    let selected = MultiSelect::new()
-        .with_prompt("Select blocks")
-        .items(&["api", "dashboard", "web", "expo", "ios", "android"])
-        .interact()?;
+fn prompt_block_selection(ui: &Ui, ctx: &mut ProjectContext) -> anyhow::Result<()> {
+    let selected = ui.multi_select(
+        "Select blocks",
+        &["api", "dashboard", "web", "expo", "ios", "android"],
+    )?;
 
     if selected.is_empty() {
         return Ok(());

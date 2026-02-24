@@ -12,7 +12,8 @@ use canaveral_frameworks::{
     TestReport, TestStatus,
 };
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Run tests for a project
 #[derive(Debug, Args)]
@@ -142,6 +143,8 @@ impl TestCommand {
     }
 
     async fn execute_async(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         // Resolve path
         let path = if self.path.is_absolute() {
             self.path.clone()
@@ -190,20 +193,20 @@ impl TestCommand {
         };
 
         // Show header
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!("{}", style("Running tests...").bold());
-            println!("  Path: {}", style(path.display()).cyan());
+        if ui.is_text() {
+            ui.blank();
+            ui.header("Running tests...");
+            ui.key_value("Path", &style(path.display()).cyan().to_string());
             if let Some(ref filter) = self.filter {
-                println!("  Filter: {}", style(filter).dim());
+                ui.key_value("Filter", &style(filter).dim().to_string());
             }
             if self.coverage {
-                println!("  Coverage: {}", style("enabled").green());
+                ui.key_value("Coverage", &style("enabled").green().to_string());
             }
             if self.dry_run {
-                println!("  {}", style("(DRY RUN)").yellow().bold());
+                ui.warning("(DRY RUN)");
             }
-            println!();
+            ui.blank();
         }
 
         // Run tests
@@ -211,20 +214,17 @@ impl TestCommand {
         let report = runner.run(&path, &ctx).await?;
 
         // Output results
-        self.output_results(&report, cli)?;
+        self.output_results(&report, &ui)?;
 
         // Write to file if requested
         if let Some(ref output_path) = self.output {
             let reporter: TestReporter = self.reporter.into();
             ReportGenerator::write_to_file(&report, reporter, output_path)?;
 
-            if !cli.quiet && cli.format == OutputFormat::Text {
-                println!(
-                    "{} Report written to {}",
-                    style("✓").green(),
-                    style(output_path.display()).cyan()
-                );
-            }
+            ui.success(&format!(
+                "Report written to {}",
+                style(output_path.display()).cyan()
+            ));
         }
 
         // Exit with error if tests failed
@@ -240,9 +240,9 @@ impl TestCommand {
         Ok(())
     }
 
-    fn output_results(&self, report: &TestReport, cli: &Cli) -> anyhow::Result<()> {
+    fn output_results(&self, report: &TestReport, ui: &Ui) -> anyhow::Result<()> {
         // JSON output mode
-        if cli.format == OutputFormat::Json {
+        if ui.is_json() {
             let json = ReportGenerator::generate_json(report);
             println!("{}", json);
             return Ok(());
@@ -263,7 +263,7 @@ impl TestCommand {
         }
 
         // Pretty mode (default)
-        if !cli.quiet {
+        if ui.is_text() {
             self.print_pretty(report);
         }
 

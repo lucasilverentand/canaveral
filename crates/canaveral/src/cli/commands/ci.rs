@@ -8,7 +8,8 @@ use canaveral_core::config::load_config_or_default;
 use canaveral_core::templates::{CITemplateRegistry, TemplateOptions};
 
 use super::RunCommand;
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// CI/CD pipeline management
 #[derive(Debug, Args)]
@@ -94,16 +95,14 @@ impl CICommand {
 
 impl CIGenerateCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
-        if !cli.quiet {
-            println!(
-                "{} Generating {} CI configuration...",
-                style("→").blue(),
-                style(&self.platform).cyan()
-            );
-        }
+        ui.info(&format!(
+            "Generating {} CI configuration...",
+            style(&self.platform).cyan()
+        ));
 
         let mut options = TemplateOptions::new();
 
@@ -139,13 +138,10 @@ impl CIGenerateCommand {
                 }
                 std::fs::write(&output_path, &content)?;
 
-                if !cli.quiet {
-                    println!(
-                        "{} Generated native CI config at {}",
-                        style("✓").green(),
-                        style(output_path.display()).cyan()
-                    );
-                }
+                ui.success(&format!(
+                    "Generated native CI config at {}",
+                    style(output_path.display()).cyan()
+                ));
             }
         } else {
             // Traditional mode: use existing template generators
@@ -172,14 +168,11 @@ impl CIGenerateCommand {
                 }
                 std::fs::write(&output_path, &content)?;
 
-                if !cli.quiet {
-                    println!(
-                        "{} Generated {} CI config at {}",
-                        style("✓").green(),
-                        template.platform_name(),
-                        style(output_path.display()).cyan()
-                    );
-                }
+                ui.success(&format!(
+                    "Generated {} CI config at {}",
+                    template.platform_name(),
+                    style(output_path.display()).cyan()
+                ));
             }
         }
 
@@ -189,6 +182,7 @@ impl CIGenerateCommand {
 
 impl CIRunCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
@@ -202,26 +196,24 @@ impl CIRunCommand {
             ),
         };
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!(
-                "{} CI pipeline for event: {}",
-                style("→").blue(),
-                style(&self.event).cyan()
-            );
-            println!("  Tasks: {}", style(tasks_to_run.join(", ")).yellow());
-            if self.affected {
-                println!("  Mode: {}", style("affected only").dim());
-            }
-            if self.dry_run {
-                println!("  {}", style("[DRY RUN]").yellow().bold());
-            }
-            println!();
+        ui.info(&format!(
+            "CI pipeline for event: {}",
+            style(&self.event).cyan()
+        ));
+        ui.key_value(
+            "Tasks",
+            &style(tasks_to_run.join(", ")).yellow().to_string(),
+        );
+        if self.affected {
+            ui.key_value("Mode", "affected only");
         }
+        if self.dry_run {
+            ui.warning("[DRY RUN]");
+        }
+        ui.blank();
 
         if tasks_to_run.is_empty() {
-            if !cli.quiet && cli.format == OutputFormat::Text {
-                println!("{} No tasks configured for this event.", style("✓").green());
-            }
+            ui.success("No tasks configured for this event.");
             return Ok(());
         }
 
@@ -243,12 +235,11 @@ impl CIRunCommand {
 
 impl CIValidateCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, config_path) = load_config_or_default(&cwd);
 
-        if !cli.quiet {
-            println!("{} Validating CI configuration...", style("→").blue());
-        }
+        ui.info("Validating CI configuration...");
 
         let mut issues = Vec::new();
 
@@ -272,30 +263,28 @@ impl CIValidateCommand {
         }
 
         if issues.is_empty() {
-            if !cli.quiet {
-                println!("{} CI configuration is valid.", style("✓").green());
-                if let Some(path) = config_path {
-                    println!("  Config: {}", style(path.display()).dim());
-                }
-                println!("  Platform: {}", style(&config.ci.platform).cyan());
-                println!("  PR tasks: {}", style(config.ci.on_pr.join(", ")).dim());
-                println!(
-                    "  Push tasks: {}",
-                    style(config.ci.on_push_main.join(", ")).dim()
-                );
+            ui.success("CI configuration is valid.");
+            if let Some(path) = config_path {
+                ui.key_value("Config", &style(path.display()).dim().to_string());
             }
+            ui.key_value("Platform", &style(&config.ci.platform).cyan().to_string());
+            ui.key_value(
+                "PR tasks",
+                &style(config.ci.on_pr.join(", ")).dim().to_string(),
+            );
+            ui.key_value(
+                "Push tasks",
+                &style(config.ci.on_push_main.join(", ")).dim().to_string(),
+            );
         } else {
             for issue in &issues {
-                println!("  {} {}", style("✗").red(), issue);
+                ui.error(issue);
             }
-            if !issues.is_empty() {
-                println!();
-                println!(
-                    "{} Run {} to generate a CI configuration.",
-                    style("→").blue(),
-                    style("canaveral ci generate").cyan()
-                );
-            }
+            ui.blank();
+            ui.info(&format!(
+                "Run {} to generate a CI configuration.",
+                style("canaveral ci generate").cyan()
+            ));
         }
 
         Ok(())

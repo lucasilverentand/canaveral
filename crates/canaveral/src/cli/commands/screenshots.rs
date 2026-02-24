@@ -15,7 +15,8 @@ use canaveral_frameworks::{
     DeviceConfig, ScreenConfig, ScreenshotSession,
 };
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Screenshot capture and framing
 #[derive(Debug, Args)]
@@ -220,6 +221,8 @@ impl ScreenshotsCommand {
 
 impl CaptureCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         // Load or build configuration
         let config = if self.config.exists() {
             ScreenshotConfig::from_yaml(&self.config)?
@@ -227,27 +230,31 @@ impl CaptureCommand {
             self.build_config()?
         };
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!("{}", style("Capturing screenshots...").bold());
-            println!(
-                "  Devices: {}",
-                style(config.devices.len().to_string()).cyan()
-            );
-            println!("  Locales: {}", style(config.locales.join(", ")).cyan());
-            println!(
-                "  Screens: {}",
-                style(config.screens.len().to_string()).cyan()
-            );
-            println!("  Output: {}", style(config.output_dir.display()).cyan());
-            if self.dry_run {
-                println!("  {}", style("(DRY RUN)").yellow().bold());
-            }
-            println!();
+        ui.blank();
+        ui.header("Capturing screenshots...");
+        ui.key_value(
+            "Devices",
+            &style(config.devices.len().to_string()).cyan().to_string(),
+        );
+        ui.key_value(
+            "Locales",
+            &style(config.locales.join(", ")).cyan().to_string(),
+        );
+        ui.key_value(
+            "Screens",
+            &style(config.screens.len().to_string()).cyan().to_string(),
+        );
+        ui.key_value(
+            "Output",
+            &style(config.output_dir.display()).cyan().to_string(),
+        );
+        if self.dry_run {
+            ui.warning("(DRY RUN)");
         }
+        ui.blank();
 
         if self.dry_run {
-            println!("{} Dry run complete", style("✓").green());
+            ui.success("Dry run complete");
             return Ok(());
         }
 
@@ -256,34 +263,27 @@ impl CaptureCommand {
         let results = session.run().await?;
 
         // Output results
-        if cli.format == OutputFormat::Json {
-            println!("{}", serde_json::to_string_pretty(&results)?);
-        } else if !cli.quiet {
+        if ui.is_json() {
+            ui.json(&results)?;
+        } else if ui.is_text() {
             let successful = results.iter().filter(|r| r.success).count();
             let failed = results.iter().filter(|r| !r.success).count();
 
-            println!();
+            ui.blank();
             if failed == 0 {
-                println!(
-                    "{} Captured {} screenshots successfully",
-                    style("✓").green(),
-                    successful
-                );
+                ui.success(&format!("Captured {} screenshots successfully", successful));
             } else {
-                println!(
-                    "{} Captured {} screenshots, {} failed",
-                    style("⚠").yellow(),
-                    successful,
-                    failed
-                );
+                ui.warning(&format!(
+                    "Captured {} screenshots, {} failed",
+                    successful, failed
+                ));
 
                 for result in results.iter().filter(|r| !r.success) {
-                    println!(
-                        "  {} {}: {}",
-                        style("✗").red(),
+                    ui.error(&format!(
+                        "{}: {}",
                         result.screen_name,
                         result.error.as_deref().unwrap_or("Unknown error")
-                    );
+                    ));
                 }
             }
         }
@@ -353,6 +353,8 @@ impl CaptureCommand {
 
 impl FrameCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         // Build frame config
         let config = if let Some(preset) = self.preset {
             match preset {
@@ -396,19 +398,15 @@ impl FrameCommand {
                 ))
             });
 
-            if !cli.quiet && cli.format == OutputFormat::Text {
-                println!(
-                    "Framing {} -> {}",
-                    style(self.input.display()).cyan(),
-                    style(output.display()).cyan()
-                );
-            }
+            ui.step(&format!(
+                "Framing {} -> {}",
+                style(self.input.display()).cyan(),
+                style(output.display()).cyan()
+            ));
 
             framer.frame(&self.input, self.device_type.into(), &output)?;
 
-            if !cli.quiet && cli.format == OutputFormat::Text {
-                println!("{} Framed screenshot saved", style("✓").green());
-            }
+            ui.success("Framed screenshot saved");
         } else if self.input.is_dir() {
             let output_dir = self
                 .output
@@ -434,14 +432,11 @@ impl FrameCommand {
                 }
             }
 
-            if !cli.quiet && cli.format == OutputFormat::Text {
-                println!(
-                    "{} Framed {} screenshots to {}",
-                    style("✓").green(),
-                    count,
-                    style(output_dir.display()).cyan()
-                );
-            }
+            ui.success(&format!(
+                "Framed {} screenshots to {}",
+                count,
+                style(output_dir.display()).cyan()
+            ));
         } else {
             anyhow::bail!("Input path not found: {}", self.input.display());
         }
@@ -452,22 +447,21 @@ impl FrameCommand {
 
 impl DevicesCommand {
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let mut manager = DeviceManager::new();
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!("{}", style("Available Devices").bold());
-            println!();
-        }
+        ui.blank();
+        ui.header("Available Devices");
+        ui.blank();
 
         // iOS simulators
         if self.platform.is_none() || matches!(self.platform, Some(PlatformArg::Ios)) {
             let simulators = manager.list_ios_simulators()?;
 
-            if cli.format == OutputFormat::Json {
-                println!("{}", serde_json::to_string_pretty(&simulators)?);
-            } else if !cli.quiet {
-                println!("{}", style("iOS Simulators:").bold().underlined());
+            if ui.is_json() {
+                ui.json(&simulators)?;
+            } else if ui.is_text() {
+                ui.section("iOS Simulators:");
 
                 let filtered: Vec<_> = if self.booted {
                     simulators.iter().filter(|s| s.state == "Booted").collect()
@@ -489,7 +483,7 @@ impl DevicesCommand {
                         state_style
                     );
                 }
-                println!();
+                ui.blank();
             }
         }
 
@@ -497,10 +491,10 @@ impl DevicesCommand {
         if self.platform.is_none() || matches!(self.platform, Some(PlatformArg::Android)) {
             let emulators = manager.list_android_emulators()?;
 
-            if cli.format == OutputFormat::Json && self.platform.is_some() {
-                println!("{}", serde_json::to_string_pretty(&emulators)?);
-            } else if !cli.quiet && cli.format == OutputFormat::Text {
-                println!("{}", style("Android Emulators:").bold().underlined());
+            if ui.is_json() && self.platform.is_some() {
+                ui.json(&emulators)?;
+            } else if ui.is_text() {
+                ui.section("Android Emulators:");
 
                 if emulators.is_empty() {
                     println!("  {}", style("No emulators found").dim());
@@ -509,13 +503,13 @@ impl DevicesCommand {
                         println!("  {} ({})", style(&emu.name).cyan(), style(&emu.abi).dim());
                     }
                 }
-                println!();
+                ui.blank();
             }
         }
 
         // Presets
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!("{}", style("Device Presets:").bold().underlined());
+        if ui.is_text() {
+            ui.section("Device Presets:");
             println!("  {} - All required iPhone sizes", style("iphones").cyan());
             println!("  {} - All required iPad sizes", style("ipads").cyan());
             println!(
@@ -532,7 +526,7 @@ impl DevicesCommand {
             );
             println!("  {} - iPad Pro 12.9\"", style("ipad-pro-12.9").cyan());
             println!("  {} - iPad Pro 11\"", style("ipad-pro-11").cyan());
-            println!();
+            ui.blank();
         }
 
         Ok(())
@@ -541,6 +535,8 @@ impl DevicesCommand {
 
 impl InitCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         // Build default config
         let devices = match self.platform {
             PlatformArg::Ios => {
@@ -568,23 +564,20 @@ impl InitCommand {
         // Write config
         config.to_yaml(&self.output)?;
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!(
-                "{} Created screenshot config at {}",
-                style("✓").green(),
-                style(self.output.display()).cyan()
-            );
-            println!();
-            println!("Edit the config file to customize:");
-            println!("  - Add screen routes to capture");
-            println!("  - Add locales for localization");
-            println!("  - Configure devices for different sizes");
-            println!();
-            println!(
-                "Then run: {}",
-                style("canaveral screenshots capture").cyan()
-            );
-        }
+        ui.success(&format!(
+            "Created screenshot config at {}",
+            style(self.output.display()).cyan()
+        ));
+        ui.blank();
+        ui.info("Edit the config file to customize:");
+        println!("  - Add screen routes to capture");
+        println!("  - Add locales for localization");
+        println!("  - Configure devices for different sizes");
+        ui.blank();
+        ui.hint(&format!(
+            "Then run: {}",
+            style("canaveral screenshots capture").cyan()
+        ));
 
         Ok(())
     }

@@ -11,7 +11,8 @@ use canaveral_stores::apple::{
 };
 use canaveral_stores::types::AppleStoreConfig;
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// TestFlight beta testing management
 #[derive(Debug, Args)]
@@ -259,6 +260,8 @@ impl TestFlightCommand {
         use canaveral_stores::traits::StoreAdapter;
         use canaveral_stores::types::UploadOptions;
 
+        let ui = Ui::new(cli);
+
         if !args.ipa.exists() {
             anyhow::bail!("IPA file not found: {}", args.ipa.display());
         }
@@ -269,12 +272,10 @@ impl TestFlightCommand {
             args.api_key.as_deref(),
         )?;
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!("{}", style("Uploading to TestFlight...").bold());
-            println!("  File: {}", style(args.ipa.display()).cyan());
-            println!();
-        }
+        ui.blank();
+        ui.header("Uploading to TestFlight...");
+        ui.key_value("File", &style(args.ipa.display()).cyan().to_string());
+        ui.blank();
 
         let store = AppStoreConnect::new(config)?;
 
@@ -287,16 +288,19 @@ impl TestFlightCommand {
 
         let result = store.upload(&args.ipa, &options).await?;
 
-        if cli.format == OutputFormat::Json {
-            println!("{}", serde_json::to_string_pretty(&result)?);
-        } else if !cli.quiet {
-            println!("{} Upload completed!", style("✓").green().bold());
+        if ui.is_json() {
+            ui.json(&result)?;
+        } else if ui.is_text() {
+            ui.success("Upload completed!");
             if let Some(ref build_id) = result.build_id {
-                println!("  Build ID: {}", style(build_id).cyan());
+                ui.key_value("Build ID", &style(build_id).cyan().to_string());
             }
-            println!("  Status: {}", style(result.status.to_string()).yellow());
+            ui.key_value(
+                "Status",
+                &style(result.status.to_string()).yellow().to_string(),
+            );
             if let Some(ref url) = result.console_url {
-                println!("  Console: {}", style(url).dim());
+                ui.key_value("Console", &style(url).dim().to_string());
             }
         }
 
@@ -304,6 +308,7 @@ impl TestFlightCommand {
     }
 
     async fn status(&self, args: &StatusArgs, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let mut testflight = TestFlight::from_env()?;
 
         let build = if let Some(ref build_id) = args.build_id {
@@ -319,9 +324,9 @@ impl TestFlightCommand {
             anyhow::bail!("Either build_id or bundle_id is required");
         };
 
-        if cli.format == OutputFormat::Json {
-            println!("{}", serde_json::to_string_pretty(&build)?);
-        } else if !cli.quiet {
+        if ui.is_json() {
+            ui.json(&build)?;
+        } else if ui.is_text() {
             self.print_build(&build);
         }
 
@@ -329,6 +334,7 @@ impl TestFlightCommand {
     }
 
     async fn builds(&self, args: &BuildsArgs, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let mut testflight = TestFlight::from_env()?;
 
         let app_id = testflight.get_app_id(&args.bundle_id).await?;
@@ -343,17 +349,17 @@ impl TestFlightCommand {
             builds
         };
 
-        if cli.format == OutputFormat::Json {
-            println!("{}", serde_json::to_string_pretty(&builds)?);
-        } else if !cli.quiet {
+        if ui.is_json() {
+            ui.json(&builds)?;
+        } else if ui.is_text() {
             if builds.is_empty() {
-                println!("No builds found");
+                ui.info("No builds found");
             } else {
-                println!("{}", style("TestFlight Builds").bold());
-                println!();
+                ui.header("TestFlight Builds");
+                ui.blank();
                 for build in &builds {
                     self.print_build(build);
-                    println!();
+                    ui.blank();
                 }
             }
         }
@@ -362,6 +368,7 @@ impl TestFlightCommand {
     }
 
     async fn testers(&self, cmd: &TestersCommand, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let mut testflight = TestFlight::from_env()?;
 
         match &cmd.subcommand {
@@ -382,14 +389,14 @@ impl TestFlightCommand {
                     .list_testers(&app_id, group_id.as_deref())
                     .await?;
 
-                if cli.format == OutputFormat::Json {
-                    println!("{}", serde_json::to_string_pretty(&testers)?);
-                } else if !cli.quiet {
+                if ui.is_json() {
+                    ui.json(&testers)?;
+                } else if ui.is_text() {
                     if testers.is_empty() {
-                        println!("No testers found");
+                        ui.info("No testers found");
                     } else {
-                        println!("{}", style("Beta Testers").bold());
-                        println!();
+                        ui.header("Beta Testers");
+                        ui.blank();
                         for tester in &testers {
                             self.print_tester(tester);
                         }
@@ -422,15 +429,14 @@ impl TestFlightCommand {
                     )
                     .await?;
 
-                if cli.format == OutputFormat::Json {
-                    println!("{}", serde_json::to_string_pretty(&tester)?);
-                } else if !cli.quiet {
-                    println!(
-                        "{} Invited {} to group '{}'",
-                        style("✓").green().bold(),
+                if ui.is_json() {
+                    ui.json(&tester)?;
+                } else if ui.is_text() {
+                    ui.success(&format!(
+                        "Invited {} to group '{}'",
                         style(email).cyan(),
                         group
-                    );
+                    ));
                 }
             }
 
@@ -445,13 +451,7 @@ impl TestFlightCommand {
 
                 testflight.remove_tester(&tester.id).await?;
 
-                if !cli.quiet && cli.format == OutputFormat::Text {
-                    println!(
-                        "{} Removed tester {}",
-                        style("✓").green().bold(),
-                        style(email).cyan()
-                    );
-                }
+                ui.success(&format!("Removed tester {}", style(email).cyan()));
             }
         }
 
@@ -459,6 +459,7 @@ impl TestFlightCommand {
     }
 
     async fn groups(&self, cmd: &GroupsCommand, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let mut testflight = TestFlight::from_env()?;
 
         match &cmd.subcommand {
@@ -466,14 +467,14 @@ impl TestFlightCommand {
                 let app_id = testflight.get_app_id(bundle_id).await?;
                 let groups = testflight.list_beta_groups(&app_id).await?;
 
-                if cli.format == OutputFormat::Json {
-                    println!("{}", serde_json::to_string_pretty(&groups)?);
-                } else if !cli.quiet {
+                if ui.is_json() {
+                    ui.json(&groups)?;
+                } else if ui.is_text() {
                     if groups.is_empty() {
-                        println!("No groups found");
+                        ui.info("No groups found");
                     } else {
-                        println!("{}", style("Beta Groups").bold());
-                        println!();
+                        ui.header("Beta Groups");
+                        ui.blank();
                         for group in &groups {
                             self.print_group(group);
                         }
@@ -491,22 +492,18 @@ impl TestFlightCommand {
                     .create_beta_group(&app_id, name, *internal)
                     .await?;
 
-                if cli.format == OutputFormat::Json {
-                    println!("{}", serde_json::to_string_pretty(&group)?);
-                } else if !cli.quiet {
-                    println!(
-                        "{} Created group '{}'",
-                        style("✓").green().bold(),
-                        style(name).cyan()
-                    );
-                    println!("  ID: {}", style(&group.id).dim());
-                    println!(
-                        "  Type: {}",
-                        if group.is_internal {
-                            style("Internal").yellow()
+                if ui.is_json() {
+                    ui.json(&group)?;
+                } else if ui.is_text() {
+                    ui.success(&format!("Created group '{}'", style(name).cyan()));
+                    ui.key_value("ID", &style(&group.id).dim().to_string());
+                    ui.key_value(
+                        "Type",
+                        &if group.is_internal {
+                            style("Internal").yellow().to_string()
                         } else {
-                            style("External").green()
-                        }
+                            style("External").green().to_string()
+                        },
                     );
                 }
             }
@@ -522,13 +519,7 @@ impl TestFlightCommand {
 
                 testflight.delete_beta_group(&group.id).await?;
 
-                if !cli.quiet && cli.format == OutputFormat::Text {
-                    println!(
-                        "{} Deleted group '{}'",
-                        style("✓").green().bold(),
-                        style(name).cyan()
-                    );
-                }
+                ui.success(&format!("Deleted group '{}'", style(name).cyan()));
             }
         }
 
@@ -536,6 +527,7 @@ impl TestFlightCommand {
     }
 
     async fn submit(&self, args: &SubmitArgs, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let mut testflight = TestFlight::from_env()?;
 
         // Set changelog if provided
@@ -547,22 +539,23 @@ impl TestFlightCommand {
 
         let submission = testflight.submit_for_beta_review(&args.build_id).await?;
 
-        if cli.format == OutputFormat::Json {
-            println!("{}", serde_json::to_string_pretty(&submission)?);
-        } else if !cli.quiet {
-            println!(
-                "{} Submitted build {} for beta review",
-                style("✓").green().bold(),
+        if ui.is_json() {
+            ui.json(&submission)?;
+        } else if ui.is_text() {
+            ui.success(&format!(
+                "Submitted build {} for beta review",
                 style(&args.build_id).cyan()
-            );
-            println!(
-                "  Status: {}",
-                match submission.state {
-                    BetaReviewState::WaitingForReview => style("Waiting for Review").yellow(),
-                    BetaReviewState::InReview => style("In Review").blue(),
-                    BetaReviewState::Approved => style("Approved").green(),
-                    BetaReviewState::Rejected => style("Rejected").red(),
-                }
+            ));
+            ui.key_value(
+                "Status",
+                &match submission.state {
+                    BetaReviewState::WaitingForReview => {
+                        style("Waiting for Review").yellow().to_string()
+                    }
+                    BetaReviewState::InReview => style("In Review").blue().to_string(),
+                    BetaReviewState::Approved => style("Approved").green().to_string(),
+                    BetaReviewState::Rejected => style("Rejected").red().to_string(),
+                },
             );
         }
 
@@ -570,19 +563,16 @@ impl TestFlightCommand {
     }
 
     async fn expire(&self, args: &ExpireArgs, cli: &Cli) -> anyhow::Result<()> {
-        if !args.yes && cli.format == OutputFormat::Text {
-            use dialoguer::Confirm;
+        let ui = Ui::new(cli);
 
-            let confirmed = Confirm::new()
-                .with_prompt(format!(
-                    "Are you sure you want to expire build {}?",
-                    args.build_id
-                ))
-                .default(false)
-                .interact()?;
+        if !args.yes {
+            let confirmed = ui.confirm(
+                &format!("Are you sure you want to expire build {}?", args.build_id),
+                false,
+            )?;
 
             if !confirmed {
-                println!("Cancelled");
+                ui.info("Cancelled");
                 return Ok(());
             }
         }
@@ -590,13 +580,7 @@ impl TestFlightCommand {
         let mut testflight = TestFlight::from_env()?;
         testflight.expire_build(&args.build_id).await?;
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!(
-                "{} Expired build {}",
-                style("✓").green().bold(),
-                style(&args.build_id).cyan()
-            );
-        }
+        ui.success(&format!("Expired build {}", style(&args.build_id).cyan()));
 
         Ok(())
     }

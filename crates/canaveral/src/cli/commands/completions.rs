@@ -6,6 +6,7 @@ use clap::{Args, CommandFactory, ValueEnum};
 use clap_complete::{generate, Shell};
 use tracing::info;
 
+use crate::cli::output::Ui;
 use crate::cli::Cli;
 
 /// Generate shell completions
@@ -52,6 +53,7 @@ impl CompletionsCommand {
     /// Execute the completions command
     pub fn execute(&self, cli: &crate::cli::Cli) -> anyhow::Result<()> {
         info!(shell = ?self.shell, "executing completions command");
+        let ui = Ui::new(cli);
         let mut cmd = Cli::command();
         let shell: Shell = self.shell.into();
 
@@ -59,9 +61,7 @@ impl CompletionsCommand {
             let mut file = std::fs::File::create(output_path)?;
             generate(shell, &mut cmd, "canaveral", &mut file);
 
-            if !cli.quiet {
-                println!("Completions written to {}", output_path.display());
-            }
+            ui.success(&format!("Completions written to {}", output_path.display()));
         } else {
             generate(shell, &mut cmd, "canaveral", &mut io::stdout());
         }

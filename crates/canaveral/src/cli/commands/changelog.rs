@@ -8,7 +8,8 @@ use canaveral_changelog::ChangelogGenerator;
 use canaveral_core::config::load_config_or_default;
 use canaveral_git::GitRepo;
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Generate changelog
 #[derive(Debug, Args)]
@@ -34,6 +35,7 @@ impl ChangelogCommand {
     /// Execute the changelog command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
         info!(version = ?self.for_version, write = self.write, all = self.all, "executing changelog command");
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
@@ -59,9 +61,7 @@ impl ChangelogCommand {
         };
 
         if commits.is_empty() {
-            if !cli.quiet {
-                println!("{}", style("No commits found since last release.").yellow());
-            }
+            ui.warning("No commits found since last release.");
             return Ok(());
         }
 
@@ -85,23 +85,15 @@ impl ChangelogCommand {
                 std::fs::write(&output_path, &changelog)?;
             }
 
-            if !cli.quiet {
-                println!(
-                    "{} Changelog written to {}",
-                    style("✓").green().bold(),
-                    style(output_path.display()).cyan()
-                );
-            }
+            ui.success(&format!(
+                "Changelog written to {}",
+                style(output_path.display()).cyan()
+            ));
+        } else if ui.is_json() {
+            let entry = generator.generate(&version, &commits);
+            ui.json(&entry)?;
         } else {
-            match cli.format {
-                OutputFormat::Json => {
-                    let entry = generator.generate(&version, &commits);
-                    println!("{}", serde_json::to_string_pretty(&entry)?);
-                }
-                OutputFormat::Text => {
-                    println!("{}", changelog);
-                }
-            }
+            println!("{}", changelog);
         }
 
         Ok(())

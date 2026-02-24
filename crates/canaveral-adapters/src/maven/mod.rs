@@ -72,7 +72,7 @@ impl PackageAdapter for MavenAdapter {
 
     fn get_info(&self, path: &Path) -> Result<PackageInfo> {
         let manifest_path = self.manifest_path(path);
-        let pom = PomXml::load(&manifest_path)?;
+        let pom = PomXml::load_from_path(&manifest_path)?;
 
         let group_id = pom.group_id.ok_or_else(|| {
             AdapterError::ManifestParseError("No groupId found in pom.xml".to_string())
@@ -99,7 +99,7 @@ impl PackageAdapter for MavenAdapter {
     }
 
     fn get_version(&self, path: &Path) -> Result<String> {
-        let pom = PomXml::load(&self.manifest_path(path))?;
+        let pom = PomXml::load_from_path(&self.manifest_path(path))?;
         let version = pom.version.ok_or_else(|| {
             AdapterError::ManifestParseError("No version found in pom.xml".to_string())
         })?;
@@ -173,7 +173,7 @@ impl PackageAdapter for MavenAdapter {
         }
 
         // Load and validate pom.xml
-        let pom = match PomXml::load(&manifest_path) {
+        let pom = match PomXml::load_from_path(&manifest_path) {
             Ok(p) => p,
             Err(e) => {
                 result.add_error(format!("Cannot parse pom.xml: {}", e));
@@ -340,7 +340,7 @@ impl PackageAdapter for MavenAdapter {
         self.build(path)?;
 
         // Find the built artifact
-        let pom = PomXml::load(&self.manifest_path(path))?;
+        let pom = PomXml::load_from_path(&self.manifest_path(path))?;
         let artifact_id = pom.artifact_id.unwrap_or_default();
         let version = pom.version.unwrap_or_default();
         let packaging = pom.packaging.unwrap_or_else(|| "jar".to_string());

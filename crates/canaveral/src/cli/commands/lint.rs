@@ -8,6 +8,7 @@ use tracing::info;
 
 use canaveral_adapters::AdapterRegistry;
 
+use crate::cli::output::Ui;
 use crate::cli::Cli;
 
 /// Run linter on a project
@@ -29,6 +30,7 @@ pub struct LintCommand {
 impl LintCommand {
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
         info!(affected = self.affected, "executing lint command");
+        let ui = Ui::new(cli);
 
         let path = if self.path.is_absolute() {
             self.path.clone()
@@ -46,19 +48,14 @@ impl LintCommand {
             .detect(&path)
             .ok_or_else(|| anyhow::anyhow!("No package adapter detected for {}", path.display()))?;
 
-        if !cli.quiet {
-            println!(
-                "{} Linting code ({})...",
-                style("→").cyan(),
-                style(adapter.name()).bold()
-            );
-        }
+        ui.info(&format!(
+            "Linting code ({})...",
+            style(adapter.name()).bold()
+        ));
 
         adapter.lint(&path)?;
 
-        if !cli.quiet {
-            println!("{} Lint passed!", style("✓").green().bold());
-        }
+        ui.success("Lint passed!");
 
         Ok(())
     }

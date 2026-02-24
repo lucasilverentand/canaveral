@@ -37,9 +37,14 @@
 //! ```
 
 mod apple;
+pub mod common;
 mod google_play;
 
 pub use apple::{AppleMetadataSync, AppleSyncConfig};
+pub use common::{
+    log_rate_limit_warning, parse_locale, parse_retry_after, strings_differ,
+    strings_differ_required, TokenCache, DEFAULT_MAX_RETRIES, DEFAULT_RETRY_DELAY_MS,
+};
 pub use google_play::{
     image_types, GooglePlayMetadataSync, GooglePlaySyncConfig, Image, Listing, ListingUpdate,
 };
@@ -106,6 +111,9 @@ pub trait MetadataSync: Send + Sync {
     ///
     /// A `MetadataDiff` containing all detected changes.
     async fn diff(&self, app_id: &str) -> Result<MetadataDiff>;
+
+    /// Returns the platform name for this sync adapter (e.g. "apple", "google_play").
+    fn platform_name(&self) -> &'static str;
 }
 
 /// Result of a push operation.

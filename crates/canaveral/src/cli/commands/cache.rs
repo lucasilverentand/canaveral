@@ -8,7 +8,8 @@ use tracing::info;
 
 use canaveral_tasks::TaskCache;
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Task cache management
 #[derive(Debug, Args)]
@@ -70,35 +71,30 @@ impl CacheCommand {
 
 impl CachePruneCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let cache = TaskCache::default_dir(&cwd);
         let max_age = Duration::from_secs(self.max_age_days * 24 * 60 * 60);
 
-        if !cli.quiet {
-            println!(
-                "{} Pruning cache entries older than {} days...",
-                style("→").blue(),
-                self.max_age_days
-            );
-        }
+        ui.info(&format!(
+            "Pruning cache entries older than {} days...",
+            self.max_age_days
+        ));
 
         let stats = cache.prune(max_age)?;
 
-        if cli.format == OutputFormat::Json {
+        if ui.is_json() {
             let result = serde_json::json!({
                 "total": stats.total,
                 "removed": stats.removed,
                 "kept": stats.kept,
             });
-            println!("{}", serde_json::to_string_pretty(&result)?);
-        } else if !cli.quiet {
-            println!(
-                "  {} Removed {} of {} entries ({} kept)",
-                style("✓").green(),
-                stats.removed,
-                stats.total,
-                stats.kept
-            );
+            ui.json(&result)?;
+        } else {
+            ui.success(&format!(
+                "Removed {} of {} entries ({} kept)",
+                stats.removed, stats.total, stats.kept
+            ));
         }
 
         Ok(())
@@ -107,25 +103,29 @@ impl CachePruneCommand {
 
 impl CacheStatusCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let cache = TaskCache::default_dir(&cwd);
 
         let stats = cache.status()?;
 
-        if cli.format == OutputFormat::Json {
+        if ui.is_json() {
             let result = serde_json::json!({
                 "entries": stats.entries,
                 "total_size": stats.total_size,
                 "total_size_formatted": stats.formatted_size(),
                 "cache_dir": cache.cache_dir().display().to_string(),
             });
-            println!("{}", serde_json::to_string_pretty(&result)?);
-        } else if !cli.quiet {
-            println!("{}", style("Task Cache Status").bold());
-            println!();
-            println!("  Location: {}", style(cache.cache_dir().display()).cyan());
-            println!("  Entries:  {}", stats.entries);
-            println!("  Size:     {}", style(stats.formatted_size()).yellow());
+            ui.json(&result)?;
+        } else {
+            ui.header("Task Cache Status");
+            ui.blank();
+            ui.key_value(
+                "Location",
+                &style(cache.cache_dir().display()).cyan().to_string(),
+            );
+            ui.key_value("Entries", &stats.entries.to_string());
+            ui.key_value("Size", &style(stats.formatted_size()).yellow().to_string());
         }
 
         Ok(())
@@ -134,41 +134,34 @@ impl CacheStatusCommand {
 
 impl CacheCleanCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let cache = TaskCache::default_dir(&cwd);
         let cache_dir = cache.cache_dir().to_path_buf();
 
         if !cache_dir.exists() {
-            if !cli.quiet {
-                println!("{} Cache directory does not exist.", style("✓").green());
-            }
+            ui.success("Cache directory does not exist.");
             return Ok(());
         }
 
         if !self.yes {
-            let confirmed = dialoguer::Confirm::new()
-                .with_prompt(format!(
-                    "Remove all cached entries at {}?",
-                    cache_dir.display()
-                ))
-                .default(false)
-                .interact()?;
+            let confirmed = ui.confirm(
+                &format!("Remove all cached entries at {}?", cache_dir.display()),
+                false,
+            )?;
 
             if !confirmed {
-                println!("{}", style("Aborted.").yellow());
+                ui.warning("Aborted.");
                 return Ok(());
             }
         }
 
         std::fs::remove_dir_all(&cache_dir)?;
 
-        if !cli.quiet {
-            println!(
-                "{} Cache cleared at {}",
-                style("✓").green(),
-                style(cache_dir.display()).cyan()
-            );
-        }
+        ui.success(&format!(
+            "Cache cleared at {}",
+            style(cache_dir.display()).cyan()
+        ));
 
         Ok(())
     }

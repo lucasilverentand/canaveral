@@ -10,7 +10,8 @@ use canaveral_core::config::load_config_or_default;
 use canaveral_core::config::ToolVersionSpec;
 use canaveral_tools::{ToolCache, ToolRegistry};
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Manage tool versions (bun, node, etc.)
 #[derive(Debug, Args)]
@@ -76,89 +77,71 @@ impl ToolsCommand {
     }
 
     async fn run_status(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
         let tools_map = flatten_tools(&config);
 
         if tools_map.is_empty() {
-            if !cli.quiet {
-                println!("No tools configured. Add a [tools] section to canaveral.toml.");
-            }
+            ui.info("No tools configured. Add a [tools] section to canaveral.toml.");
             return Ok(());
         }
 
         let registry = ToolRegistry::with_builtins();
         let statuses = registry.check_all(&tools_map).await;
 
-        match cli.format {
-            OutputFormat::Json => {
-                let json: Vec<ToolStatusJson> = statuses
-                    .iter()
-                    .map(|s| ToolStatusJson {
-                        name: s.name.clone(),
-                        requested: s.requested_version.clone().unwrap_or_default(),
-                        installed: s.current_version.clone(),
-                        satisfied: s.is_satisfied,
-                    })
-                    .collect();
-                println!("{}", serde_json::to_string_pretty(&json)?);
+        if ui.is_json() {
+            let json: Vec<ToolStatusJson> = statuses
+                .iter()
+                .map(|s| ToolStatusJson {
+                    name: s.name.clone(),
+                    requested: s.requested_version.clone().unwrap_or_default(),
+                    installed: s.current_version.clone(),
+                    satisfied: s.is_satisfied,
+                })
+                .collect();
+            println!("{}", serde_json::to_string_pretty(&json)?);
+        } else if ui.is_text() {
+            ui.header("Tools:");
+            for s in &statuses {
+                let requested = s.requested_version.as_deref().unwrap_or("?");
+                match (&s.current_version, s.is_satisfied) {
+                    (Some(installed), true) => {
+                        ui.success(&format!(
+                            "{:<10} {}  {}",
+                            &s.name,
+                            style(installed).dim(),
+                            style(format!("(requested: {requested})")).dim(),
+                        ));
+                    }
+                    (Some(installed), false) => {
+                        ui.error(&format!(
+                            "{:<10} {}  {}  -- version mismatch",
+                            &s.name,
+                            style(installed).dim(),
+                            style(format!("(requested: {requested})")).dim(),
+                        ));
+                    }
+                    (None, _) => {
+                        ui.warning(&format!(
+                            "{:<10} {}  {}  -- not installed",
+                            &s.name,
+                            style("—").dim(),
+                            style(format!("(requested: {requested})")).dim(),
+                        ));
+                    }
+                }
             }
-            OutputFormat::Text => {
-                if !cli.quiet {
-                    println!("{}", style("Tools:").bold());
-                }
-                for s in &statuses {
-                    let requested = s.requested_version.as_deref().unwrap_or("?");
-                    match (&s.current_version, s.is_satisfied) {
-                        (Some(installed), true) => {
-                            println!(
-                                "  {} {:<10} {}  {}",
-                                style("✓").green(),
-                                style(&s.name).green(),
-                                style(installed).dim(),
-                                style(format!("(requested: {requested})")).dim(),
-                            );
-                        }
-                        (Some(installed), false) => {
-                            println!(
-                                "  {} {:<10} {}  {}  — version mismatch",
-                                style("✗").red(),
-                                style(&s.name).red(),
-                                style(installed).dim(),
-                                style(format!("(requested: {requested})")).dim(),
-                            );
-                        }
-                        (None, _) => {
-                            println!(
-                                "  {} {:<10} {}  {}  — not installed",
-                                style("-").dim(),
-                                style(&s.name).dim(),
-                                style("—").dim(),
-                                style(format!("(requested: {requested})")).dim(),
-                            );
-                        }
-                    }
-                }
 
-                // Summary line
-                if !cli.quiet {
-                    let ok = statuses.iter().filter(|s| s.is_satisfied).count();
-                    let total = statuses.len();
-                    println!();
-                    if ok == total {
-                        println!(
-                            "{} All {total} tool(s) satisfied",
-                            style("✓").green().bold()
-                        );
-                    } else {
-                        println!(
-                            "{}/{} tool(s) satisfied",
-                            style(ok).green(),
-                            style(total).bold()
-                        );
-                    }
-                }
+            // Summary line
+            let ok = statuses.iter().filter(|s| s.is_satisfied).count();
+            let total = statuses.len();
+            ui.blank();
+            if ok == total {
+                ui.success(&format!("All {total} tool(s) satisfied"));
+            } else {
+                ui.info(&format!("{ok}/{total} tool(s) satisfied"));
             }
         }
 
@@ -166,6 +149,7 @@ impl ToolsCommand {
     }
 
     async fn run_install(&self, cli: &Cli, name: Option<&str>) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
@@ -180,9 +164,7 @@ impl ToolsCommand {
         }
 
         if tools_map.is_empty() {
-            if !cli.quiet {
-                println!("No tools configured. Add a [tools] section to canaveral.toml.");
-            }
+            ui.info("No tools configured. Add a [tools] section to canaveral.toml.");
             return Ok(());
         }
 
@@ -197,14 +179,11 @@ impl ToolsCommand {
 
             // Skip already-satisfied tools
             if status.is_satisfied {
-                if !cli.quiet && cli.format == OutputFormat::Text {
-                    println!(
-                        "  {} {} {} — already satisfied",
-                        style("✓").green(),
-                        style(&status.name).green(),
-                        style(status.current_version.as_deref().unwrap_or("")).dim(),
-                    );
-                }
+                ui.success(&format!(
+                    "{} {} -- already satisfied",
+                    style(&status.name).green(),
+                    style(status.current_version.as_deref().unwrap_or("")).dim(),
+                ));
                 install_results.push(ToolInstallJson {
                     name: status.name.clone(),
                     version: status.current_version.clone().unwrap_or_default(),
@@ -215,25 +194,19 @@ impl ToolsCommand {
             }
 
             if let Some(provider) = registry.get(&status.name) {
-                if !cli.quiet && cli.format == OutputFormat::Text {
-                    println!(
-                        "  {} Installing {} {}...",
-                        style("→").cyan(),
-                        style(&status.name).bold(),
-                        style(requested).dim(),
-                    );
-                }
+                ui.step(&format!(
+                    "Installing {} {}...",
+                    style(&status.name).bold(),
+                    style(requested).dim(),
+                ));
 
                 match provider.install(requested).await {
                     Ok(result) => {
-                        if !cli.quiet && cli.format == OutputFormat::Text {
-                            println!(
-                                "  {} Installed {} {}",
-                                style("✓").green(),
-                                style(&status.name).green(),
-                                style(&result.version).dim(),
-                            );
-                        }
+                        ui.success(&format!(
+                            "Installed {} {}",
+                            style(&status.name).green(),
+                            style(&result.version).dim(),
+                        ));
                         install_results.push(ToolInstallJson {
                             name: status.name.clone(),
                             version: result.version,
@@ -244,14 +217,7 @@ impl ToolsCommand {
                     Err(e) => {
                         any_error = true;
                         let msg = e.to_string();
-                        if !cli.quiet && cli.format == OutputFormat::Text {
-                            println!(
-                                "  {} Failed to install {}: {}",
-                                style("✗").red(),
-                                style(&status.name).red(),
-                                msg,
-                            );
-                        }
+                        ui.error(&format!("Failed to install {}: {}", &status.name, msg,));
                         install_results.push(ToolInstallJson {
                             name: status.name.clone(),
                             version: requested.to_string(),
@@ -263,14 +229,7 @@ impl ToolsCommand {
             } else {
                 any_error = true;
                 let msg = format!("no provider registered for '{}'", status.name);
-                if !cli.quiet && cli.format == OutputFormat::Text {
-                    println!(
-                        "  {} {}: {}",
-                        style("✗").red(),
-                        style(&status.name).red(),
-                        msg,
-                    );
-                }
+                ui.error(&format!("{}: {}", &status.name, msg));
                 install_results.push(ToolInstallJson {
                     name: status.name.clone(),
                     version: requested.to_string(),
@@ -280,7 +239,7 @@ impl ToolsCommand {
             }
         }
 
-        if cli.format == OutputFormat::Json {
+        if ui.is_json() {
             println!("{}", serde_json::to_string_pretty(&install_results)?);
         }
 
@@ -331,6 +290,7 @@ impl ToolsCommand {
     }
 
     fn run_prune(&self, cli: &Cli, max_age_days: Option<u64>) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
         let (config, _) = load_config_or_default(&cwd);
 
@@ -342,42 +302,34 @@ impl ToolsCommand {
         let cache = ToolCache::new(&cache_config);
         let result = cache.prune()?;
 
-        match cli.format {
-            OutputFormat::Json => {
-                #[derive(Serialize)]
-                struct PruneJson {
-                    removed: Vec<String>,
-                    freed_bytes: u64,
-                }
-                let json = PruneJson {
-                    removed: result
-                        .removed
-                        .iter()
-                        .map(|(tool, ver)| format!("{tool}@{ver}"))
-                        .collect(),
-                    freed_bytes: result.freed_bytes,
-                };
-                println!("{}", serde_json::to_string_pretty(&json)?);
+        if ui.is_json() {
+            #[derive(Serialize)]
+            struct PruneJson {
+                removed: Vec<String>,
+                freed_bytes: u64,
             }
-            OutputFormat::Text => {
-                if result.removed.is_empty() {
-                    if !cli.quiet {
-                        println!("Nothing to prune.");
-                    }
-                } else {
-                    for (tool, version) in &result.removed {
-                        println!("  {} removed {tool}@{version}", style("-").dim());
-                    }
-                    if !cli.quiet {
-                        println!();
-                        println!(
-                            "{} Pruned {} version(s), freed {}",
-                            style("✓").green().bold(),
-                            result.removed.len(),
-                            format_bytes(result.freed_bytes),
-                        );
-                    }
+            let json = PruneJson {
+                removed: result
+                    .removed
+                    .iter()
+                    .map(|(tool, ver)| format!("{tool}@{ver}"))
+                    .collect(),
+                freed_bytes: result.freed_bytes,
+            };
+            println!("{}", serde_json::to_string_pretty(&json)?);
+        } else if ui.is_text() {
+            if result.removed.is_empty() {
+                ui.info("Nothing to prune.");
+            } else {
+                for (tool, version) in &result.removed {
+                    ui.step(&format!("removed {tool}@{version}"));
                 }
+                ui.blank();
+                ui.success(&format!(
+                    "Pruned {} version(s), freed {}",
+                    result.removed.len(),
+                    format_bytes(result.freed_bytes),
+                ));
             }
         }
 

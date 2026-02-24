@@ -8,7 +8,8 @@ use tracing::info;
 use canaveral_signing::identity::SigningIdentityType;
 use canaveral_signing::team::{generate_keypair, CredentialData, Role, TeamVault};
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Team vault commands
 #[derive(Debug, Args)]
@@ -288,44 +289,46 @@ fn get_vault_path(path: Option<&PathBuf>) -> PathBuf {
 
 impl TeamInitCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
 
         let (vault, keypair) = TeamVault::init(&self.team_name, &path, &self.email)?;
 
-        match cli.format {
-            OutputFormat::Json => {
-                let output = serde_json::json!({
-                    "team_name": vault.team_name(),
-                    "path": path.to_string_lossy(),
-                    "public_key": keypair.public_key,
-                    "private_key": keypair.private_key,
-                });
-                println!("{}", serde_json::to_string_pretty(&output)?);
-            }
-            OutputFormat::Text => {
-                println!("{}", style("Team vault initialized!").green().bold());
-                println!();
-                println!("  Team:   {}", style(vault.team_name()).cyan());
-                println!("  Path:   {}", path.display());
-                println!();
-                println!("{}", style("Your keypair:").bold());
-                println!();
-                println!("  {}", style("Public key (share with team):").underlined());
-                println!("  {}", style(&keypair.public_key).green());
-                println!();
-                println!(
-                    "  {}",
-                    style("Private key (KEEP SECRET!):").underlined().red()
-                );
-                println!("  {}", &keypair.private_key);
-                println!();
-                println!("{}", style("Important:").yellow().bold());
-                println!("  1. Save your private key securely (password manager, etc.)");
-                println!("  2. Set CANAVERAL_SIGNING_KEY env var to authenticate");
-                println!("  3. Commit the vault files to version control");
-                println!();
-                println!("  {}", style("export CANAVERAL_SIGNING_KEY=\"...\"").dim());
-            }
+        if ui.is_json() {
+            let output = serde_json::json!({
+                "team_name": vault.team_name(),
+                "path": path.to_string_lossy(),
+                "public_key": keypair.public_key,
+                "private_key": keypair.private_key,
+            });
+            ui.json(&output)?;
+        } else if ui.is_text() {
+            ui.success("Team vault initialized!");
+            ui.blank();
+            ui.key_value("Team", &style(vault.team_name()).cyan().to_string());
+            ui.key_value("Path", &path.display().to_string());
+            ui.blank();
+            ui.section("Your keypair");
+            ui.blank();
+            println!("  {}", style("Public key (share with team):").underlined());
+            println!("  {}", style(&keypair.public_key).green());
+            ui.blank();
+            println!(
+                "  {}",
+                style("Private key (KEEP SECRET!):").underlined().red()
+            );
+            println!("  {}", &keypair.private_key);
+            ui.blank();
+            ui.warning("Important:");
+            ui.hint("1. Save your private key securely (password manager, etc.)");
+            ui.hint("2. Set CANAVERAL_SIGNING_KEY env var to authenticate");
+            ui.hint("3. Commit the vault files to version control");
+            ui.blank();
+            ui.hint(
+                &style("export CANAVERAL_SIGNING_KEY=\"...\"")
+                    .dim()
+                    .to_string(),
+            );
         }
 
         Ok(())
@@ -334,6 +337,7 @@ impl TeamInitCommand {
 
 impl KeygenCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let keypair = generate_keypair();
 
         if let Some(output) = &self.output {
@@ -344,30 +348,25 @@ impl KeygenCommand {
                 use std::os::unix::fs::PermissionsExt;
                 std::fs::set_permissions(output, std::fs::Permissions::from_mode(0o600))?;
             }
-            println!("Private key saved to: {}", output.display());
-            println!("Public key: {}", keypair.public_key);
-        } else {
-            match cli.format {
-                OutputFormat::Json => {
-                    let output = serde_json::json!({
-                        "public_key": keypair.public_key,
-                        "private_key": keypair.private_key,
-                    });
-                    println!("{}", serde_json::to_string_pretty(&output)?);
-                }
-                OutputFormat::Text => {
-                    println!("{}", style("Generated new keypair").green().bold());
-                    println!();
-                    println!("  {}", style("Public key:").underlined());
-                    println!("  {}", style(&keypair.public_key).green());
-                    println!();
-                    println!(
-                        "  {}",
-                        style("Private key (KEEP SECRET!):").underlined().red()
-                    );
-                    println!("  {}", &keypair.private_key);
-                }
-            }
+            ui.info(&format!("Private key saved to: {}", output.display()));
+            ui.info(&format!("Public key: {}", keypair.public_key));
+        } else if ui.is_json() {
+            let output = serde_json::json!({
+                "public_key": keypair.public_key,
+                "private_key": keypair.private_key,
+            });
+            ui.json(&output)?;
+        } else if ui.is_text() {
+            ui.success("Generated new keypair");
+            ui.blank();
+            println!("  {}", style("Public key:").underlined());
+            println!("  {}", style(&keypair.public_key).green());
+            ui.blank();
+            println!(
+                "  {}",
+                style("Private key (KEEP SECRET!):").underlined().red()
+            );
+            println!("  {}", &keypair.private_key);
         }
 
         Ok(())
@@ -376,40 +375,37 @@ impl KeygenCommand {
 
 impl TeamStatusCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
         let vault = TeamVault::open(&path)?;
 
         let members = vault.list_members();
         let identities = vault.list_identities();
 
-        match cli.format {
-            OutputFormat::Json => {
-                let output = serde_json::json!({
-                    "team_name": vault.team_name(),
-                    "path": path.to_string_lossy(),
-                    "member_count": members.len(),
-                    "identity_count": identities.len(),
-                    "current_user": vault.current_member().map(|m| &m.email),
-                });
-                println!("{}", serde_json::to_string_pretty(&output)?);
-            }
-            OutputFormat::Text => {
-                println!("{}", style("Team Vault Status").bold());
-                println!();
-                println!("  Team:       {}", style(vault.team_name()).cyan());
-                println!("  Path:       {}", path.display());
-                println!("  Members:    {}", members.len());
-                println!("  Identities: {}", identities.len());
+        if ui.is_json() {
+            let output = serde_json::json!({
+                "team_name": vault.team_name(),
+                "path": path.to_string_lossy(),
+                "member_count": members.len(),
+                "identity_count": identities.len(),
+                "current_user": vault.current_member().map(|m| &m.email),
+            });
+            ui.json(&output)?;
+        } else if ui.is_text() {
+            ui.header("Team Vault Status");
+            ui.blank();
+            ui.key_value("Team", &style(vault.team_name()).cyan().to_string());
+            ui.key_value("Path", &path.display().to_string());
+            ui.key_value("Members", &members.len().to_string());
+            ui.key_value("Identities", &identities.len().to_string());
 
-                if let Some(member) = vault.current_member() {
-                    println!(
-                        "  Logged in:  {} ({})",
-                        style(&member.email).green(),
-                        member.role
-                    );
-                } else {
-                    println!("  Logged in:  {}", style("Not authenticated").yellow());
-                }
+            if let Some(member) = vault.current_member() {
+                ui.key_value(
+                    "Logged in",
+                    &format!("{} ({})", style(&member.email).green(), member.role),
+                );
+            } else {
+                ui.key_value_styled("Logged in", style("Not authenticated").yellow());
             }
         }
 
@@ -430,45 +426,43 @@ impl MemberCommand {
 
 impl MemberListCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
         let vault = TeamVault::open(&path)?;
         let members = vault.list_members();
 
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&members)?);
-            }
-            OutputFormat::Text => {
-                println!("{}", style("Team Members").bold());
-                println!();
+        if ui.is_json() {
+            ui.json(&members)?;
+        } else if ui.is_text() {
+            ui.header("Team Members");
+            ui.blank();
 
-                for member in members {
-                    let role_style = match member.role {
-                        Role::Admin => style(member.role.to_string()).red().bold(),
-                        Role::Signer => style(member.role.to_string()).green(),
-                        Role::Viewer => style(member.role.to_string()).dim(),
-                    };
+            for member in members {
+                let role_style = match member.role {
+                    Role::Admin => style(member.role.to_string()).red().bold(),
+                    Role::Signer => style(member.role.to_string()).green(),
+                    Role::Viewer => style(member.role.to_string()).dim(),
+                };
 
-                    let status = if member.active {
-                        style("active").green()
-                    } else {
-                        style("inactive").dim()
-                    };
+                let status = if member.active {
+                    style("active").green()
+                } else {
+                    style("inactive").dim()
+                };
 
-                    println!(
-                        "  {} [{}] ({})",
-                        style(&member.email).cyan(),
-                        role_style,
-                        status
-                    );
+                println!(
+                    "  {} [{}] ({})",
+                    style(&member.email).cyan(),
+                    role_style,
+                    status
+                );
 
-                    let short_key = if member.public_key.len() > 20 {
-                        format!("{}...", &member.public_key[..20])
-                    } else {
-                        member.public_key.clone()
-                    };
-                    println!("    Key: {}", style(short_key).dim());
-                }
+                let short_key = if member.public_key.len() > 20 {
+                    format!("{}...", &member.public_key[..20])
+                } else {
+                    member.public_key.clone()
+                };
+                println!("    Key: {}", style(short_key).dim());
             }
         }
 
@@ -478,20 +472,18 @@ impl MemberListCommand {
 
 impl MemberAddCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
         let mut vault = TeamVault::open(&path)?;
 
         let role: Role = self.role.parse().map_err(|e: String| anyhow::anyhow!(e))?;
         vault.add_member(&self.email, &self.public_key, role)?;
 
-        if !cli.quiet {
-            println!(
-                "{} Added {} as {}",
-                style("✓").green(),
-                style(&self.email).cyan(),
-                style(role.to_string()).green()
-            );
-        }
+        ui.success(&format!(
+            "Added {} as {}",
+            style(&self.email).cyan(),
+            style(role.to_string()).green()
+        ));
 
         Ok(())
     }
@@ -499,18 +491,13 @@ impl MemberAddCommand {
 
 impl MemberRemoveCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
         let mut vault = TeamVault::open(&path)?;
 
         vault.remove_member(&self.email)?;
 
-        if !cli.quiet {
-            println!(
-                "{} Removed {}",
-                style("✓").green(),
-                style(&self.email).cyan()
-            );
-        }
+        ui.success(&format!("Removed {}", style(&self.email).cyan()));
 
         Ok(())
     }
@@ -518,20 +505,18 @@ impl MemberRemoveCommand {
 
 impl MemberRoleCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
         let mut vault = TeamVault::open(&path)?;
 
         let role: Role = self.role.parse().map_err(|e: String| anyhow::anyhow!(e))?;
         vault.change_role(&self.email, role)?;
 
-        if !cli.quiet {
-            println!(
-                "{} Changed {} to {}",
-                style("✓").green(),
-                style(&self.email).cyan(),
-                style(role.to_string()).green()
-            );
-        }
+        ui.success(&format!(
+            "Changed {} to {}",
+            style(&self.email).cyan(),
+            style(role.to_string()).green()
+        ));
 
         Ok(())
     }
@@ -550,52 +535,50 @@ impl IdentityCommand {
 
 impl IdentityListCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
         let vault = TeamVault::open(&path)?;
         let identities = vault.list_identities();
 
-        match cli.format {
-            OutputFormat::Json => {
-                // Don't include encrypted data in JSON output
-                let safe_identities: Vec<_> = identities
-                    .iter()
-                    .map(|i| {
-                        serde_json::json!({
-                            "id": i.id,
-                            "name": i.name,
-                            "type": format!("{:?}", i.identity_type),
-                            "expires_at": i.expires_at,
-                            "tags": i.tags,
-                        })
+        if ui.is_json() {
+            // Don't include encrypted data in JSON output
+            let safe_identities: Vec<_> = identities
+                .iter()
+                .map(|i| {
+                    serde_json::json!({
+                        "id": i.id,
+                        "name": i.name,
+                        "type": format!("{:?}", i.identity_type),
+                        "expires_at": i.expires_at,
+                        "tags": i.tags,
                     })
-                    .collect();
-                println!("{}", serde_json::to_string_pretty(&safe_identities)?);
-            }
-            OutputFormat::Text => {
-                println!("{}", style("Stored Identities").bold());
-                println!();
+                })
+                .collect();
+            println!("{}", serde_json::to_string_pretty(&safe_identities)?);
+        } else if ui.is_text() {
+            ui.header("Stored Identities");
+            ui.blank();
 
-                if identities.is_empty() {
-                    println!("  {}", style("No identities stored").dim());
-                } else {
-                    for identity in identities {
-                        println!(
-                            "  {} ({})",
-                            style(&identity.id).cyan().bold(),
-                            identity.identity_type
-                        );
-                        println!("    Name: {}", &identity.name);
+            if identities.is_empty() {
+                ui.hint("No identities stored");
+            } else {
+                for identity in identities {
+                    println!(
+                        "  {} ({})",
+                        style(&identity.id).cyan().bold(),
+                        identity.identity_type
+                    );
+                    ui.key_value("    Name", &identity.name);
 
-                        if let Some(exp) = identity.expires_at {
-                            println!("    Expires: {}", exp.format("%Y-%m-%d"));
-                        }
-
-                        if !identity.tags.is_empty() {
-                            println!("    Tags: {}", identity.tags.join(", "));
-                        }
-
-                        println!();
+                    if let Some(exp) = identity.expires_at {
+                        ui.key_value("    Expires", &exp.format("%Y-%m-%d").to_string());
                     }
+
+                    if !identity.tags.is_empty() {
+                        ui.key_value("    Tags", &identity.tags.join(", "));
+                    }
+
+                    ui.blank();
                 }
             }
         }
@@ -606,6 +589,7 @@ impl IdentityListCommand {
 
 impl IdentityImportCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
         let mut vault = TeamVault::open(&path)?;
 
@@ -641,14 +625,11 @@ impl IdentityImportCommand {
 
         vault.import_identity(&self.id, name, identity_type, credential)?;
 
-        if !cli.quiet {
-            println!(
-                "{} Imported {} ({})",
-                style("✓").green(),
-                style(&self.id).cyan(),
-                identity_type
-            );
-        }
+        ui.success(&format!(
+            "Imported {} ({})",
+            style(&self.id).cyan(),
+            identity_type
+        ));
 
         Ok(())
     }
@@ -656,6 +637,7 @@ impl IdentityImportCommand {
 
 impl IdentityExportCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
         let mut vault = TeamVault::open(&path)?;
 
@@ -663,33 +645,28 @@ impl IdentityExportCommand {
 
         if let Some(output) = &self.output {
             std::fs::write(output, &credential.data)?;
-            if !cli.quiet {
-                println!(
-                    "{} Exported {} to {}",
-                    style("✓").green(),
-                    style(&self.id).cyan(),
-                    output.display()
-                );
-                if credential.password.is_some() {
-                    println!("  Password is required to use this credential");
-                }
+            ui.success(&format!(
+                "Exported {} to {}",
+                style(&self.id).cyan(),
+                output.display()
+            ));
+            if credential.password.is_some() {
+                ui.hint("Password is required to use this credential");
             }
-        } else {
-            match cli.format {
-                OutputFormat::Json => {
-                    println!("{}", serde_json::to_string_pretty(&credential)?);
-                }
-                OutputFormat::Text => {
-                    println!("{}", style("Exported credential").bold());
-                    println!("  Format: {}", credential.format);
-                    println!("  Size: {} bytes", credential.data.len());
-                    if credential.password.is_some() {
-                        println!("  Password: (set)");
-                    }
-                    println!();
-                    println!("  Use {} to save to file", style("--output <path>").cyan());
-                }
+        } else if ui.is_json() {
+            ui.json(&credential)?;
+        } else if ui.is_text() {
+            ui.header("Exported credential");
+            ui.key_value("Format", &credential.format);
+            ui.key_value("Size", &format!("{} bytes", credential.data.len()));
+            if credential.password.is_some() {
+                ui.key_value("Password", "(set)");
             }
+            ui.blank();
+            ui.hint(&format!(
+                "Use {} to save to file",
+                style("--output <path>").cyan()
+            ));
         }
 
         Ok(())
@@ -698,23 +675,22 @@ impl IdentityExportCommand {
 
 impl IdentityDeleteCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
         let mut vault = TeamVault::open(&path)?;
 
         if !self.force {
-            println!(
+            ui.warning(&format!(
                 "Are you sure you want to delete {}? This cannot be undone.",
                 style(&self.id).red()
-            );
-            println!("Use --force to skip this confirmation.");
+            ));
+            ui.hint("Use --force to skip this confirmation.");
             return Ok(());
         }
 
         vault.delete_identity(&self.id)?;
 
-        if !cli.quiet {
-            println!("{} Deleted {}", style("✓").green(), style(&self.id).cyan());
-        }
+        ui.success(&format!("Deleted {}", style(&self.id).cyan()));
 
         Ok(())
     }
@@ -722,6 +698,7 @@ impl IdentityDeleteCommand {
 
 impl AuditCommand {
     fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let path = get_vault_path(self.path.as_ref());
         let vault = TeamVault::open(&path)?;
         let audit = vault.audit_log();
@@ -734,26 +711,23 @@ impl AuditCommand {
             audit.last_n(self.limit)
         };
 
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&entries)?);
-            }
-            OutputFormat::Text => {
-                println!("{}", style("Audit Log").bold());
-                println!();
+        if ui.is_json() {
+            ui.json(&entries)?;
+        } else if ui.is_text() {
+            ui.header("Audit Log");
+            ui.blank();
 
-                if entries.is_empty() {
-                    println!("  {}", style("No audit entries").dim());
-                } else {
-                    for entry in entries.iter().rev().take(self.limit) {
-                        let time = entry.timestamp.format("%Y-%m-%d %H:%M:%S");
-                        println!(
-                            "  {} {} {}",
-                            style(time.to_string()).dim(),
-                            style(&entry.actor).cyan(),
-                            entry.action
-                        );
-                    }
+            if entries.is_empty() {
+                ui.hint("No audit entries");
+            } else {
+                for entry in entries.iter().rev().take(self.limit) {
+                    let time = entry.timestamp.format("%Y-%m-%d %H:%M:%S");
+                    println!(
+                        "  {} {} {}",
+                        style(time.to_string()).dim(),
+                        style(&entry.actor).cyan(),
+                        entry.action
+                    );
                 }
             }
         }

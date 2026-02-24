@@ -53,7 +53,7 @@ impl PackageAdapter for CargoAdapter {
         }
 
         // Match packages and workspace roots
-        let found = if let Ok(toml) = CargoToml::load(&manifest) {
+        let found = if let Ok(toml) = CargoToml::load_from_path(&manifest) {
             toml.package.is_some() || toml.workspace.is_some()
         } else {
             false
@@ -68,7 +68,7 @@ impl PackageAdapter for CargoAdapter {
 
     fn get_info(&self, path: &Path) -> Result<PackageInfo> {
         let manifest_path = self.manifest_path(path);
-        let manifest = CargoToml::load(&manifest_path)?;
+        let manifest = CargoToml::load_from_path(&manifest_path)?;
 
         if let Some(package) = manifest.package {
             Ok(PackageInfo {
@@ -100,7 +100,7 @@ impl PackageAdapter for CargoAdapter {
     }
 
     fn get_version(&self, path: &Path) -> Result<String> {
-        let manifest = CargoToml::load(&self.manifest_path(path))?;
+        let manifest = CargoToml::load_from_path(&self.manifest_path(path))?;
 
         let version = manifest.package.map(|p| p.version).ok_or_else(|| {
             AdapterError::ManifestParseError("No [package] section found".to_string())
@@ -167,7 +167,7 @@ impl PackageAdapter for CargoAdapter {
         let mut result = ValidationResult::pass();
 
         // Check manifest
-        let manifest = match CargoToml::load(&self.manifest_path(path)) {
+        let manifest = match CargoToml::load_from_path(&self.manifest_path(path)) {
             Ok(m) => m,
             Err(e) => {
                 result.add_error(format!("Cannot read Cargo.toml: {}", e));

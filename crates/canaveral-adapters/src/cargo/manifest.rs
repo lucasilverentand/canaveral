@@ -6,6 +6,8 @@ use canaveral_core::error::{AdapterError, Result};
 use serde::Deserialize;
 use toml_edit::{value, DocumentMut};
 
+use crate::manifest::ManifestFile;
+
 /// Cargo.toml structure (for reading)
 #[derive(Debug, Clone, Deserialize)]
 pub struct CargoToml {
@@ -60,8 +62,8 @@ pub struct Workspace {
 }
 
 impl CargoToml {
-    /// Load Cargo.toml from path
-    pub fn load(path: &Path) -> Result<Self> {
+    /// Load Cargo.toml from a file path
+    pub fn load_from_path(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)
             .map_err(|_| AdapterError::ManifestNotFound(path.to_path_buf()))?;
 
@@ -93,6 +95,46 @@ impl CargoToml {
     }
 }
 
+impl ManifestFile for CargoToml {
+    fn filename() -> &'static str {
+        "Cargo.toml"
+    }
+
+    fn load(dir: &Path) -> anyhow::Result<Self> {
+        let path = dir.join(Self::filename());
+        CargoToml::load_from_path(&path).map_err(Into::into)
+    }
+
+    fn save(&self, dir: &Path) -> anyhow::Result<()> {
+        // CargoToml uses toml_edit for version updates to preserve formatting.
+        // A full save from the deserialized struct would lose comments/formatting,
+        // so this is only useful after set_version which tracks the pending version.
+        // For Cargo, prefer using CargoToml::update_version() directly for version changes.
+        let path = dir.join(Self::filename());
+        if let Some(ref pkg) = self.package {
+            CargoToml::update_version(&path, &pkg.version)?;
+        }
+        Ok(())
+    }
+
+    fn version(&self) -> Option<&str> {
+        self.package.as_ref().map(|p| p.version.as_str())
+    }
+
+    fn set_version(&mut self, version: &str) -> anyhow::Result<()> {
+        if let Some(ref mut pkg) = self.package {
+            pkg.version = version.to_string();
+            Ok(())
+        } else {
+            anyhow::bail!("No [package] section found in Cargo.toml")
+        }
+    }
+
+    fn name(&self) -> Option<&str> {
+        self.package.as_ref().map(|p| p.name.as_str())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,7 +156,7 @@ description = "A test crate"
         )
         .unwrap();
 
-        let cargo = CargoToml::load(&path).unwrap();
+        let cargo = CargoToml::load_from_path(&path).unwrap();
         let package = cargo.package.unwrap();
 
         assert_eq!(package.name, "test-crate");
@@ -166,7 +208,7 @@ members = ["crates/*"]
         )
         .unwrap();
 
-        let cargo = CargoToml::load(&path).unwrap();
+        let cargo = CargoToml::load_from_path(&path).unwrap();
         assert!(cargo.package.is_none());
         assert!(cargo.workspace.is_some());
     }

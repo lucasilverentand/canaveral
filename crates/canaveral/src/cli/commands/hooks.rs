@@ -10,6 +10,7 @@ use tracing::info;
 use canaveral_core::config::Config;
 use canaveral_git::hooks::{self, GitHookType};
 
+use crate::cli::output::Ui;
 use crate::cli::Cli;
 
 /// Git hook management (install, uninstall, run, status)
@@ -55,25 +56,15 @@ impl HooksCommand {
 
     fn install(&self, repo_root: &Path, hook: Option<&str>, cli: &Cli) -> anyhow::Result<()> {
         info!("installing git hooks");
+        let ui = Ui::new(cli);
 
         if let Some(name) = hook {
             let hook_type = parse_hook_type(name)?;
             hooks::install_hook(repo_root, hook_type)?;
-            if !cli.quiet {
-                println!(
-                    "{} Installed {} hook",
-                    style("✓").green().bold(),
-                    style(name).cyan()
-                );
-            }
+            ui.success(&format!("Installed {} hook", style(name).cyan()));
         } else {
             hooks::install_all(repo_root)?;
-            if !cli.quiet {
-                println!(
-                    "{} Installed all git hooks (commit-msg, pre-commit, pre-push)",
-                    style("✓").green().bold()
-                );
-            }
+            ui.success("Installed all git hooks (commit-msg, pre-commit, pre-push)");
         }
 
         Ok(())
@@ -81,14 +72,10 @@ impl HooksCommand {
 
     fn uninstall(&self, repo_root: &Path, cli: &Cli) -> anyhow::Result<()> {
         info!("uninstalling git hooks");
+        let ui = Ui::new(cli);
         hooks::uninstall_all(repo_root)?;
 
-        if !cli.quiet {
-            println!(
-                "{} Uninstalled all canaveral git hooks",
-                style("✓").green().bold()
-            );
-        }
+        ui.success("Uninstalled all canaveral git hooks");
         Ok(())
     }
 
@@ -200,26 +187,27 @@ impl HooksCommand {
     }
 
     fn status(&self, repo_root: &Path, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
         let statuses = hooks::status(repo_root);
 
-        if !cli.quiet {
-            println!("{}", style("Git hook status:").bold());
-            for s in &statuses {
-                let icon = if s.installed {
-                    style("✓").green().bold()
-                } else {
-                    style("✗").red()
-                };
-                let state = if s.installed {
-                    "installed"
-                } else {
-                    "not installed"
-                };
-                let backup_note = if s.has_backup { " (backup exists)" } else { "" };
-                println!(
-                    "  {icon} {:<12} {state}{backup_note}",
+        ui.header("Git hook status");
+        for s in &statuses {
+            let state = if s.installed {
+                "installed"
+            } else {
+                "not installed"
+            };
+            let backup_note = if s.has_backup { " (backup exists)" } else { "" };
+            if s.installed {
+                ui.success(&format!(
+                    "{:<12} {state}{backup_note}",
                     s.hook_type.filename()
-                );
+                ));
+            } else {
+                ui.error(&format!(
+                    "{:<12} {state}{backup_note}",
+                    s.hook_type.filename()
+                ));
             }
         }
 

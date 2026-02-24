@@ -8,7 +8,8 @@ use console::style;
 use serde::Serialize;
 use tracing::info;
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::{BadgeStyle, Ui};
+use crate::cli::Cli;
 
 /// Check environment for required tools and configurations
 #[derive(Debug, Args)]
@@ -94,15 +95,14 @@ impl DoctorCommand {
     /// Execute the doctor command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
         info!(fix = self.fix, "executing doctor command");
+        let ui = Ui::new(cli);
         let mut checks = Vec::new();
 
         // Determine which categories to check
         let categories = self.get_categories();
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!("{}", style("Checking environment...").bold());
-            println!();
-        }
+        ui.header("Checking environment...");
+        ui.blank();
 
         // Run checks for each category
         for category in &categories {
@@ -144,29 +144,27 @@ impl DoctorCommand {
             skip_count,
         };
 
-        // Output results
-        match cli.format {
-            OutputFormat::Json => {
-                println!("{}", serde_json::to_string_pretty(&summary)?);
+        // JSON output
+        if ui.is_json() {
+            ui.json(&summary)?;
+            if fail_count > 0 {
+                anyhow::bail!("{} check(s) failed", fail_count);
             }
-            OutputFormat::Text => {
-                self.print_results(&checks, cli);
-                self.print_summary(&summary);
+            return Ok(());
+        }
 
-                if self.fix && (fail_count > 0 || warn_count > 0) {
-                    println!();
-                    println!("{}", style("Suggested fixes:").bold());
-                    for check in &checks {
-                        if check.status == CheckStatus::Fail || check.status == CheckStatus::Warn {
-                            if let Some(ref fix) = check.fix_suggestion {
-                                println!(
-                                    "  {} {}: {}",
-                                    status_icon(check.status),
-                                    style(&check.name).bold(),
-                                    fix
-                                );
-                            }
-                        }
+        // Text output
+        self.print_results(&ui, &checks);
+        self.print_summary(&ui, &summary);
+
+        if self.fix && (fail_count > 0 || warn_count > 0) {
+            ui.blank();
+            ui.header("Suggested fixes:");
+            for check in &checks {
+                if check.status == CheckStatus::Fail || check.status == CheckStatus::Warn {
+                    if let Some(ref fix) = check.fix_suggestion {
+                        let badge = badge_for_status(check.status);
+                        ui.badge_line(badge, status_label(check.status), &check.name, fix);
                     }
                 }
             }
@@ -1036,44 +1034,22 @@ impl DoctorCommand {
         results
     }
 
-    fn print_results(&self, checks: &[CheckResult], cli: &Cli) {
-        if cli.quiet {
-            return;
-        }
-
+    fn print_results(&self, ui: &Ui, checks: &[CheckResult]) {
         for check in checks {
-            let icon = status_icon(check.status);
-            let name = &check.name;
+            let badge = badge_for_status(check.status);
+            let label = status_label(check.status);
             let msg = check.message.as_deref().unwrap_or("");
-
-            match check.status {
-                CheckStatus::Ok => {
-                    println!("  {} {} {}", icon, style(name).green(), style(msg).dim());
-                }
-                CheckStatus::Warn => {
-                    println!("  {} {} {}", icon, style(name).yellow(), style(msg).dim());
-                }
-                CheckStatus::Fail => {
-                    println!("  {} {} {}", icon, style(name).red(), style(msg).dim());
-                }
-                CheckStatus::Skip => {
-                    println!("  {} {} {}", icon, style(name).dim(), style(msg).dim());
-                }
-            }
+            ui.badge_line(badge, label, &check.name, msg);
         }
     }
 
-    fn print_summary(&self, summary: &DoctorSummary) {
-        println!();
-        let total = summary.ok_count + summary.warn_count + summary.fail_count + summary.skip_count;
-
+    fn print_summary(&self, ui: &Ui, summary: &DoctorSummary) {
+        ui.blank();
         if summary.fail_count == 0 && summary.warn_count == 0 {
-            println!(
-                "{} All {} checks passed!",
-                style("✓").green().bold(),
-                summary.ok_count
-            );
+            ui.success(&format!("All {} checks passed!", summary.ok_count));
         } else {
+            let total =
+                summary.ok_count + summary.warn_count + summary.fail_count + summary.skip_count;
             println!(
                 "Summary: {} ok, {} warnings, {} failed, {} skipped (out of {})",
                 style(summary.ok_count).green(),
@@ -1084,25 +1060,32 @@ impl DoctorCommand {
             );
 
             if summary.fail_count > 0 {
-                println!();
-                println!(
-                    "{} {} issue(s) found. Run '{}' for suggestions.",
-                    style("!").red().bold(),
+                ui.blank();
+                ui.warning(&format!(
+                    "{} issue(s) found. Run '{}' for suggestions.",
                     summary.fail_count + summary.warn_count,
                     style("canaveral doctor --fix").cyan()
-                );
+                ));
             }
         }
     }
 }
 
-/// Get status icon for a check
-fn status_icon(status: CheckStatus) -> console::StyledObject<&'static str> {
+fn badge_for_status(status: CheckStatus) -> BadgeStyle {
     match status {
-        CheckStatus::Ok => style("[OK]").green(),
-        CheckStatus::Warn => style("[WARN]").yellow(),
-        CheckStatus::Fail => style("[FAIL]").red(),
-        CheckStatus::Skip => style("[SKIP]").dim(),
+        CheckStatus::Ok => BadgeStyle::Ok,
+        CheckStatus::Warn => BadgeStyle::Warn,
+        CheckStatus::Fail => BadgeStyle::Fail,
+        CheckStatus::Skip => BadgeStyle::Skip,
+    }
+}
+
+fn status_label(status: CheckStatus) -> &'static str {
+    match status {
+        CheckStatus::Ok => "OK",
+        CheckStatus::Warn => "WARN",
+        CheckStatus::Fail => "FAIL",
+        CheckStatus::Skip => "SKIP",
     }
 }
 
@@ -1117,12 +1100,11 @@ fn get_command_version(cmd: &str, args: &[&str]) -> Option<String> {
             let stdout = String::from_utf8_lossy(&o.stdout);
             let stderr = String::from_utf8_lossy(&o.stderr);
             // Some commands (like java) output to stderr
-            let output = if stdout.trim().is_empty() {
+            if stdout.trim().is_empty() {
                 stderr.trim().to_string()
             } else {
                 stdout.trim().to_string()
-            };
-            output
+            }
         })
 }
 
@@ -1145,51 +1127,33 @@ fn parse_rust_version(version: &str) -> Option<(u32, u32, u32)> {
 
 /// Detect CI environment
 fn detect_ci_environment() -> Option<String> {
-    // GitHub Actions
     if std::env::var("GITHUB_ACTIONS").is_ok() {
         return Some("GitHub Actions".to_string());
     }
-
-    // GitLab CI
     if std::env::var("GITLAB_CI").is_ok() {
         return Some("GitLab CI".to_string());
     }
-
-    // CircleCI
     if std::env::var("CIRCLECI").is_ok() {
         return Some("CircleCI".to_string());
     }
-
-    // Travis CI
     if std::env::var("TRAVIS").is_ok() {
         return Some("Travis CI".to_string());
     }
-
-    // Azure DevOps
     if std::env::var("TF_BUILD").is_ok() {
         return Some("Azure DevOps".to_string());
     }
-
-    // Bitrise
     if std::env::var("BITRISE_IO").is_ok() {
         return Some("Bitrise".to_string());
     }
-
-    // Jenkins
     if std::env::var("JENKINS_URL").is_ok() {
         return Some("Jenkins".to_string());
     }
-
-    // Buildkite
     if std::env::var("BUILDKITE").is_ok() {
         return Some("Buildkite".to_string());
     }
-
-    // Generic CI detection
     if std::env::var("CI").is_ok() {
         return Some("Unknown CI".to_string());
     }
-
     None
 }
 
@@ -1207,11 +1171,11 @@ mod tests {
     }
 
     #[test]
-    fn test_status_icon() {
-        // Just verify it doesn't panic
-        let _ = status_icon(CheckStatus::Ok);
-        let _ = status_icon(CheckStatus::Warn);
-        let _ = status_icon(CheckStatus::Fail);
-        let _ = status_icon(CheckStatus::Skip);
+    fn test_badge_for_status() {
+        // Verify mapping doesn't panic
+        let _ = badge_for_status(CheckStatus::Ok);
+        let _ = badge_for_status(CheckStatus::Warn);
+        let _ = badge_for_status(CheckStatus::Fail);
+        let _ = badge_for_status(CheckStatus::Skip);
     }
 }

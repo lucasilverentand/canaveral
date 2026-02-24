@@ -10,7 +10,8 @@ use canaveral_stores::firebase::{
     Firebase, FirebaseConfig, FirebaseRelease, FirebaseUploadOptions, TesterGroup,
 };
 
-use crate::cli::{Cli, OutputFormat};
+use crate::cli::output::Ui;
+use crate::cli::Cli;
 
 /// Firebase App Distribution management
 #[derive(Debug, Args)]
@@ -236,6 +237,8 @@ impl FirebaseCommand {
     }
 
     async fn upload(&self, args: &UploadArgs, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         if !args.artifact.exists() {
             anyhow::bail!("Artifact not found: {}", args.artifact.display());
         }
@@ -259,38 +262,38 @@ impl FirebaseCommand {
             dry_run: args.dry_run,
         };
 
-        if !cli.quiet && cli.format == OutputFormat::Text {
-            println!();
-            println!(
-                "{}",
-                style("Uploading to Firebase App Distribution...").bold()
-            );
-            println!("  File: {}", style(args.artifact.display()).cyan());
-            if !args.groups.is_empty() {
-                println!("  Groups: {}", style(args.groups.join(", ")).dim());
-            }
-            if !args.testers.is_empty() {
-                println!(
-                    "  Testers: {}",
-                    style(format!("{} recipients", args.testers.len())).dim()
-                );
-            }
-            if args.dry_run {
-                println!("  {}", style("(DRY RUN)").yellow().bold());
-            }
-            println!();
+        ui.blank();
+        ui.header("Uploading to Firebase App Distribution...");
+        ui.key_value("File", &style(args.artifact.display()).cyan().to_string());
+        if !args.groups.is_empty() {
+            ui.key_value("Groups", &style(args.groups.join(", ")).dim().to_string());
         }
+        if !args.testers.is_empty() {
+            ui.key_value(
+                "Testers",
+                &style(format!("{} recipients", args.testers.len()))
+                    .dim()
+                    .to_string(),
+            );
+        }
+        if args.dry_run {
+            ui.warning("(DRY RUN)");
+        }
+        ui.blank();
 
         let release = firebase.upload(&args.artifact, &options).await?;
 
-        if cli.format == OutputFormat::Json {
-            println!("{}", serde_json::to_string_pretty(&release)?);
-        } else if !cli.quiet {
-            println!("{} Upload completed!", style("✓").green().bold());
-            println!("  Version: {}", style(&release.display_version).cyan());
-            println!("  Build: {}", style(&release.build_version).dim());
+        if ui.is_json() {
+            ui.json(&release)?;
+        } else if ui.is_text() {
+            ui.success("Upload completed!");
+            ui.key_value(
+                "Version",
+                &style(&release.display_version).cyan().to_string(),
+            );
+            ui.key_value("Build", &style(&release.build_version).dim().to_string());
             if let Some(ref uri) = release.firebase_console_uri {
-                println!("  Console: {}", style(uri).dim());
+                ui.key_value("Console", &style(uri).dim().to_string());
             }
         }
 
@@ -298,6 +301,8 @@ impl FirebaseCommand {
     }
 
     async fn releases(&self, cmd: &ReleasesCommand, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         match &cmd.subcommand {
             ReleasesSubcommand::List {
                 project_id,
@@ -307,17 +312,17 @@ impl FirebaseCommand {
                 let mut firebase = self.get_firebase(project_id.as_deref(), app_id.as_deref())?;
                 let releases = firebase.list_releases(Some(*limit)).await?;
 
-                if cli.format == OutputFormat::Json {
-                    println!("{}", serde_json::to_string_pretty(&releases)?);
-                } else if !cli.quiet {
+                if ui.is_json() {
+                    ui.json(&releases)?;
+                } else if ui.is_text() {
                     if releases.is_empty() {
-                        println!("No releases found");
+                        ui.info("No releases found");
                     } else {
-                        println!("{}", style("Firebase Releases").bold());
-                        println!();
+                        ui.header("Firebase Releases");
+                        ui.blank();
                         for release in &releases {
                             self.print_release(release);
-                            println!();
+                            ui.blank();
                         }
                     }
                 }
@@ -331,9 +336,9 @@ impl FirebaseCommand {
                 let mut firebase = self.get_firebase(project_id.as_deref(), app_id.as_deref())?;
                 let release = firebase.get_release(name).await?;
 
-                if cli.format == OutputFormat::Json {
-                    println!("{}", serde_json::to_string_pretty(&release)?);
-                } else if !cli.quiet {
+                if ui.is_json() {
+                    ui.json(&release)?;
+                } else if ui.is_text() {
                     self.print_release(&release);
                 }
             }
@@ -343,19 +348,21 @@ impl FirebaseCommand {
     }
 
     async fn groups(&self, cmd: &GroupsCommand, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         match &cmd.subcommand {
             GroupsSubcommand::List { project_id, app_id } => {
                 let mut firebase = self.get_firebase(project_id.as_deref(), app_id.as_deref())?;
                 let groups = firebase.list_groups().await?;
 
-                if cli.format == OutputFormat::Json {
-                    println!("{}", serde_json::to_string_pretty(&groups)?);
-                } else if !cli.quiet {
+                if ui.is_json() {
+                    ui.json(&groups)?;
+                } else if ui.is_text() {
                     if groups.is_empty() {
-                        println!("No groups found");
+                        ui.info("No groups found");
                     } else {
-                        println!("{}", style("Tester Groups").bold());
-                        println!();
+                        ui.header("Tester Groups");
+                        ui.blank();
                         for group in &groups {
                             self.print_group(group);
                         }
@@ -374,16 +381,12 @@ impl FirebaseCommand {
                     .create_group(alias, display_name.as_deref())
                     .await?;
 
-                if cli.format == OutputFormat::Json {
-                    println!("{}", serde_json::to_string_pretty(&group)?);
-                } else if !cli.quiet {
-                    println!(
-                        "{} Created group '{}'",
-                        style("✓").green().bold(),
-                        style(alias).cyan()
-                    );
+                if ui.is_json() {
+                    ui.json(&group)?;
+                } else if ui.is_text() {
+                    ui.success(&format!("Created group '{}'", style(alias).cyan()));
                     if let Some(ref display) = group.display_name {
-                        println!("  Display Name: {}", style(display).dim());
+                        ui.key_value("Display Name", &style(display).dim().to_string());
                     }
                 }
             }
@@ -394,19 +397,14 @@ impl FirebaseCommand {
                 app_id,
                 yes,
             } => {
-                if !yes && cli.format == OutputFormat::Text {
-                    use dialoguer::Confirm;
-
-                    let confirmed = Confirm::new()
-                        .with_prompt(format!(
-                            "Are you sure you want to delete group '{}'?",
-                            alias
-                        ))
-                        .default(false)
-                        .interact()?;
+                if !yes {
+                    let confirmed = ui.confirm(
+                        &format!("Are you sure you want to delete group '{}'?", alias),
+                        false,
+                    )?;
 
                     if !confirmed {
-                        println!("Cancelled");
+                        ui.info("Cancelled");
                         return Ok(());
                     }
                 }
@@ -414,13 +412,7 @@ impl FirebaseCommand {
                 let mut firebase = self.get_firebase(project_id.as_deref(), app_id.as_deref())?;
                 firebase.delete_group(alias).await?;
 
-                if !cli.quiet && cli.format == OutputFormat::Text {
-                    println!(
-                        "{} Deleted group '{}'",
-                        style("✓").green().bold(),
-                        style(alias).cyan()
-                    );
-                }
+                ui.success(&format!("Deleted group '{}'", style(alias).cyan()));
             }
         }
 
@@ -428,6 +420,8 @@ impl FirebaseCommand {
     }
 
     async fn testers(&self, cmd: &TestersCommand, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
         match &cmd.subcommand {
             TestersSubcommand::Add {
                 emails,
@@ -443,17 +437,13 @@ impl FirebaseCommand {
                 let email_refs: Vec<&str> = emails.iter().map(|s| s.as_str()).collect();
                 firebase.add_testers_to_group(group, &email_refs).await?;
 
-                if !cli.quiet && cli.format == OutputFormat::Text {
-                    println!(
-                        "{} Added {} tester(s) to group '{}'",
-                        style("✓").green().bold(),
-                        emails.len(),
-                        style(group).cyan()
-                    );
-                    for email in emails {
-                        println!("  - {}", style(email).dim());
-                    }
-                }
+                ui.success(&format!(
+                    "Added {} tester(s) to group '{}'",
+                    emails.len(),
+                    style(group).cyan()
+                ));
+                let email_strs: Vec<&str> = emails.iter().map(|s| s.as_str()).collect();
+                ui.list(&email_strs);
             }
 
             TestersSubcommand::Remove {
@@ -472,17 +462,13 @@ impl FirebaseCommand {
                     .remove_testers_from_group(group, &email_refs)
                     .await?;
 
-                if !cli.quiet && cli.format == OutputFormat::Text {
-                    println!(
-                        "{} Removed {} tester(s) from group '{}'",
-                        style("✓").green().bold(),
-                        emails.len(),
-                        style(group).cyan()
-                    );
-                    for email in emails {
-                        println!("  - {}", style(email).dim());
-                    }
-                }
+                ui.success(&format!(
+                    "Removed {} tester(s) from group '{}'",
+                    emails.len(),
+                    style(group).cyan()
+                ));
+                let email_strs: Vec<&str> = emails.iter().map(|s| s.as_str()).collect();
+                ui.list(&email_strs);
             }
         }
 
