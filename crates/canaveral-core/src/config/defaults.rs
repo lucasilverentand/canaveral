@@ -2,27 +2,21 @@
 
 use super::root::Config;
 
-/// Default configuration file name (TOML — preferred)
+/// Default configuration file name
 pub const DEFAULT_CONFIG_TOML: &str = "canaveral.toml";
 
-/// Default configuration file name (YAML — legacy)
-pub const DEFAULT_CONFIG_YAML: &str = "canaveral.yaml";
-
-/// Alternative configuration file names (dotfile variants)
+/// Alternative configuration file name (dotfile variant)
 pub const ALT_CONFIG_TOML: &str = ".canaveral.toml";
-pub const ALT_CONFIG_YAML: &str = ".canaveral.yaml";
+
+/// Legacy YAML config file names (used for migration warnings)
+pub const LEGACY_YAML_NAMES: &[&str] = &["canaveral.yaml", ".canaveral.yaml"];
 
 /// Config file names to search for, in priority order.
 ///
 /// At each directory level these names are checked in order, both in the
 /// directory itself and inside the `.github/` subdirectory.
 pub fn config_file_names() -> Vec<&'static str> {
-    vec![
-        DEFAULT_CONFIG_TOML,
-        DEFAULT_CONFIG_YAML,
-        ALT_CONFIG_TOML,
-        ALT_CONFIG_YAML,
-    ]
+    vec![DEFAULT_CONFIG_TOML, ALT_CONFIG_TOML]
 }
 
 /// Generate default configuration as TOML

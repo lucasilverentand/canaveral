@@ -267,16 +267,16 @@ impl AuditLog {
         before_count - self.entries.len()
     }
 
-    /// Load from a file
+    /// Load from a TOML file
     pub fn load(path: &Path) -> Result<Self, std::io::Error> {
         let content = std::fs::read_to_string(path)?;
-        serde_yaml::from_str(&content)
+        toml::from_str(&content)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     }
 
-    /// Save to a file
+    /// Save to a TOML file
     pub fn save(&self, path: &Path) -> Result<(), std::io::Error> {
-        let content = serde_yaml::to_string(self)
+        let content = toml::to_string_pretty(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         std::fs::write(path, content)
     }

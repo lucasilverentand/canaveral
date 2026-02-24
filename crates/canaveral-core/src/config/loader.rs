@@ -6,26 +6,25 @@ use tracing::{debug, info, warn};
 
 use crate::error::{ConfigError, Result};
 
-use super::defaults::config_file_names;
+use super::defaults::{config_file_names, LEGACY_YAML_NAMES};
 use super::root::Config;
 use super::validation::validate_config;
 
-/// Load configuration from a file
+/// Load configuration from a TOML file
 pub fn load_config(path: &Path) -> Result<Config> {
-    let format = if path.extension().is_some_and(|e| e == "toml") {
-        "TOML"
-    } else {
-        "YAML"
-    };
-    info!(path = %path.display(), format, "loading config");
+    info!(path = %path.display(), "loading config");
+
+    if !path.extension().is_some_and(|e| e == "toml") {
+        return Err(ConfigError::UnsupportedFormat(format!(
+            "Found '{}'. Canaveral only supports TOML configuration. \
+             Rename your config to canaveral.toml and convert the syntax.",
+            path.display()
+        ))
+        .into());
+    }
 
     let content = std::fs::read_to_string(path).map_err(ConfigError::Io)?;
-
-    let config: Config = if format == "TOML" {
-        toml::from_str(&content).map_err(ConfigError::TomlError)?
-    } else {
-        serde_yaml::from_str(&content).map_err(ConfigError::YamlError)?
-    };
+    let config: Config = toml::from_str(&content).map_err(ConfigError::TomlError)?;
 
     validate_config(&config)?;
     debug!(path = %path.display(), "config loaded and validated");
@@ -60,6 +59,24 @@ pub fn find_config(start_dir: &Path) -> Option<PathBuf> {
             }
         }
 
+        if !current.pop() {
+            break;
+        }
+    }
+
+    // Check for legacy YAML files and warn
+    let mut current = start_dir.to_path_buf();
+    loop {
+        for name in LEGACY_YAML_NAMES {
+            let yaml_path = current.join(name);
+            if yaml_path.exists() {
+                warn!(
+                    path = %yaml_path.display(),
+                    "Found legacy YAML config file. Canaveral now only supports TOML. \
+                     Please rename to canaveral.toml and convert the syntax."
+                );
+            }
+        }
         if !current.pop() {
             break;
         }
@@ -105,15 +122,14 @@ mod tests {
     }
 
     #[test]
-    fn test_find_config_prefers_toml_over_yaml() {
+    fn test_find_config_ignores_yaml() {
         let temp = TempDir::new().unwrap();
-        let toml_path = temp.path().join("canaveral.toml");
         let yaml_path = temp.path().join("canaveral.yaml");
-        std::fs::write(&toml_path, "[versioning]\nstrategy = \"semver\"").unwrap();
         std::fs::write(&yaml_path, "versioning:\n  strategy: semver").unwrap();
 
-        let found = find_config(temp.path()).unwrap();
-        assert_eq!(found, toml_path);
+        // YAML-only should not be found
+        let found = find_config(temp.path());
+        assert!(found.is_none());
     }
 
     #[test]
@@ -158,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn test_load_config_yaml() {
+    fn test_load_config_yaml_returns_unsupported() {
         let temp = TempDir::new().unwrap();
         let config_path = temp.path().join("canaveral.yaml");
         std::fs::write(
@@ -167,7 +183,12 @@ mod tests {
         )
         .unwrap();
 
-        let config = load_config(&config_path).unwrap();
-        assert_eq!(config.versioning.strategy, "semver");
+        let result = load_config(&config_path);
+        assert!(matches!(
+            result,
+            Err(crate::error::CanaveralError::Config(
+                ConfigError::UnsupportedFormat(_)
+            ))
+        ));
     }
 }

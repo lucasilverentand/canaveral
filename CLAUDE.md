@@ -11,7 +11,7 @@ The name comes from Cape Canaveral — we launch software.
 Rust workspace with 10 crates. Each crate has a focused responsibility:
 
 - `canaveral` — CLI binary (clap). Entry point, command routing, output formatting.
-- `canaveral-core` — Config loading (YAML/TOML), hook system (12 lifecycle stages), plugin registry, monorepo workspace detection, workflow orchestration, CI/CD templates.
+- `canaveral-core` — Config loading (`canaveral.toml`), hook system (12 lifecycle stages), plugin registry, monorepo workspace detection, workflow orchestration, CI/CD templates.
 - `canaveral-git` — Git operations via git2 (libgit2). Commit parsing, tag management, remote ops. No shelling out to git.
 - `canaveral-changelog` — Conventional commit parsing, changelog generation, customizable formatters.
 - `canaveral-strategies` — Version calculation. Trait-based: SemVer, CalVer, build numbers. Pluggable for custom strategies.
@@ -25,7 +25,7 @@ Rust workspace with 10 crates. Each crate has a focused responsibility:
 
 - **Trait-based adapters** — `PackageAdapter` trait in canaveral-adapters, `VersionStrategy` trait in canaveral-strategies, `StoreUploader` trait in canaveral-stores. Add new ecosystems by implementing the trait.
 - **Layered architecture** — CLI → Orchestration → Strategy → Adapter → Infrastructure. Each layer only calls downward.
-- **Config-driven** — `canaveral.toml` (preferred) or `canaveral.yaml`. Also searches `.github/` subdirectory. Auto-detection as fallback. CLI flags override config.
+- **Config-driven** — `canaveral.toml` (only supported format). Also searches `.github/` subdirectory. Auto-detection as fallback. CLI flags override config.
 - **Monorepo-first** — Workspace detection (Cargo, npm, pnpm, yarn, lerna, nx, turbo), dependency graph with topological sorting, change detection via git diff, coordinated or independent versioning.
 
 ## Building and testing

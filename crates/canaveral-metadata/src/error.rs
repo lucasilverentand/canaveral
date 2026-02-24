@@ -48,8 +48,14 @@ impl From<serde_json::Error> for MetadataError {
     }
 }
 
-impl From<serde_yaml::Error> for MetadataError {
-    fn from(err: serde_yaml::Error) -> Self {
+impl From<toml::de::Error> for MetadataError {
+    fn from(err: toml::de::Error) -> Self {
+        MetadataError::SerializationError(err.to_string())
+    }
+}
+
+impl From<toml::ser::Error> for MetadataError {
+    fn from(err: toml::ser::Error) -> Self {
         MetadataError::SerializationError(err.to_string())
     }
 }

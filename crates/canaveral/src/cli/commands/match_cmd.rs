@@ -95,7 +95,7 @@ pub struct SyncCommand {
     pub keyfile: PathBuf,
 
     /// Storage configuration file
-    #[arg(short, long, default_value = ".canaveral/match/config.yaml")]
+    #[arg(short, long, default_value = ".canaveral/match/config.toml")]
     pub config: PathBuf,
 }
 
@@ -111,7 +111,7 @@ pub struct NukeCommand {
     pub keyfile: PathBuf,
 
     /// Storage configuration file
-    #[arg(short, long, default_value = ".canaveral/match/config.yaml")]
+    #[arg(short, long, default_value = ".canaveral/match/config.toml")]
     pub config: PathBuf,
 
     /// Skip confirmation prompt
@@ -127,7 +127,7 @@ pub struct StatusCommand {
     pub keyfile: PathBuf,
 
     /// Storage configuration file
-    #[arg(short, long, default_value = ".canaveral/match/config.yaml")]
+    #[arg(short, long, default_value = ".canaveral/match/config.toml")]
     pub config: PathBuf,
 }
 
@@ -263,9 +263,9 @@ impl InitCommand {
             ..Default::default()
         };
 
-        let config_file = self.output.join("config.yaml");
-        let config_yaml = serde_yaml::to_string(&config)?;
-        std::fs::write(&config_file, &config_yaml)?;
+        let config_file = self.output.join("config.toml");
+        let config_toml = toml::to_string_pretty(&config)?;
+        std::fs::write(&config_file, &config_toml)?;
 
         // Initialize storage
         let sync = MatchSync::new(config)?.with_keypair(keypair);
@@ -308,7 +308,7 @@ impl SyncCommand {
         // Load configuration
         let config_content = std::fs::read_to_string(&self.config)
             .map_err(|_| anyhow::anyhow!("Config not found. Run 'canaveral match init' first."))?;
-        let mut config: MatchConfig = serde_yaml::from_str(&config_content)?;
+        let mut config: MatchConfig = toml::from_str(&config_content)?;
 
         // Apply command-line options
         config.readonly = self.readonly;
@@ -420,7 +420,7 @@ impl NukeCommand {
 
         // Load configuration
         let config_content = std::fs::read_to_string(&self.config)?;
-        let config: MatchConfig = serde_yaml::from_str(&config_content)?;
+        let config: MatchConfig = toml::from_str(&config_content)?;
 
         // Load keypair
         let private_key = std::fs::read_to_string(&self.keyfile)?;
@@ -459,7 +459,7 @@ impl StatusCommand {
         // Load configuration
         let config_content = std::fs::read_to_string(&self.config)
             .map_err(|_| anyhow::anyhow!("Config not found. Run 'canaveral match init' first."))?;
-        let mut config: MatchConfig = serde_yaml::from_str(&config_content)?;
+        let mut config: MatchConfig = toml::from_str(&config_content)?;
         config.readonly = true;
 
         // Load keypair

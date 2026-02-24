@@ -18,8 +18,8 @@ pub enum ExportFormat {
     /// JSON format (pretty-printed)
     #[default]
     Json,
-    /// YAML format
-    Yaml,
+    /// TOML format
+    Toml,
     /// CSV format (localized text fields only)
     Csv,
 }
@@ -74,7 +74,7 @@ pub async fn execute(cmd: &ExportArgs, cli: &Cli) -> anyhow::Result<()> {
             let metadata = storage.load_apple(&cmd.app_id).await?;
             match cmd.format {
                 ExportFormat::Json => serde_json::to_string_pretty(&metadata)?,
-                ExportFormat::Yaml => serde_yaml::to_string(&metadata)?,
+                ExportFormat::Toml => toml::to_string_pretty(&metadata)?,
                 ExportFormat::Csv => export_apple_csv(&metadata)?,
             }
         }
@@ -88,7 +88,7 @@ pub async fn execute(cmd: &ExportArgs, cli: &Cli) -> anyhow::Result<()> {
             let metadata = storage.load_google_play(&cmd.app_id).await?;
             match cmd.format {
                 ExportFormat::Json => serde_json::to_string_pretty(&metadata)?,
-                ExportFormat::Yaml => serde_yaml::to_string(&metadata)?,
+                ExportFormat::Toml => toml::to_string_pretty(&metadata)?,
                 ExportFormat::Csv => export_google_play_csv(&metadata)?,
             }
         }

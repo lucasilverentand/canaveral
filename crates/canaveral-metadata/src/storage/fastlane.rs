@@ -22,7 +22,7 @@
 //! │       ├── screenshots/
 //! │       │   └── {locale}/
 //! │       │       └── *.png
-//! │       └── app_store_info.yaml
+//! │       └── app_store_info.toml
 //! └── google_play/
 //!     └── {package_name}/
 //!         ├── {locale}/
@@ -36,7 +36,7 @@
 //!         │       ├── phone/
 //!         │       ├── tablet/
 //!         │       └── ...
-//!         └── store_info.yaml
+//!         └── store_info.toml
 //! ```
 
 use super::MetadataStorage;
@@ -102,14 +102,14 @@ impl FastlaneStorage {
         Ok(())
     }
 
-    /// Read a YAML file, returning default if it doesn't exist.
-    async fn read_yaml_file<T: for<'de> Deserialize<'de> + Default>(
+    /// Read a TOML file, returning default if it doesn't exist.
+    async fn read_toml_file<T: for<'de> Deserialize<'de> + Default>(
         &self,
         path: &Path,
     ) -> Result<T> {
         match fs::read_to_string(path).await {
             Ok(content) => {
-                let value: T = serde_yaml::from_str(&content)?;
+                let value: T = toml::from_str(&content)?;
                 Ok(value)
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(T::default()),
@@ -117,12 +117,12 @@ impl FastlaneStorage {
         }
     }
 
-    /// Write a YAML file, creating parent directories as needed.
-    async fn write_yaml_file<T: Serialize>(&self, path: &Path, value: &T) -> Result<()> {
+    /// Write a TOML file, creating parent directories as needed.
+    async fn write_toml_file<T: Serialize>(&self, path: &Path, value: &T) -> Result<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        let content = serde_yaml::to_string(value)?;
+        let content = toml::to_string_pretty(value)?;
         fs::write(path, content).await?;
         Ok(())
     }
@@ -463,7 +463,7 @@ impl FastlaneStorage {
     }
 }
 
-/// Non-localized Apple App Store info stored in YAML.
+/// Non-localized Apple App Store info stored in TOML.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct AppleStoreInfo {
     /// Primary locale code.
@@ -492,7 +492,7 @@ struct AppleStoreInfo {
     pub marketing_url: Option<String>,
 }
 
-/// Non-localized Google Play Store info stored in YAML.
+/// Non-localized Google Play Store info stored in TOML.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct GooglePlayStoreInfo {
     /// Default locale code.
@@ -532,7 +532,7 @@ impl MetadataStorage for FastlaneStorage {
 
         // Load app store info
         let store_info: AppleStoreInfo = self
-            .read_yaml_file(&app_path.join("app_store_info.yaml"))
+            .read_toml_file(&app_path.join("app_store_info.toml"))
             .await?;
 
         // Determine primary locale
@@ -583,7 +583,7 @@ impl MetadataStorage for FastlaneStorage {
 
         // Load store info
         let store_info: GooglePlayStoreInfo = self
-            .read_yaml_file(&app_path.join("store_info.yaml"))
+            .read_toml_file(&app_path.join("store_info.toml"))
             .await?;
 
         // Determine default locale
@@ -638,7 +638,7 @@ impl MetadataStorage for FastlaneStorage {
             marketing_url: metadata.marketing_url.clone(),
         };
 
-        self.write_yaml_file(&app_path.join("app_store_info.yaml"), &store_info)
+        self.write_toml_file(&app_path.join("app_store_info.toml"), &store_info)
             .await?;
 
         // Save localizations
@@ -664,7 +664,7 @@ impl MetadataStorage for FastlaneStorage {
             contact_website: metadata.contact_website.clone(),
         };
 
-        self.write_yaml_file(&app_path.join("store_info.yaml"), &store_info)
+        self.write_toml_file(&app_path.join("store_info.toml"), &store_info)
             .await?;
 
         // Save localizations
@@ -747,7 +747,7 @@ impl MetadataStorage for FastlaneStorage {
                     primary_locale: Some(primary_locale.code()),
                     ..Default::default()
                 };
-                self.write_yaml_file(&app_path.join("app_store_info.yaml"), &store_info)
+                self.write_toml_file(&app_path.join("app_store_info.toml"), &store_info)
                     .await?;
             }
             Platform::GooglePlay => {
@@ -786,7 +786,7 @@ impl MetadataStorage for FastlaneStorage {
                     default_locale: Some(default_locale.code()),
                     ..Default::default()
                 };
-                self.write_yaml_file(&app_path.join("store_info.yaml"), &store_info)
+                self.write_toml_file(&app_path.join("store_info.toml"), &store_info)
                     .await?;
             }
             // Package registries don't use Fastlane metadata format
@@ -1010,7 +1010,7 @@ mod tests {
         assert!(app_path.join("de-DE").exists());
         assert!(app_path.join("en-US/name.txt").exists());
         assert!(app_path.join("screenshots/en-US").exists());
-        assert!(app_path.join("app_store_info.yaml").exists());
+        assert!(app_path.join("app_store_info.toml").exists());
     }
 
     #[tokio::test]
@@ -1030,7 +1030,7 @@ mod tests {
         assert!(app_path.join("en-US/title.txt").exists());
         assert!(app_path.join("en-US/changelogs").exists());
         assert!(app_path.join("screenshots/en-US/phone").exists());
-        assert!(app_path.join("store_info.yaml").exists());
+        assert!(app_path.join("store_info.toml").exists());
     }
 
     #[tokio::test]

@@ -16,8 +16,8 @@ mod tests {
     #[test]
     fn test_config_serialization() {
         let config = Config::default();
-        let yaml = serde_yaml::to_string(&config).unwrap();
-        assert!(yaml.contains("strategy: semver"));
+        let toml_str = toml::to_string_pretty(&config).unwrap();
+        assert!(toml_str.contains("strategy = \"semver\""));
     }
 
     #[test]

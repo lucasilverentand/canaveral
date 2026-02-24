@@ -225,7 +225,7 @@ impl CaptureCommand {
 
         // Load or build configuration
         let config = if self.config.exists() {
-            ScreenshotConfig::from_yaml(&self.config)?
+            ScreenshotConfig::from_toml(&self.config)?
         } else {
             self.build_config()?
         };
@@ -562,7 +562,7 @@ impl InitCommand {
             .with_screen(ScreenConfig::new("feature2", "/feature2").with_wait(1500));
 
         // Write config
-        config.to_yaml(&self.output)?;
+        config.to_toml(&self.output)?;
 
         ui.success(&format!(
             "Created screenshot config at {}",

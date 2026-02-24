@@ -81,13 +81,13 @@ pub enum ConfigError {
     #[error("Missing required configuration field: {0}")]
     MissingField(String),
 
-    /// YAML parsing error
-    #[error("YAML parsing error: {0}")]
-    YamlError(#[from] serde_yaml::Error),
-
     /// TOML parsing error
     #[error("TOML parsing error: {0}")]
     TomlError(#[from] toml::de::Error),
+
+    /// Unsupported config format (e.g. YAML)
+    #[error("{0}")]
+    UnsupportedFormat(String),
 
     /// IO error
     #[error("IO error reading config: {0}")]

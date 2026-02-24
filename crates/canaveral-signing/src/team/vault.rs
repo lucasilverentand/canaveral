@@ -59,9 +59,13 @@ pub enum VaultError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// YAML parsing error
-    #[error("YAML error: {0}")]
-    Yaml(#[from] serde_yaml::Error),
+    /// TOML deserialization error
+    #[error("TOML parse error: {0}")]
+    Toml(#[from] toml::de::Error),
+
+    /// TOML serialization error
+    #[error("TOML serialize error: {0}")]
+    TomlSerialize(#[from] toml::ser::Error),
 
     /// JSON error
     #[error("JSON error: {0}")]
@@ -102,7 +106,7 @@ impl TeamVault {
     /// Initialize a new vault
     #[instrument(skip_all, fields(team = team_name, vault_path = %path.display()))]
     pub fn init(team_name: &str, path: &Path, creator_email: &str) -> Result<(Self, KeyPair)> {
-        if path.exists() && path.join("vault.yaml").exists() {
+        if path.exists() && path.join("vault.toml").exists() {
             return Err(VaultError::AlreadyExists(path.to_path_buf()));
         }
 
@@ -149,32 +153,22 @@ impl TeamVault {
     /// Open an existing vault
     #[instrument(skip_all, fields(vault_path = %path.display()))]
     pub fn open(path: &Path) -> Result<Self> {
-        if !path.exists() || !path.join("vault.yaml").exists() {
+        if !path.exists() || !path.join("vault.toml").exists() {
             return Err(VaultError::NotFound(path.to_path_buf()));
         }
 
-        // Load config
-        let config_path = path.join("vault.yaml");
-        let config: VaultConfig = serde_yaml::from_str(&std::fs::read_to_string(&config_path)?)?;
+        // Load config (with YAML migration fallback)
+        let config: VaultConfig = Self::load_toml_file(path, "vault")?;
 
         // Load members
-        let members_path = path.join("members.yaml");
-        let members: HashMap<Uuid, Member> = if members_path.exists() {
-            serde_yaml::from_str(&std::fs::read_to_string(&members_path)?)?
-        } else {
-            HashMap::new()
-        };
+        let members: HashMap<Uuid, Member> = Self::load_toml_file_or_default(path, "members")?;
 
         // Load identities
-        let identities_path = path.join("identities.yaml");
-        let identities: HashMap<String, StoredIdentity> = if identities_path.exists() {
-            serde_yaml::from_str(&std::fs::read_to_string(&identities_path)?)?
-        } else {
-            HashMap::new()
-        };
+        let identities: HashMap<String, StoredIdentity> =
+            Self::load_toml_file_or_default(path, "identities")?;
 
         // Load audit log
-        let audit_path = path.join("audit.yaml");
+        let audit_path = path.join("audit.toml");
         let audit = if audit_path.exists() {
             AuditLog::load(&audit_path)?
         } else {
@@ -182,12 +176,7 @@ impl TeamVault {
         };
 
         // Load local metadata
-        let metadata_path = path.join(".metadata.yaml");
-        let metadata: VaultMetadata = if metadata_path.exists() {
-            serde_yaml::from_str(&std::fs::read_to_string(&metadata_path)?)?
-        } else {
-            VaultMetadata::default()
-        };
+        let metadata: VaultMetadata = Self::load_toml_file_or_default(path, ".metadata")?;
 
         // Try to load current user's key
         let current_key = std::env::var("CANAVERAL_SIGNING_KEY").ok();
@@ -223,26 +212,26 @@ impl TeamVault {
     /// Save all vault data
     pub fn save(&self) -> Result<()> {
         // Save config
-        let config_yaml = serde_yaml::to_string(&self.config)?;
-        std::fs::write(self.path.join("vault.yaml"), config_yaml)?;
+        let config_toml = toml::to_string_pretty(&self.config)?;
+        std::fs::write(self.path.join("vault.toml"), config_toml)?;
 
         // Save members
-        let members_yaml = serde_yaml::to_string(&self.members)?;
-        std::fs::write(self.path.join("members.yaml"), members_yaml)?;
+        let members_toml = toml::to_string_pretty(&self.members)?;
+        std::fs::write(self.path.join("members.toml"), members_toml)?;
 
         // Save identities
-        let identities_yaml = serde_yaml::to_string(&self.identities)?;
-        std::fs::write(self.path.join("identities.yaml"), identities_yaml)?;
+        let identities_toml = toml::to_string_pretty(&self.identities)?;
+        std::fs::write(self.path.join("identities.toml"), identities_toml)?;
 
         // Save audit log
-        self.audit.save(&self.path.join("audit.yaml"))?;
+        self.audit.save(&self.path.join("audit.toml"))?;
 
         // Save local metadata (not committed to git)
-        let metadata_yaml = serde_yaml::to_string(&self.metadata)?;
-        std::fs::write(self.path.join(".metadata.yaml"), metadata_yaml)?;
+        let metadata_toml = toml::to_string_pretty(&self.metadata)?;
+        std::fs::write(self.path.join(".metadata.toml"), metadata_toml)?;
 
         // Create .gitignore for local files
-        let gitignore = ".metadata.yaml\n";
+        let gitignore = ".metadata.toml\n";
         let gitignore_path = self.path.join(".gitignore");
         if !gitignore_path.exists() {
             std::fs::write(gitignore_path, gitignore)?;
@@ -250,6 +239,27 @@ impl TeamVault {
 
         debug!("Saved vault to {:?}", self.path);
         Ok(())
+    }
+
+    /// Load a TOML file from the vault directory
+    fn load_toml_file<T: for<'de> serde::Deserialize<'de>>(path: &Path, name: &str) -> Result<T> {
+        let toml_path = path.join(format!("{name}.toml"));
+        let content = std::fs::read_to_string(&toml_path)?;
+        Ok(toml::from_str(&content)?)
+    }
+
+    /// Load a TOML file, returning default if it doesn't exist
+    fn load_toml_file_or_default<T: for<'de> serde::Deserialize<'de> + Default>(
+        path: &Path,
+        name: &str,
+    ) -> Result<T> {
+        let toml_path = path.join(format!("{name}.toml"));
+        if toml_path.exists() {
+            let content = std::fs::read_to_string(&toml_path)?;
+            Ok(toml::from_str(&content)?)
+        } else {
+            Ok(T::default())
+        }
     }
 
     /// Get the vault path
@@ -664,7 +674,7 @@ mod tests {
 
         assert_eq!(vault.team_name(), "TestTeam");
         assert!(keypair.public_key.starts_with("age1"));
-        assert!(path.join("vault.yaml").exists());
+        assert!(path.join("vault.toml").exists());
     }
 
     #[test]

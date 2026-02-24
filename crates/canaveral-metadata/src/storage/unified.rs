@@ -1,15 +1,15 @@
-//! Unified YAML file storage backend.
+//! Unified TOML file storage backend.
 //!
 //! This module implements a storage backend that stores all metadata in a single
-//! YAML file per platform per app, providing a more compact and manageable alternative
+//! TOML file per platform per app, providing a more compact and manageable alternative
 //! to the Fastlane directory structure.
 //!
 //! ## File Structure
 //!
 //! ```text
 //! metadata/
-//! ├── com.example.app.apple.yaml
-//! ├── com.example.app.google_play.yaml
+//! ├── com.example.app.apple.toml
+//! ├── com.example.app.google_play.toml
 //! └── assets/
 //!     ├── icon.png
 //!     └── screenshots/
@@ -18,44 +18,6 @@
 //!         │   └── iphone_6_5_02.png
 //!         └── de-DE/
 //!             └── iphone_6_5_01.png
-//! ```
-//!
-//! ## YAML Format (Apple)
-//!
-//! ```yaml
-//! app_id: com.example.app
-//! platform: apple
-//! default_locale: en-US
-//!
-//! category:
-//!   primary: games
-//!   secondary: puzzle
-//!
-//! age_rating:
-//!   alcohol_tobacco_drugs: none
-//!   contests: none
-//!   # ... etc
-//!
-//! localizations:
-//!   en-US:
-//!     name: "My Awesome App"
-//!     subtitle: "The best app ever"
-//!     description: |
-//!       Long description goes here.
-//!     keywords: "keyword1,keyword2,keyword3"
-//!     whats_new: "Bug fixes"
-//!     promotional_text: "Now with new features!"
-//!     support_url: "https://example.com/support"
-//!     marketing_url: "https://example.com"
-//!     privacy_policy_url: "https://example.com/privacy"
-//!
-//! assets:
-//!   icon: assets/icon.png
-//!   screenshots:
-//!     en-US:
-//!       iphone_6_5:
-//!         - assets/screenshots/en-US/iphone_6_5_01.png
-//!         - assets/screenshots/en-US/iphone_6_5_02.png
 //! ```
 
 use super::MetadataStorage;
@@ -71,13 +33,13 @@ use std::path::{Path, PathBuf};
 use tokio::fs;
 use tracing::{debug, warn};
 
-/// Unified YAML file storage backend.
+/// Unified TOML file storage backend.
 ///
-/// This storage backend stores all metadata in a single YAML file per platform per app:
-/// - `{base_path}/{app_id}.apple.yaml`
-/// - `{base_path}/{app_id}.google_play.yaml`
+/// This storage backend stores all metadata in a single TOML file per platform per app:
+/// - `{base_path}/{app_id}.apple.toml`
+/// - `{base_path}/{app_id}.google_play.toml`
 ///
-/// Assets (screenshots, icons, etc.) are stored relative to the YAML file location.
+/// Assets (screenshots, icons, etc.) are stored relative to the TOML file location.
 #[derive(Debug, Clone)]
 pub struct UnifiedStorage {
     /// Base path for all metadata.
@@ -101,7 +63,7 @@ impl UnifiedStorage {
         &self.base_path
     }
 
-    /// Get path to the unified YAML file for a specific app and platform.
+    /// Get path to the unified TOML file for a specific app and platform.
     ///
     /// # Arguments
     ///
@@ -110,7 +72,7 @@ impl UnifiedStorage {
     ///
     /// # Returns
     ///
-    /// Path in the format `{base_path}/{app_id}.{platform}.yaml`
+    /// Path in the format `{base_path}/{app_id}.{platform}.toml`
     pub fn metadata_file_path(&self, app_id: &str, platform: Platform) -> PathBuf {
         let platform_suffix = match platform {
             Platform::Apple => "apple",
@@ -120,7 +82,7 @@ impl UnifiedStorage {
             Platform::PyPI => "pypi",
         };
         self.base_path
-            .join(format!("{}.{}.yaml", app_id, platform_suffix))
+            .join(format!("{}.{}.toml", app_id, platform_suffix))
     }
 
     /// Get path to assets directory for an app.
@@ -128,8 +90,8 @@ impl UnifiedStorage {
         self.base_path.join(format!("{}_assets", app_id))
     }
 
-    /// Read a YAML file and deserialize it.
-    async fn read_yaml_file<T: for<'de> Deserialize<'de>>(&self, path: &Path) -> Result<T> {
+    /// Read a TOML file and deserialize it.
+    async fn read_toml_file<T: for<'de> Deserialize<'de>>(&self, path: &Path) -> Result<T> {
         let content = fs::read_to_string(path).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
                 MetadataError::NotFound(format!("File not found: {}", path.display()))
@@ -137,26 +99,26 @@ impl UnifiedStorage {
                 MetadataError::Io(e)
             }
         })?;
-        let value: T = serde_yaml::from_str(&content)?;
+        let value: T = toml::from_str(&content)?;
         Ok(value)
     }
 
-    /// Write a YAML file, creating parent directories as needed.
-    async fn write_yaml_file<T: Serialize>(&self, path: &Path, value: &T) -> Result<()> {
+    /// Write a TOML file, creating parent directories as needed.
+    async fn write_toml_file<T: Serialize>(&self, path: &Path, value: &T) -> Result<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        let content = serde_yaml::to_string(value)?;
+        let content = toml::to_string_pretty(value)?;
         fs::write(path, content).await?;
         Ok(())
     }
 
-    /// Convert relative asset paths in the YAML to absolute paths based on base_path.
+    /// Convert relative asset paths to absolute paths based on base_path.
     fn resolve_asset_path(&self, relative_path: &str) -> PathBuf {
         self.base_path.join(relative_path)
     }
 
-    /// Convert absolute asset path to relative path for storage in YAML.
+    /// Convert absolute asset path to relative path for storage.
     fn make_relative_path(&self, absolute_path: &Path) -> Option<String> {
         absolute_path
             .strip_prefix(&self.base_path)
@@ -169,7 +131,7 @@ impl UnifiedStorage {
 // Intermediate serialization types for YAML format
 // =============================================================================
 
-/// Unified Apple metadata YAML structure.
+/// Unified Apple metadata structure.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnifiedAppleMetadata {
     /// App bundle identifier.
@@ -252,7 +214,7 @@ pub struct UnifiedAppleLocalization {
 /// Asset paths for Apple metadata.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UnifiedAppleAssets {
-    /// App icon path (relative to YAML file).
+    /// App icon path (relative to TOML file).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     /// Screenshots organized by locale and device type.
@@ -293,7 +255,7 @@ pub struct UnifiedAppleScreenshots {
 // Google Play unified format types
 // =============================================================================
 
-/// Unified Google Play metadata YAML structure.
+/// Unified Google Play metadata structure.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnifiedGooglePlayMetadata {
     /// Application package name.
@@ -353,7 +315,7 @@ pub struct UnifiedGooglePlayLocalization {
 /// Asset paths for Google Play metadata.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UnifiedGooglePlayAssets {
-    /// App icon path (relative to YAML file).
+    /// App icon path (relative to TOML file).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     /// Feature graphic path.
@@ -631,7 +593,7 @@ impl MetadataStorage for UnifiedStorage {
         let file_path = self.metadata_file_path(bundle_id, Platform::Apple);
         debug!("Loading Apple metadata from {:?}", file_path);
 
-        let unified: UnifiedAppleMetadata = self.read_yaml_file(&file_path).await?;
+        let unified: UnifiedAppleMetadata = self.read_toml_file(&file_path).await?;
         let mut metadata: AppleMetadata = unified.into();
 
         // Resolve relative paths to absolute paths
@@ -648,7 +610,7 @@ impl MetadataStorage for UnifiedStorage {
         let file_path = self.metadata_file_path(package_name, Platform::GooglePlay);
         debug!("Loading Google Play metadata from {:?}", file_path);
 
-        let unified: UnifiedGooglePlayMetadata = self.read_yaml_file(&file_path).await?;
+        let unified: UnifiedGooglePlayMetadata = self.read_toml_file(&file_path).await?;
         let mut metadata: GooglePlayMetadata = unified.into();
 
         // Resolve relative paths to absolute paths
@@ -691,7 +653,7 @@ impl MetadataStorage for UnifiedStorage {
             }
         }
 
-        self.write_yaml_file(&file_path, &unified).await
+        self.write_toml_file(&file_path, &unified).await
     }
 
     async fn save_google_play(&self, metadata: &GooglePlayMetadata) -> Result<()> {
@@ -716,7 +678,7 @@ impl MetadataStorage for UnifiedStorage {
             }
         }
 
-        self.write_yaml_file(&file_path, &unified).await
+        self.write_toml_file(&file_path, &unified).await
     }
 
     async fn exists_apple(&self, bundle_id: &str) -> Result<bool> {
@@ -736,7 +698,7 @@ impl MetadataStorage for UnifiedStorage {
             return Ok(Vec::new());
         }
 
-        let unified: UnifiedAppleMetadata = self.read_yaml_file(&file_path).await?;
+        let unified: UnifiedAppleMetadata = self.read_toml_file(&file_path).await?;
         let mut locales = Vec::new();
 
         for locale_code in unified.localizations.keys() {
@@ -758,7 +720,7 @@ impl MetadataStorage for UnifiedStorage {
             return Ok(Vec::new());
         }
 
-        let unified: UnifiedGooglePlayMetadata = self.read_yaml_file(&file_path).await?;
+        let unified: UnifiedGooglePlayMetadata = self.read_toml_file(&file_path).await?;
         let mut locales = Vec::new();
 
         for locale_code in unified.localizations.keys() {
@@ -819,7 +781,7 @@ impl MetadataStorage for UnifiedStorage {
                 };
 
                 let file_path = self.metadata_file_path(app_id, Platform::Apple);
-                self.write_yaml_file(&file_path, &unified).await?;
+                self.write_toml_file(&file_path, &unified).await?;
 
                 // Create assets directory structure
                 let assets_path = self.assets_path(app_id);
@@ -860,7 +822,7 @@ impl MetadataStorage for UnifiedStorage {
                 };
 
                 let file_path = self.metadata_file_path(app_id, Platform::GooglePlay);
-                self.write_yaml_file(&file_path, &unified).await?;
+                self.write_toml_file(&file_path, &unified).await?;
 
                 // Create assets directory structure
                 let assets_path = self.assets_path(app_id);
@@ -903,7 +865,7 @@ impl MetadataStorage for UnifiedStorage {
                     )));
                 }
 
-                let mut unified: UnifiedAppleMetadata = self.read_yaml_file(&file_path).await?;
+                let mut unified: UnifiedAppleMetadata = self.read_toml_file(&file_path).await?;
 
                 if unified.localizations.contains_key(&locale.code()) {
                     return Err(MetadataError::InvalidFormat(format!(
@@ -940,7 +902,7 @@ impl MetadataStorage for UnifiedStorage {
                 unified
                     .localizations
                     .insert(locale.code(), new_localization);
-                self.write_yaml_file(&file_path, &unified).await?;
+                self.write_toml_file(&file_path, &unified).await?;
 
                 // Create screenshots directory for new locale
                 let assets_path = self.assets_path(app_id);
@@ -957,7 +919,7 @@ impl MetadataStorage for UnifiedStorage {
                 }
 
                 let mut unified: UnifiedGooglePlayMetadata =
-                    self.read_yaml_file(&file_path).await?;
+                    self.read_toml_file(&file_path).await?;
 
                 if unified.localizations.contains_key(&locale.code()) {
                     return Err(MetadataError::InvalidFormat(format!(
@@ -990,7 +952,7 @@ impl MetadataStorage for UnifiedStorage {
                 unified
                     .localizations
                     .insert(locale.code(), new_localization);
-                self.write_yaml_file(&file_path, &unified).await?;
+                self.write_toml_file(&file_path, &unified).await?;
 
                 // Create screenshots directory structure for new locale
                 let assets_path = self.assets_path(app_id);
@@ -1024,7 +986,7 @@ impl MetadataStorage for UnifiedStorage {
                     )));
                 }
 
-                let mut unified: UnifiedAppleMetadata = self.read_yaml_file(&file_path).await?;
+                let mut unified: UnifiedAppleMetadata = self.read_toml_file(&file_path).await?;
 
                 if !unified.localizations.contains_key(&locale.code()) {
                     return Err(MetadataError::NotFound(format!(
@@ -1041,7 +1003,7 @@ impl MetadataStorage for UnifiedStorage {
                     assets.previews.remove(&locale.code());
                 }
 
-                self.write_yaml_file(&file_path, &unified).await?;
+                self.write_toml_file(&file_path, &unified).await?;
 
                 // Remove screenshots directory
                 let screenshots_path = self
@@ -1063,7 +1025,7 @@ impl MetadataStorage for UnifiedStorage {
                 }
 
                 let mut unified: UnifiedGooglePlayMetadata =
-                    self.read_yaml_file(&file_path).await?;
+                    self.read_toml_file(&file_path).await?;
 
                 if !unified.localizations.contains_key(&locale.code()) {
                     return Err(MetadataError::NotFound(format!(
@@ -1079,7 +1041,7 @@ impl MetadataStorage for UnifiedStorage {
                     assets.screenshots.remove(&locale.code());
                 }
 
-                self.write_yaml_file(&file_path, &unified).await?;
+                self.write_toml_file(&file_path, &unified).await?;
 
                 // Remove screenshots directory
                 let screenshots_path = self
@@ -1122,16 +1084,16 @@ mod tests {
         let apple_path = storage.metadata_file_path("com.example.app", Platform::Apple);
         assert!(apple_path
             .to_string_lossy()
-            .ends_with("com.example.app.apple.yaml"));
+            .ends_with("com.example.app.apple.toml"));
 
         let google_path = storage.metadata_file_path("com.example.app", Platform::GooglePlay);
         assert!(google_path
             .to_string_lossy()
-            .ends_with("com.example.app.google_play.yaml"));
+            .ends_with("com.example.app.google_play.toml"));
     }
 
     #[tokio::test]
-    async fn test_init_apple_creates_yaml_file() {
+    async fn test_init_apple_creates_toml_file() {
         let (storage, _temp) = setup_test_storage().await;
         let locales = vec![Locale::new("en-US").unwrap(), Locale::new("de-DE").unwrap()];
 
@@ -1140,7 +1102,7 @@ mod tests {
             .await
             .unwrap();
 
-        // Check YAML file exists
+        // Check TOML file exists
         let file_path = storage.metadata_file_path("com.example.app", Platform::Apple);
         assert!(file_path.exists());
 
@@ -1151,7 +1113,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_init_google_play_creates_yaml_file() {
+    async fn test_init_google_play_creates_toml_file() {
         let (storage, _temp) = setup_test_storage().await;
         let locales = vec![Locale::new("en-US").unwrap()];
 
@@ -1160,7 +1122,7 @@ mod tests {
             .await
             .unwrap();
 
-        // Check YAML file exists
+        // Check TOML file exists
         let file_path = storage.metadata_file_path("com.example.app", Platform::GooglePlay);
         assert!(file_path.exists());
 
@@ -1387,7 +1349,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_yaml_roundtrip_preserves_age_rating() {
+    async fn test_toml_roundtrip_preserves_age_rating() {
         let (storage, _temp) = setup_test_storage().await;
 
         let mut metadata = AppleMetadata::new("com.example.app");

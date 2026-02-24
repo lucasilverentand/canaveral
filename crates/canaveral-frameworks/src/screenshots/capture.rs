@@ -111,22 +111,22 @@ impl ScreenshotConfig {
         self
     }
 
-    /// Load from YAML file
-    pub fn from_yaml(path: &Path) -> Result<Self> {
+    /// Load from TOML file
+    pub fn from_toml(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path).map_err(|e| FrameworkError::Context {
             context: "load screenshot config".to_string(),
             message: e.to_string(),
         })?;
 
-        serde_yaml::from_str(&content).map_err(|e| FrameworkError::Context {
+        toml::from_str(&content).map_err(|e| FrameworkError::Context {
             context: "parse screenshot config".to_string(),
             message: e.to_string(),
         })
     }
 
-    /// Save to YAML file
-    pub fn to_yaml(&self, path: &Path) -> Result<()> {
-        let content = serde_yaml::to_string(self).map_err(|e| FrameworkError::Context {
+    /// Save to TOML file
+    pub fn to_toml(&self, path: &Path) -> Result<()> {
+        let content = toml::to_string_pretty(self).map_err(|e| FrameworkError::Context {
             context: "serialize screenshot config".to_string(),
             message: e.to_string(),
         })?;
