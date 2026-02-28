@@ -1,10 +1,10 @@
-//! Canaveral - Universal release management CLI
+//! Canaveral - Build, release, and ship software from a single CLI
 
 pub mod cli;
 pub mod exit_codes;
 pub mod scaffold;
 
-use clap::Parser;
+use clap::{CommandFactory, FromArgMatches};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
 use cli::Cli;
@@ -13,7 +13,11 @@ use cli::Cli;
 pub fn run() -> anyhow::Result<()> {
     let _guard = init_tracing();
 
-    let cli = Cli::parse();
+    let mut cmd = Cli::command();
+    let tpl = cli::grouped_help_template(&cmd);
+    cmd = cmd.help_template(tpl);
+    let matches = cmd.get_matches();
+    let cli = Cli::from_arg_matches(&matches)?;
     cli.execute()
 }
 

@@ -1,0 +1,19 @@
+[tasks.install]
+description = "Build and install canaveral locally"
+run = "cargo install --path crates/canaveral --force"
+
+[tasks.check]
+description = "Run fmt check + clippy + tests"
+run = [
+    "cargo fmt --check",
+    "cargo clippy -- -D warnings",
+    "cargo test",
+]
+
+[tasks.dev]
+description = "Build in debug mode"
+run = "cargo build"
+
+[tasks.release]
+description = "Build in release mode"
+run = "cargo build --release"
