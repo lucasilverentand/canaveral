@@ -259,28 +259,37 @@ impl ReleaseCommand {
             if let Some(adapter) = &adapter {
                 let validation = adapter.validate_publishable(&cwd)?;
                 if !validation.passed {
-                    anyhow::bail!(
-                        "Publish validation failed:\n{}",
-                        validation.errors.join("\n")
-                    );
-                }
-
-                for warning in &validation.warnings {
-                    ui.warning(warning);
-                }
-
-                if !self.dry_run {
-                    adapter.publish(&cwd, false)?;
-                    published = true;
-                    ui.success(&format!(
-                        "Published package via {}",
-                        style(adapter.name()).cyan()
-                    ));
+                    // If this is a workspace root, skip publish instead of failing
+                    let is_workspace_error = validation
+                        .errors
+                        .iter()
+                        .any(|e| e.contains("No [package] section"));
+                    if is_workspace_error {
+                        ui.warning("Workspace root detected — skipping publish (use --package to publish individual crates)");
+                    } else {
+                        anyhow::bail!(
+                            "Publish validation failed:\n{}",
+                            validation.errors.join("\n")
+                        );
+                    }
                 } else {
-                    ui.info(&format!(
-                        "Would publish package via {}",
-                        style(adapter.name()).cyan()
-                    ));
+                    for warning in &validation.warnings {
+                        ui.warning(warning);
+                    }
+
+                    if !self.dry_run {
+                        adapter.publish(&cwd, false)?;
+                        published = true;
+                        ui.success(&format!(
+                            "Published package via {}",
+                            style(adapter.name()).cyan()
+                        ));
+                    } else {
+                        ui.info(&format!(
+                            "Would publish package via {}",
+                            style(adapter.name()).cyan()
+                        ));
+                    }
                 }
             } else {
                 ui.warning(&format!(
