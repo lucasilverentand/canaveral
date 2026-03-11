@@ -161,38 +161,69 @@ impl PackageDiscovery {
     /// Parse a Cargo package
     fn parse_cargo_package(&self, manifest_path: &Path) -> Result<Option<DiscoveredPackage>> {
         let content = std::fs::read_to_string(manifest_path)?;
+        let doc: toml::Value = toml::from_str(&content)?;
 
-        #[derive(Deserialize)]
-        struct CargoToml {
-            package: Option<PackageSection>,
+        let package = match doc.get("package") {
+            Some(p) => p,
+            None => return Ok(None),
+        };
+
+        let name = package
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+
+        // Version can be a string or { workspace = true }
+        let version = match package.get("version") {
+            Some(toml::Value::String(s)) => s.clone(),
+            Some(toml::Value::Table(t)) if t.get("workspace").is_some() => {
+                // Resolve from workspace root
+                Self::resolve_workspace_version(manifest_path).unwrap_or_default()
+            }
+            _ => String::new(),
+        };
+
+        let private = package
+            .get("publish")
+            .and_then(|v| v.as_bool())
+            .map(|p| !p)
+            .unwrap_or(false);
+
+        let path = manifest_path
+            .parent()
+            .unwrap_or(Path::new("."))
+            .to_path_buf();
+
+        Ok(Some(DiscoveredPackage {
+            name,
+            version,
+            path,
+            manifest_path: manifest_path.to_path_buf(),
+            package_type: "cargo".to_string(),
+            private,
+            workspace_dependencies: Vec::new(),
+        }))
+    }
+
+    /// Resolve workspace-inherited version from the workspace root Cargo.toml
+    fn resolve_workspace_version(manifest_path: &Path) -> Option<String> {
+        let mut dir = manifest_path.parent()?.parent()?;
+        for _ in 0..5 {
+            let candidate = dir.join("Cargo.toml");
+            if candidate.exists() && candidate != *manifest_path {
+                let content = std::fs::read_to_string(&candidate).ok()?;
+                let doc: toml::Value = toml::from_str(&content).ok()?;
+                return doc
+                    .get("workspace")?
+                    .get("package")?
+                    .get("version")?
+                    .as_str()
+                    .map(String::from);
+            }
+            dir = dir.parent()?;
         }
-
-        #[derive(Deserialize)]
-        struct PackageSection {
-            name: String,
-            version: String,
-            publish: Option<bool>,
-        }
-
-        let cargo: CargoToml = toml::from_str(&content)?;
-
-        if let Some(package) = cargo.package {
-            let path = manifest_path
-                .parent()
-                .unwrap_or(Path::new("."))
-                .to_path_buf();
-            return Ok(Some(DiscoveredPackage {
-                name: package.name,
-                version: package.version,
-                path,
-                manifest_path: manifest_path.to_path_buf(),
-                package_type: "cargo".to_string(),
-                private: package.publish == Some(false),
-                workspace_dependencies: Vec::new(),
-            }));
-        }
-
-        Ok(None)
+        None
     }
 
     /// Parse an npm package
