@@ -48,7 +48,12 @@ impl CacheKey {
         };
 
         // Collect and hash file contents
-        let pkg_dir = root_dir.join(&id.package);
+        // Use package_dir if available (e.g., "crates/canaveral-git"), else fall back to package name
+        let pkg_dir = if let Some(ref dir) = definition.package_dir {
+            root_dir.join(dir)
+        } else {
+            root_dir.join(&id.package)
+        };
         if pkg_dir.exists() {
             let mut file_hashes: BTreeMap<String, String> = BTreeMap::new();
 
@@ -169,7 +174,11 @@ impl TaskCache {
 
         // Collect output file list
         let mut output_files = Vec::new();
-        let pkg_dir = root_dir.join(&id.package);
+        let pkg_dir = if let Some(ref dir) = definition.package_dir {
+            root_dir.join(dir)
+        } else {
+            root_dir.join(&id.package)
+        };
         for pattern in &definition.outputs {
             let full_pattern = pkg_dir.join(pattern).to_string_lossy().to_string();
             if let Ok(paths) = glob::glob(&full_pattern) {

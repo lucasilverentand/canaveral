@@ -113,9 +113,21 @@ impl RunCommand {
         let package_manager = detect_package_manager(&cwd);
         let pipeline = build_pipeline(&config.tasks.pipeline, &self.tasks, &package_manager);
 
+        // Build package name → relative path mapping for cache resolution
+        let package_paths: HashMap<String, String> = discovered
+            .iter()
+            .filter_map(|pkg| {
+                pkg.path
+                    .strip_prefix(&cwd)
+                    .ok()
+                    .map(|rel| (pkg.name.clone(), rel.to_string_lossy().to_string()))
+            })
+            .collect();
+
         // Build the task DAG
-        let dag = TaskDag::build(&graph, &pipeline, &self.tasks, &packages)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let dag =
+            TaskDag::build_with_paths(&graph, &pipeline, &self.tasks, &packages, &package_paths)
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         if dag.is_empty() {
             ui.success("No tasks to run.");

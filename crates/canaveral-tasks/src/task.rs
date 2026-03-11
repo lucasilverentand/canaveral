@@ -88,6 +88,10 @@ pub struct TaskDefinition {
     /// Whether this is a persistent/long-running task (e.g., dev server)
     #[serde(default)]
     pub persistent: bool,
+
+    /// Package directory relative to root (for resolving input/output globs)
+    #[serde(default)]
+    pub package_dir: Option<String>,
 }
 
 impl TaskDefinition {
@@ -102,6 +106,7 @@ impl TaskDefinition {
             inputs: Vec::new(),
             env: HashMap::new(),
             persistent: false,
+            package_dir: None,
         }
     }
 

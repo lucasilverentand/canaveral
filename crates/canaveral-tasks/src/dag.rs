@@ -50,6 +50,26 @@ impl TaskDag {
         target_tasks: &[String],
         packages: &[String],
     ) -> Result<Self, DagError> {
+        Self::build_with_paths(
+            package_graph,
+            pipeline,
+            target_tasks,
+            packages,
+            &HashMap::new(),
+        )
+    }
+
+    /// Build with explicit package directory paths for cache resolution.
+    ///
+    /// `package_paths` maps package name -> relative directory (e.g., "canaveral-git" -> "crates/canaveral-git").
+    #[instrument(skip_all, fields(packages = packages.len(), target_tasks = target_tasks.len()))]
+    pub fn build_with_paths(
+        package_graph: &DependencyGraph,
+        pipeline: &HashMap<String, TaskDefinition>,
+        target_tasks: &[String],
+        packages: &[String],
+        package_paths: &HashMap<String, String>,
+    ) -> Result<Self, DagError> {
         let mut nodes: HashMap<TaskId, TaskNode> = HashMap::new();
 
         // Create task nodes for each package × task combination
@@ -65,6 +85,8 @@ impl TaskDag {
                 if let Some(ref cmd) = pkg_definition.command {
                     pkg_definition.command = Some(cmd.replace("{package}", pkg));
                 }
+                // Set package directory for cache resolution
+                pkg_definition.package_dir = package_paths.get(pkg).cloned();
                 nodes.insert(
                     id.clone(),
                     TaskNode {
