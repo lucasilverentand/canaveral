@@ -119,6 +119,31 @@ publish = true
 [tools]
 rust = "1.75"
 
+[tasks]
+concurrency = 4
+
+[tasks.cache]
+enabled = true
+
+[tasks.pipeline.build]
+command = "cargo build -p {package}"
+depends_on_packages = true
+inputs = ["src/**/*.rs", "Cargo.toml"]
+outputs = []
+
+[tasks.pipeline.test]
+command = "cargo test -p {package}"
+depends_on = ["build"]
+inputs = ["src/**/*.rs", "tests/**/*.rs", "Cargo.toml"]
+
+[tasks.pipeline.lint]
+command = "cargo clippy -p {package} --all-targets -- -D warnings"
+inputs = ["src/**/*.rs", "Cargo.toml"]
+
+[tasks.pipeline.fmt]
+command = "cargo fmt -p {package} -- --check"
+inputs = ["src/**/*.rs"]
+
 [publish]
 enabled = true
 dry_run = false
