@@ -16,3 +16,9 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Canaveral cache
+.canaveral/
+
+# Claude Code
+.claude/
