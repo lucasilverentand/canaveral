@@ -278,6 +278,11 @@ fn build_pipeline(
 }
 
 fn detect_package_manager(root: &std::path::Path) -> String {
+    // Check for Cargo workspace first
+    if root.join("Cargo.toml").exists() {
+        return "cargo".to_string();
+    }
+
     let package_json_path = root.join("package.json");
     if package_json_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&package_json_path) {
@@ -306,6 +311,11 @@ fn detect_package_manager(root: &std::path::Path) -> String {
 
 fn default_task_command(package_manager: &str, task: &str) -> String {
     match (package_manager, task) {
+        ("cargo", "build") => "cargo build".to_string(),
+        ("cargo", "test") => "cargo test".to_string(),
+        ("cargo", "lint") => "cargo clippy --all-targets -- -D warnings".to_string(),
+        ("cargo", "fmt") => "cargo fmt -- --check".to_string(),
+        ("cargo", _) => format!("cargo {task}"),
         ("npm", "test") => "npm test".to_string(),
         ("npm", _) => format!("npm run {task}"),
         ("pnpm", "test") => "pnpm test".to_string(),

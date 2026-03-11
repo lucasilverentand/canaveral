@@ -60,11 +60,16 @@ impl TaskDag {
                     .ok_or_else(|| DagError::TaskNotFound(task_name.clone()))?;
 
                 let id = TaskId::new(pkg, task_name);
+                let mut pkg_definition = definition.clone();
+                // Substitute {package} in the command with the actual package name
+                if let Some(ref cmd) = pkg_definition.command {
+                    pkg_definition.command = Some(cmd.replace("{package}", pkg));
+                }
                 nodes.insert(
                     id.clone(),
                     TaskNode {
                         id: id.clone(),
-                        definition: definition.clone(),
+                        definition: pkg_definition,
                         dependencies: HashSet::new(),
                         dependents: HashSet::new(),
                         wave: 0,
