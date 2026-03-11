@@ -17,34 +17,86 @@ pub struct CargoToml {
     pub workspace: Option<Workspace>,
 }
 
+/// A field that can be either a direct value or inherited from the workspace
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+enum MaybeWorkspace<T> {
+    Value(T),
+    #[allow(dead_code)]
+    Workspace {
+        workspace: bool,
+    },
+}
+
+impl<T: Default> MaybeWorkspace<T> {
+    /// Get the direct value, or default if workspace-inherited
+    fn into_value(self) -> T {
+        match self {
+            Self::Value(v) => v,
+            Self::Workspace { .. } => T::default(),
+        }
+    }
+}
+
 /// Package section
 #[derive(Debug, Clone, Deserialize)]
 pub struct Package {
     /// Package name
     pub name: String,
-    /// Package version
+    /// Package version (may be inherited from workspace)
+    #[serde(deserialize_with = "deserialize_version")]
     pub version: String,
+    /// Whether the version is inherited from the workspace
+    #[serde(skip)]
+    pub version_is_workspace: bool,
     /// Package description
     pub description: Option<String>,
     /// Authors
     pub authors: Option<Vec<String>>,
     /// License
+    #[serde(default, deserialize_with = "deserialize_optional_maybe_workspace")]
     pub license: Option<String>,
     /// License file
     #[serde(rename = "license-file")]
     pub license_file: Option<String>,
     /// Repository
+    #[serde(default, deserialize_with = "deserialize_optional_maybe_workspace")]
     pub repository: Option<String>,
     /// Whether to publish
     pub publish: Option<bool>,
     /// Edition
+    #[serde(default, deserialize_with = "deserialize_optional_maybe_workspace")]
     pub edition: Option<String>,
     /// Rust version requirement
-    #[serde(rename = "rust-version")]
+    #[serde(
+        rename = "rust-version",
+        default,
+        deserialize_with = "deserialize_optional_maybe_workspace"
+    )]
     pub rust_version: Option<String>,
     /// Default run target
     #[serde(rename = "default-run")]
     pub default_run: Option<String>,
+}
+
+/// Deserialize a version field that may be a string or `{ workspace = true }`
+fn deserialize_version<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = MaybeWorkspace::<String>::deserialize(deserializer)?;
+    Ok(value.into_value())
+}
+
+/// Deserialize an optional field that may be a string or `{ workspace = true }`
+fn deserialize_optional_maybe_workspace<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<MaybeWorkspace<String>>::deserialize(deserializer)?;
+    Ok(value.map(|v| v.into_value()))
 }
 
 impl Package {
@@ -59,6 +111,17 @@ impl Package {
 pub struct Workspace {
     /// Workspace members
     pub members: Option<Vec<String>>,
+    /// Workspace-level package metadata (inherited by members)
+    pub package: Option<WorkspacePackage>,
+}
+
+/// Workspace-level package metadata that members can inherit
+#[derive(Debug, Clone, Deserialize)]
+pub struct WorkspacePackage {
+    /// Version shared by all workspace members
+    pub version: Option<String>,
+    /// Edition shared by all workspace members
+    pub edition: Option<String>,
 }
 
 impl CargoToml {
@@ -67,7 +130,41 @@ impl CargoToml {
         let content = std::fs::read_to_string(path)
             .map_err(|_| AdapterError::ManifestNotFound(path.to_path_buf()))?;
 
-        toml::from_str(&content).map_err(|e| AdapterError::ManifestParseError(e.to_string()).into())
+        let mut manifest: Self = toml::from_str(&content)
+            .map_err(|e| AdapterError::ManifestParseError(e.to_string()))?;
+
+        // If version is empty (workspace-inherited), try to resolve from workspace root
+        if let Some(ref mut pkg) = manifest.package {
+            if pkg.version.is_empty() {
+                if let Some(workspace_version) = Self::find_workspace_version(path) {
+                    pkg.version = workspace_version;
+                    pkg.version_is_workspace = true;
+                }
+            }
+        }
+
+        Ok(manifest)
+    }
+
+    /// Walk up directories to find the workspace root and read its version
+    fn find_workspace_version(manifest_path: &Path) -> Option<String> {
+        let mut dir = manifest_path.parent()?.parent()?; // Go up from the crate dir
+        for _ in 0..5 {
+            let candidate = dir.join("Cargo.toml");
+            if candidate.exists() && candidate != *manifest_path {
+                let content = std::fs::read_to_string(&candidate).ok()?;
+                // Parse just enough to check for [workspace.package.version]
+                let doc: toml::Value = toml::from_str(&content).ok()?;
+                let version = doc
+                    .get("workspace")?
+                    .get("package")?
+                    .get("version")?
+                    .as_str()?;
+                return Some(version.to_string());
+            }
+            dir = dir.parent()?;
+        }
+        None
     }
 
     /// Update version in Cargo.toml (preserves formatting using toml_edit)
