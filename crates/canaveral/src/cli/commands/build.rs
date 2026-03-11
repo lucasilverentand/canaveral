@@ -6,6 +6,7 @@ use clap::{Args, ValueEnum};
 use console::style;
 use tracing::info;
 
+use canaveral_adapters::AdapterRegistry;
 use canaveral_frameworks::{
     context::BuildProfile, traits::Platform, BuildContext, Orchestrator, OrchestratorConfig,
     OutputFormat as FrameworkOutputFormat,
@@ -17,9 +18,9 @@ use crate::cli::{Cli, OutputFormat};
 /// Build a project for specified platform(s)
 #[derive(Debug, Args)]
 pub struct BuildCommand {
-    /// Target platform
+    /// Target platform (required for framework builds, optional for package builds)
     #[arg(short, long, value_enum)]
-    pub platform: PlatformArg,
+    pub platform: Option<PlatformArg>,
 
     /// Build profile
     #[arg(long, value_enum, default_value = "release")]
@@ -176,7 +177,38 @@ impl BuildCommand {
     async fn execute_async(&self, cli: &Cli) -> anyhow::Result<()> {
         let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
-        let platform: Platform = self.platform.into();
+
+        // If no platform specified, try the package adapter (e.g. cargo build)
+        let Some(platform_arg) = self.platform else {
+            let adapter_registry = AdapterRegistry::new();
+            let adapter = adapter_registry
+                .detect(&cwd)
+                .ok_or_else(|| anyhow::anyhow!("No framework or package adapter detected"))?;
+
+            if ui.is_text() {
+                ui.blank();
+                ui.header("Building project...");
+                ui.key_value("Adapter", &style(adapter.name()).cyan().to_string());
+                ui.key_value("Profile", &style(self.profile.as_str()).cyan().to_string());
+                if self.dry_run {
+                    ui.warning("DRY RUN");
+                }
+                ui.blank();
+            }
+
+            if !self.dry_run {
+                adapter.build(&cwd)?;
+            }
+
+            if ui.is_text() {
+                ui.blank();
+                ui.success("Build completed successfully!");
+            }
+
+            return Ok(());
+        };
+
+        let platform: Platform = platform_arg.into();
 
         // Create build context
         let mut ctx = BuildContext::new(&cwd, platform)

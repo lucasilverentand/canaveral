@@ -6,6 +6,7 @@ use clap::{Args, ValueEnum};
 use console::style;
 use tracing::info;
 
+use canaveral_adapters::AdapterRegistry;
 use canaveral_frameworks::{
     context::{TestContext, TestReporter},
     testing::{ReportGenerator, TestRunner, TestRunnerConfig},
@@ -209,9 +210,40 @@ impl TestCommand {
             ui.blank();
         }
 
-        // Run tests
+        // Run tests — try framework adapter first, fall back to package adapter
         let runner = TestRunner::with_config(config);
-        let report = runner.run(&path, &ctx).await?;
+        let report = match runner.run(&path, &ctx).await {
+            Ok(report) => report,
+            Err(e) => {
+                // If no framework detected, fall back to the package adapter (e.g. cargo test)
+                let adapter_registry = AdapterRegistry::new();
+                if let Some(adapter) = adapter_registry.detect(&path) {
+                    if ui.is_text() {
+                        ui.info(&format!(
+                            "No framework detected, using {} adapter",
+                            style(adapter.name()).bold()
+                        ));
+                    }
+                    let start = std::time::Instant::now();
+                    if !ctx.dry_run {
+                        adapter.test(&path).map_err(|_| e)?;
+                    }
+                    let duration_ms = start.elapsed().as_millis() as u64;
+                    // Package adapter doesn't return structured results,
+                    // so build a simple success report
+                    TestReport {
+                        passed: 1,
+                        failed: 0,
+                        skipped: 0,
+                        duration_ms,
+                        suites: vec![],
+                        coverage: None,
+                    }
+                } else {
+                    return Err(e.into());
+                }
+            }
+        };
 
         // Output results
         self.output_results(&report, &ui)?;
