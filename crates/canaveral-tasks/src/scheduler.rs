@@ -260,8 +260,8 @@ async fn execute_task(
         command: cmd_str.clone(),
     });
 
-    // Check cache
-    if use_cache && !definition.outputs.is_empty() {
+    // Check cache (works for both output-producing and validation-only tasks)
+    if use_cache {
         if let Some(cache) = cache {
             if let Ok(Some(entry)) = cache.lookup(id, definition, root_dir) {
                 reporter.report(&TaskEvent::Completed {
@@ -304,7 +304,7 @@ async fn execute_task(
             match result {
                 Ok((stdout, stderr)) => {
                     // Store in cache
-                    if use_cache && !definition.outputs.is_empty() {
+                    if use_cache {
                         if let Some(cache) = cache {
                             let _ = cache.store(id, definition, root_dir, &stdout, &stderr);
                         }
