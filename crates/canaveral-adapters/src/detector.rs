@@ -80,6 +80,10 @@ fn detect_recursive_inner(
                     || name_str == ".venv"
                     || name_str == "dist"
                     || name_str == "build"
+                    || name_str == "templates"
+                    || name_str == "examples"
+                    || name_str == "fixtures"
+                    || name_str == "testdata"
                 {
                     continue;
                 }

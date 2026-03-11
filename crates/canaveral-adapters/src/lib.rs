@@ -16,7 +16,7 @@ pub mod registry;
 mod traits;
 
 pub use credentials::{Credential, CredentialProvider};
-pub use detector::detect_packages;
+pub use detector::{detect_packages, detect_packages_recursive};
 pub use docker::DockerAdapter;
 pub use go::GoAdapter;
 pub use manifest::ManifestFile;
