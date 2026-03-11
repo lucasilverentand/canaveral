@@ -4,7 +4,7 @@ use clap::Args;
 use console::style;
 use tracing::info;
 
-use canaveral_adapters::detect_packages;
+use canaveral_adapters::detect_packages_recursive;
 use canaveral_core::config::load_config_or_default;
 use canaveral_git::GitRepo;
 
@@ -33,7 +33,7 @@ impl StatusCommand {
         let is_clean = repo.is_clean()?;
         let current_branch = repo.current_branch()?;
         let latest_tag = repo.find_latest_tag(None)?;
-        let packages = detect_packages(&cwd)?;
+        let packages = detect_packages_recursive(&cwd, 3)?;
 
         let commits_since = if let Some(tag) = &latest_tag {
             repo.commits_since_tag(&tag.name)
@@ -111,10 +111,11 @@ impl StatusCommand {
         ui.key_value("Commits since", &commits_since.to_string());
         ui.blank();
 
-        // Packages
-        if !packages.is_empty() {
+        // Packages (filter out private workspace roots)
+        let displayable_packages: Vec<_> = packages.iter().filter(|p| !p.private).collect();
+        if !displayable_packages.is_empty() {
             ui.section("Packages");
-            for pkg in &packages {
+            for pkg in &displayable_packages {
                 ui.step(&format!(
                     "{} {} ({})",
                     style(&pkg.name).cyan(),
