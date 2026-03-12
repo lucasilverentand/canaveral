@@ -1,6 +1,7 @@
 //! Native iOS (Swift/Objective-C) framework adapter
 //!
-//! Supports building native iOS apps using xcodebuild.
+//! Supports building, testing, archiving, and exporting native iOS apps using
+//! xcodebuild. The heavy lifting is delegated to [`crate::xcodebuild`].
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -12,12 +13,23 @@ use tracing::{debug, info, instrument};
 
 use crate::artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
 use crate::capabilities::Capabilities;
-use crate::context::{BuildContext, BuildProfile};
+use crate::context::{BuildContext, BuildProfile, TestContext};
 use crate::detection::{file_exists, Detection};
 use crate::error::{FrameworkError, Result};
-use crate::traits::{BuildAdapter, Platform, PrerequisiteStatus, ToolStatus, VersionInfo};
+use crate::traits::{
+    BuildAdapter, Platform, PrerequisiteStatus, TestAdapter, TestCase, TestReport, TestStatus,
+    TestSuite, ToolStatus, VersionInfo,
+};
+use crate::xcodebuild::{
+    ArchiveResult, BuildConfiguration, BuildResult, Destination, ExportMethod, ExportOptions,
+    ExportResult, SigningStyle, TestResult, XcodeBuildOptions, XcodeBuildRunner,
+};
 
-/// Native iOS build adapter
+/// Native iOS build adapter.
+///
+/// Implements both [`BuildAdapter`] and [`TestAdapter`] so it can be registered
+/// as a build adapter (as before) and as a test adapter for running XCTest /
+/// Swift Testing suites.
 pub struct NativeIosAdapter;
 
 impl NativeIosAdapter {
@@ -25,7 +37,11 @@ impl NativeIosAdapter {
         Self
     }
 
-    /// Find xcworkspace or xcodeproj in the given path
+    // -----------------------------------------------------------------------
+    // Project discovery helpers
+    // -----------------------------------------------------------------------
+
+    /// Find `.xcworkspace` or `.xcodeproj` in the given path.
     fn find_xcode_project(&self, path: &Path) -> Result<XcodeProject> {
         let mut workspace: Option<PathBuf> = None;
         let mut project: Option<PathBuf> = None;
@@ -56,7 +72,7 @@ impl NativeIosAdapter {
         }
     }
 
-    /// List available schemes
+    /// List available schemes via `xcodebuild -list -json`.
     fn list_schemes(&self, path: &Path, project: &XcodeProject) -> Result<Vec<String>> {
         let mut args = vec!["-list", "-json"];
         match project {
@@ -115,9 +131,8 @@ impl NativeIosAdapter {
         Ok(schemes)
     }
 
-    /// Get default scheme (first non-test scheme or first scheme)
+    /// Get default scheme (first non-test scheme or first scheme).
     fn get_default_scheme(&self, schemes: &[String]) -> Option<String> {
-        // Prefer schemes that don't end with Tests
         schemes
             .iter()
             .find(|s| !s.ends_with("Tests") && !s.ends_with("UITests"))
@@ -125,9 +140,78 @@ impl NativeIosAdapter {
             .cloned()
     }
 
-    /// Find Info.plist path
+    /// Resolve the scheme to use from context config or auto-detection.
+    fn resolve_scheme(
+        &self,
+        path: &Path,
+        project: &XcodeProject,
+        config: &HashMap<String, serde_json::Value>,
+    ) -> Result<String> {
+        if let Some(scheme) = config.get("scheme").and_then(|v| v.as_str()) {
+            return Ok(scheme.to_string());
+        }
+
+        let schemes = self.list_schemes(path, project)?;
+        self.get_default_scheme(&schemes)
+            .ok_or_else(|| FrameworkError::InvalidConfig {
+                message: "No scheme found or specified. Use --config scheme=<name>".to_string(),
+            })
+    }
+
+    // -----------------------------------------------------------------------
+    // Public xcodebuild operations
+    // -----------------------------------------------------------------------
+
+    /// Run `xcodebuild build` (compile only, no archive).
+    ///
+    /// Returns a structured [`BuildResult`] with warnings, errors, and output
+    /// path.
+    #[instrument(skip(self, opts), fields(scheme = %opts.scheme))]
+    pub async fn build_xcode(&self, opts: &XcodeBuildOptions) -> Result<BuildResult> {
+        XcodeBuildRunner::build(opts).await
+    }
+
+    /// Run `xcodebuild test`.
+    ///
+    /// A simulator destination is required. Optionally pass a result-bundle
+    /// path and/or a test-plan name.
+    #[instrument(skip(self, opts), fields(scheme = %opts.scheme))]
+    pub async fn test_xcode(
+        &self,
+        opts: &XcodeBuildOptions,
+        result_bundle_path: Option<&Path>,
+        test_plan: Option<&str>,
+    ) -> Result<TestResult> {
+        XcodeBuildRunner::test(opts, result_bundle_path, test_plan).await
+    }
+
+    /// Run `xcodebuild archive`.
+    #[instrument(skip(self, opts), fields(scheme = %opts.scheme, archive = %archive_path.display()))]
+    pub async fn archive(
+        &self,
+        opts: &XcodeBuildOptions,
+        archive_path: &Path,
+    ) -> Result<ArchiveResult> {
+        XcodeBuildRunner::archive(opts, archive_path).await
+    }
+
+    /// Run `xcodebuild -exportArchive` to produce an `.ipa`.
+    #[instrument(skip(self, export_options), fields(archive = %archive_path.display()))]
+    pub async fn export_archive(
+        &self,
+        archive_path: &Path,
+        export_dir: &Path,
+        export_options: &ExportOptions,
+    ) -> Result<ExportResult> {
+        XcodeBuildRunner::export_archive(archive_path, export_dir, export_options).await
+    }
+
+    // -----------------------------------------------------------------------
+    // Plist & version helpers
+    // -----------------------------------------------------------------------
+
+    /// Find `Info.plist` path.
     fn find_info_plist(&self, path: &Path) -> Result<PathBuf> {
-        // Common locations
         let candidates = [
             path.join("Info.plist"),
             path.join("App/Info.plist"),
@@ -140,7 +224,6 @@ impl NativeIosAdapter {
             }
         }
 
-        // Search recursively (up to 3 levels)
         self.find_file_recursive(path, "Info.plist", 3)
             .ok_or_else(|| FrameworkError::Context {
                 context: "finding Info.plist".to_string(),
@@ -148,7 +231,7 @@ impl NativeIosAdapter {
             })
     }
 
-    /// Find a file recursively up to max_depth
+    /// Find a file recursively up to `max_depth`.
     #[allow(clippy::only_used_in_recursion)]
     fn find_file_recursive(
         &self,
@@ -169,7 +252,6 @@ impl NativeIosAdapter {
                         .map(|n| n == filename)
                         .unwrap_or(false)
                 {
-                    // Skip build directories
                     let path_str = entry_path.to_string_lossy();
                     if !path_str.contains("DerivedData")
                         && !path_str.contains("build/")
@@ -186,7 +268,6 @@ impl NativeIosAdapter {
                 let entry_path = entry.path();
                 if entry_path.is_dir() {
                     let name = entry_path.file_name()?.to_string_lossy();
-                    // Skip common non-source directories
                     if !name.starts_with('.')
                         && name != "DerivedData"
                         && name != "build"
@@ -206,116 +287,70 @@ impl NativeIosAdapter {
         None
     }
 
-    /// Create export options plist for IPA export
-    fn create_export_options(&self, ctx: &BuildContext, path: &Path) -> Result<PathBuf> {
-        let export_options_path = path.join("ExportOptions.plist");
+    /// Parse version from `Info.plist`.
+    fn parse_info_plist_version(&self, plist_path: &Path) -> Result<VersionInfo> {
+        let plist: plist::Dictionary =
+            plist::from_file(plist_path).map_err(|e| FrameworkError::Context {
+                context: "parsing Info.plist".to_string(),
+                message: e.to_string(),
+            })?;
 
-        let method = match ctx.profile {
-            BuildProfile::Debug => "development",
-            BuildProfile::Release | BuildProfile::Profile => {
-                // Check if signing config specifies adhoc or enterprise
-                if let Some(ref signing) = ctx.signing {
-                    if signing
-                        .provisioning_profile
-                        .as_ref()
-                        .map(|p| p.contains("AdHoc"))
-                        .unwrap_or(false)
-                    {
-                        "ad-hoc"
-                    } else if signing
-                        .provisioning_profile
-                        .as_ref()
-                        .map(|p| p.contains("Enterprise"))
-                        .unwrap_or(false)
-                    {
-                        "enterprise"
-                    } else {
-                        "app-store"
-                    }
-                } else {
-                    "app-store"
-                }
-            }
-        };
+        let version = plist
+            .get("CFBundleShortVersionString")
+            .and_then(|v| v.as_string())
+            .map(String::from)
+            .ok_or_else(|| FrameworkError::VersionParseError {
+                message: "CFBundleShortVersionString not found in Info.plist".to_string(),
+            })?;
 
-        let mut options = plist::Dictionary::new();
-        options.insert("method".to_string(), PlistValue::String(method.to_string()));
+        let build_number = plist
+            .get("CFBundleVersion")
+            .and_then(|v| v.as_string())
+            .and_then(|s| s.parse::<u64>().ok());
 
-        if let Some(ref signing) = ctx.signing {
-            if let Some(ref team_id) = signing.team_id {
-                options.insert("teamID".to_string(), PlistValue::String(team_id.clone()));
-            }
-            if signing.automatic {
-                options.insert(
-                    "signingStyle".to_string(),
-                    PlistValue::String("automatic".to_string()),
-                );
-            } else {
-                options.insert(
-                    "signingStyle".to_string(),
-                    PlistValue::String("manual".to_string()),
-                );
-                if let Some(ref profile) = signing.provisioning_profile {
-                    options.insert(
-                        "provisioningProfiles".to_string(),
-                        PlistValue::Dictionary({
-                            let mut profiles = plist::Dictionary::new();
-                            // Get bundle ID from context or Info.plist
-                            let bundle_id = ctx
-                                .config
-                                .get("bundle_id")
-                                .and_then(|v| v.as_str())
-                                .map(String::from)
-                                .unwrap_or_else(|| "com.example.app".to_string());
-                            profiles.insert(bundle_id, PlistValue::String(profile.clone()));
-                            profiles
-                        }),
-                    );
-                }
-            }
-        } else {
-            // Default to automatic signing
-            options.insert(
-                "signingStyle".to_string(),
-                PlistValue::String("automatic".to_string()),
+        Ok(VersionInfo {
+            version,
+            build_number,
+            ..Default::default()
+        })
+    }
+
+    /// Update version in `Info.plist`.
+    fn update_info_plist_version(&self, plist_path: &Path, version: &VersionInfo) -> Result<()> {
+        let mut plist: plist::Dictionary =
+            plist::from_file(plist_path).map_err(|e| FrameworkError::Context {
+                context: "reading Info.plist".to_string(),
+                message: e.to_string(),
+            })?;
+
+        plist.insert(
+            "CFBundleShortVersionString".to_string(),
+            PlistValue::String(version.version.clone()),
+        );
+
+        if let Some(build) = version.build_number {
+            plist.insert(
+                "CFBundleVersion".to_string(),
+                PlistValue::String(build.to_string()),
             );
         }
 
-        // Add common options
-        options.insert("compileBitcode".to_string(), PlistValue::Boolean(false));
-        options.insert("uploadSymbols".to_string(), PlistValue::Boolean(true));
-
-        let plist_value = PlistValue::Dictionary(options);
-        let file = std::fs::File::create(&export_options_path).map_err(FrameworkError::Io)?;
-        plist::to_writer_xml(file, &plist_value).map_err(|e| FrameworkError::Context {
-            context: "writing ExportOptions.plist".to_string(),
-            message: e.to_string(),
+        let file = std::fs::File::create(plist_path).map_err(FrameworkError::Io)?;
+        plist::to_writer_xml(file, &PlistValue::Dictionary(plist)).map_err(|e| {
+            FrameworkError::Context {
+                context: "writing Info.plist".to_string(),
+                message: e.to_string(),
+            }
         })?;
 
-        Ok(export_options_path)
+        Ok(())
     }
 
-    /// Run xcodebuild command
-    fn run_xcodebuild(
-        &self,
-        args: &[&str],
-        path: &Path,
-        env: &HashMap<String, String>,
-    ) -> Result<std::process::Output> {
-        let mut cmd = Command::new("xcodebuild");
-        cmd.args(args).current_dir(path).envs(env);
+    // -----------------------------------------------------------------------
+    // Artifact helpers
+    // -----------------------------------------------------------------------
 
-        let output = cmd.output().map_err(|e| FrameworkError::CommandFailed {
-            command: format!("xcodebuild {}", args.join(" ")),
-            exit_code: None,
-            stdout: String::new(),
-            stderr: e.to_string(),
-        })?;
-
-        Ok(output)
-    }
-
-    /// Find built artifacts in archive/export directory
+    /// Find built artifacts in archive/export directory.
     fn find_artifacts(&self, path: &Path, is_archive: bool) -> Vec<Artifact> {
         let mut artifacts = Vec::new();
 
@@ -349,7 +384,6 @@ impl NativeIosAdapter {
 
         // Check for app bundles
         for app in self.find_files_with_extension(path, "app") {
-            // Skip if we already have an IPA
             if artifacts
                 .iter()
                 .any(|a| matches!(a.kind, ArtifactKind::Ipa))
@@ -364,7 +398,7 @@ impl NativeIosAdapter {
         artifacts
     }
 
-    /// Find files with given extension
+    /// Find files with given extension.
     fn find_files_with_extension(&self, path: &Path, ext: &str) -> Vec<PathBuf> {
         let mut results = Vec::new();
 
@@ -388,62 +422,112 @@ impl NativeIosAdapter {
         results
     }
 
-    /// Parse version from Info.plist
-    fn parse_info_plist_version(&self, plist_path: &Path) -> Result<VersionInfo> {
-        let plist: plist::Dictionary =
-            plist::from_file(plist_path).map_err(|e| FrameworkError::Context {
-                context: "parsing Info.plist".to_string(),
-                message: e.to_string(),
-            })?;
+    // -----------------------------------------------------------------------
+    // BuildContext → ExportOptions bridge
+    // -----------------------------------------------------------------------
 
-        let version = plist
-            .get("CFBundleShortVersionString")
-            .and_then(|v| v.as_string())
-            .map(String::from)
-            .ok_or_else(|| FrameworkError::VersionParseError {
-                message: "CFBundleShortVersionString not found in Info.plist".to_string(),
-            })?;
+    /// Derive [`ExportOptions`] from a [`BuildContext`].
+    fn export_options_from_ctx(&self, ctx: &BuildContext) -> ExportOptions {
+        let method = match ctx.profile {
+            BuildProfile::Debug => ExportMethod::Development,
+            BuildProfile::Release | BuildProfile::Profile => {
+                if let Some(ref signing) = ctx.signing {
+                    if signing
+                        .provisioning_profile
+                        .as_ref()
+                        .map(|p| p.contains("AdHoc"))
+                        .unwrap_or(false)
+                    {
+                        ExportMethod::AdHoc
+                    } else if signing
+                        .provisioning_profile
+                        .as_ref()
+                        .map(|p| p.contains("Enterprise"))
+                        .unwrap_or(false)
+                    {
+                        ExportMethod::Enterprise
+                    } else {
+                        ExportMethod::AppStore
+                    }
+                } else {
+                    ExportMethod::AppStore
+                }
+            }
+        };
 
-        let build_number = plist
-            .get("CFBundleVersion")
-            .and_then(|v| v.as_string())
-            .and_then(|s| s.parse::<u64>().ok());
+        let team_id = ctx
+            .signing
+            .as_ref()
+            .and_then(|s| s.team_id.clone())
+            .unwrap_or_default();
 
-        Ok(VersionInfo {
-            version,
-            build_number,
-            ..Default::default()
-        })
-    }
+        let signing_style = ctx
+            .signing
+            .as_ref()
+            .map(|s| {
+                if s.automatic {
+                    SigningStyle::Automatic
+                } else {
+                    SigningStyle::Manual
+                }
+            })
+            .unwrap_or(SigningStyle::Automatic);
 
-    /// Update version in Info.plist
-    fn update_info_plist_version(&self, plist_path: &Path, version: &VersionInfo) -> Result<()> {
-        let mut plist: plist::Dictionary =
-            plist::from_file(plist_path).map_err(|e| FrameworkError::Context {
-                context: "reading Info.plist".to_string(),
-                message: e.to_string(),
-            })?;
+        let mut opts = ExportOptions::new(method, team_id).with_signing_style(signing_style);
 
-        plist.insert(
-            "CFBundleShortVersionString".to_string(),
-            PlistValue::String(version.version.clone()),
-        );
-
-        if let Some(build) = version.build_number {
-            plist.insert(
-                "CFBundleVersion".to_string(),
-                PlistValue::String(build.to_string()),
-            );
+        // Wire up provisioning profiles for manual signing.
+        if signing_style == SigningStyle::Manual {
+            if let Some(ref signing) = ctx.signing {
+                if let Some(ref profile) = signing.provisioning_profile {
+                    let bundle_id = ctx
+                        .config
+                        .get("bundle_id")
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                        .unwrap_or_else(|| "com.example.app".to_string());
+                    opts = opts.with_provisioning_profile(bundle_id, profile);
+                }
+            }
         }
 
-        let file = std::fs::File::create(plist_path).map_err(FrameworkError::Io)?;
-        plist::to_writer_xml(file, &PlistValue::Dictionary(plist)).map_err(|e| {
-            FrameworkError::Context {
-                context: "writing Info.plist".to_string(),
-                message: e.to_string(),
-            }
-        })?;
+        opts
+    }
 
+    /// Map [`BuildProfile`] to [`BuildConfiguration`].
+    fn build_configuration(profile: &BuildProfile) -> BuildConfiguration {
+        match profile {
+            BuildProfile::Debug => BuildConfiguration::Debug,
+            BuildProfile::Release | BuildProfile::Profile => BuildConfiguration::Release,
+        }
+    }
+
+    /// Run CocoaPods install if a Podfile exists and Pods/ doesn't.
+    async fn ensure_pods(&self, path: &Path) -> Result<()> {
+        if file_exists(path, "Podfile") && !file_exists(path, "Pods") {
+            info!("installing CocoaPods dependencies");
+            let output = tokio::process::Command::new("pod")
+                .args(["install"])
+                .current_dir(path)
+                .output()
+                .await
+                .map_err(|e| FrameworkError::CommandFailed {
+                    command: "pod install".to_string(),
+                    exit_code: None,
+                    stdout: String::new(),
+                    stderr: e.to_string(),
+                })?;
+
+            if !output.status.success() {
+                return Err(FrameworkError::BuildFailed {
+                    platform: "iOS".to_string(),
+                    message: format!(
+                        "pod install failed: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    ),
+                    source: None,
+                });
+            }
+        }
         Ok(())
     }
 }
@@ -454,11 +538,15 @@ impl Default for NativeIosAdapter {
     }
 }
 
-/// Xcode project type
+/// Internal enum representing the detected Xcode project type.
 enum XcodeProject {
     Workspace(PathBuf),
     Project(PathBuf),
 }
+
+// ---------------------------------------------------------------------------
+// BuildAdapter implementation
+// ---------------------------------------------------------------------------
 
 #[async_trait]
 impl BuildAdapter for NativeIosAdapter {
@@ -472,14 +560,12 @@ impl BuildAdapter for NativeIosAdapter {
 
     fn detect(&self, path: &Path) -> Detection {
         debug!(path = %path.display(), "detecting native iOS project");
-        // Look for .xcodeproj or .xcworkspace
         if let Ok(entries) = std::fs::read_dir(path) {
             for entry in entries.flatten() {
                 let name = entry.file_name();
                 let name_str = name.to_string_lossy();
 
                 if name_str.ends_with(".xcworkspace") && !name_str.starts_with("project.") {
-                    // Workspace has higher priority (could be CocoaPods/SPM)
                     return Detection::Yes(85);
                 }
                 if name_str.ends_with(".xcodeproj") {
@@ -488,7 +574,6 @@ impl BuildAdapter for NativeIosAdapter {
             }
         }
 
-        // Check for Package.swift (Swift Package)
         if file_exists(path, "Package.swift") {
             return Detection::Maybe(50);
         }
@@ -507,10 +592,8 @@ impl BuildAdapter for NativeIosAdapter {
     async fn check_prerequisites(&self) -> Result<PrerequisiteStatus> {
         let mut status = PrerequisiteStatus::ok();
 
-        // Check for xcodebuild
         match which::which("xcodebuild") {
             Ok(_) => {
-                // Get Xcode version
                 let version = Command::new("xcodebuild")
                     .arg("-version")
                     .output()
@@ -539,7 +622,6 @@ impl BuildAdapter for NativeIosAdapter {
             }
         }
 
-        // Check for xcrun
         match which::which("xcrun") {
             Ok(_) => {
                 status = status.with_tool(ToolStatus::found("xcrun", None));
@@ -552,7 +634,6 @@ impl BuildAdapter for NativeIosAdapter {
             }
         }
 
-        // Check for CocoaPods (optional)
         match which::which("pod") {
             Ok(_) => {
                 let version = Command::new("pod")
@@ -586,158 +667,73 @@ impl BuildAdapter for NativeIosAdapter {
         let path = &ctx.path;
         info!(profile = ?ctx.profile, "building native iOS project");
 
-        // Find Xcode project
         let xcode_project = self.find_xcode_project(path)?;
+        let scheme = self.resolve_scheme(path, &xcode_project, &ctx.config)?;
+        let configuration = Self::build_configuration(&ctx.profile);
 
-        // List and select scheme
-        let schemes = self.list_schemes(path, &xcode_project)?;
-        let scheme = ctx
-            .config
-            .get("scheme")
-            .and_then(|v| v.as_str())
-            .map(String::from)
-            .or_else(|| self.get_default_scheme(&schemes))
-            .ok_or_else(|| FrameworkError::InvalidConfig {
-                message: "No scheme found or specified. Use --config scheme=<name>".to_string(),
-            })?;
-
-        // Determine configuration
-        let configuration = match ctx.profile {
-            BuildProfile::Debug => "Debug",
-            BuildProfile::Release | BuildProfile::Profile => "Release",
-        };
-
-        // Output directory
         let output_dir = ctx
             .output_dir
             .clone()
             .unwrap_or_else(|| path.join("build/ios"));
         std::fs::create_dir_all(&output_dir).map_err(FrameworkError::Io)?;
 
-        let archive_path = output_dir.join(format!("{}.xcarchive", scheme));
-        let export_path = output_dir.clone();
+        // Install CocoaPods if needed.
+        self.ensure_pods(path).await?;
 
-        // Install CocoaPods if Podfile exists
-        if file_exists(path, "Podfile") {
-            let pods_installed = file_exists(path, "Pods");
-            if !pods_installed {
-                let output = Command::new("pod")
-                    .args(["install"])
-                    .current_dir(path)
-                    .output()
-                    .map_err(|e| FrameworkError::CommandFailed {
-                        command: "pod install".to_string(),
-                        exit_code: None,
-                        stdout: String::new(),
-                        stderr: e.to_string(),
-                    })?;
+        let project_path = match &xcode_project {
+            XcodeProject::Workspace(ws) => ws.clone(),
+            XcodeProject::Project(proj) => proj.clone(),
+        };
 
-                if !output.status.success() {
-                    return Err(FrameworkError::BuildFailed {
-                        platform: "iOS".to_string(),
-                        message: format!(
-                            "pod install failed: {}",
-                            String::from_utf8_lossy(&output.stderr)
-                        ),
-                        source: None,
-                    });
-                }
-            }
-        }
-
-        // Prepare environment
         let mut env = ctx.env.clone();
         if ctx.ci {
             env.insert("CI".to_string(), "true".to_string());
         }
 
-        // Build archive
-        let mut archive_args = vec![
-            "archive",
-            "-scheme",
-            &scheme,
-            "-configuration",
-            configuration,
-            "-archivePath",
-            archive_path.to_str().unwrap(),
-            "-destination",
-            "generic/platform=iOS",
-            "-allowProvisioningUpdates",
-        ];
+        let mut opts = XcodeBuildOptions::new(&project_path, &scheme)
+            .with_configuration(configuration)
+            .with_destination(Destination::GenericIos);
 
-        match &xcode_project {
-            XcodeProject::Workspace(ws) => {
-                archive_args.push("-workspace");
-                archive_args.push(ws.to_str().unwrap());
-            }
-            XcodeProject::Project(proj) => {
-                archive_args.push("-project");
-                archive_args.push(proj.to_str().unwrap());
-            }
+        // Apply env.
+        for (k, v) in &env {
+            opts = opts.with_env(k, v);
         }
 
-        // Add signing if configured
+        // Apply signing build settings.
         if let Some(ref signing) = ctx.signing {
             if let Some(ref team_id) = signing.team_id {
-                archive_args.push("DEVELOPMENT_TEAM");
-                let team_arg = format!("DEVELOPMENT_TEAM={}", team_id);
-                archive_args.push(Box::leak(team_arg.into_boxed_str()));
+                opts = opts.with_build_setting("DEVELOPMENT_TEAM", team_id);
             }
             if !signing.automatic {
-                archive_args.push("CODE_SIGN_STYLE=Manual");
+                opts = opts.with_build_setting("CODE_SIGN_STYLE", "Manual");
                 if let Some(ref identity) = signing.identity {
-                    let identity_arg = format!("CODE_SIGN_IDENTITY={}", identity);
-                    archive_args.push(Box::leak(identity_arg.into_boxed_str()));
+                    opts = opts.with_build_setting("CODE_SIGN_IDENTITY", identity);
                 }
             }
         }
 
-        let output = self.run_xcodebuild(&archive_args, path, &env)?;
+        // Archive
+        let archive_path = output_dir.join(format!("{}.xcarchive", scheme));
+        let archive_result = self.archive(&opts, &archive_path).await?;
+        info!(
+            duration_secs = archive_result.duration.as_secs_f64(),
+            "archive complete"
+        );
 
-        if !output.status.success() {
-            return Err(FrameworkError::BuildFailed {
-                platform: "iOS".to_string(),
-                message: format!(
-                    "xcodebuild archive failed:\n{}",
-                    String::from_utf8_lossy(&output.stderr)
-                ),
-                source: None,
-            });
-        }
-
-        // For release builds, export IPA
+        // For release builds, export IPA.
         if matches!(ctx.profile, BuildProfile::Release | BuildProfile::Profile) {
-            let export_options = self.create_export_options(ctx, path)?;
-
-            let export_args = vec![
-                "-exportArchive",
-                "-archivePath",
-                archive_path.to_str().unwrap(),
-                "-exportPath",
-                export_path.to_str().unwrap(),
-                "-exportOptionsPlist",
-                export_options.to_str().unwrap(),
-                "-allowProvisioningUpdates",
-            ];
-
-            let output = self.run_xcodebuild(&export_args, path, &env)?;
-
-            if !output.status.success() {
-                return Err(FrameworkError::BuildFailed {
-                    platform: "iOS".to_string(),
-                    message: format!(
-                        "xcodebuild export failed:\n{}",
-                        String::from_utf8_lossy(&output.stderr)
-                    ),
-                    source: None,
-                });
-            }
-
-            // Clean up export options
-            let _ = std::fs::remove_file(&export_options);
+            let export_options = self.export_options_from_ctx(ctx);
+            let export_result = self
+                .export_archive(&archive_path, &output_dir, &export_options)
+                .await?;
+            info!(
+                ipa = %export_result.ipa_path.display(),
+                duration_secs = export_result.duration.as_secs_f64(),
+                "export complete"
+            );
         }
 
-        // Find and return artifacts
+        // Collect artifacts.
         let artifacts = self.find_artifacts(&output_dir, true);
 
         if artifacts.is_empty() {
@@ -750,27 +746,27 @@ impl BuildAdapter for NativeIosAdapter {
     }
 
     async fn clean(&self, path: &Path) -> Result<()> {
-        // Clean DerivedData
         let derived_data = path.join("DerivedData");
         if derived_data.exists() {
             std::fs::remove_dir_all(&derived_data).map_err(FrameworkError::Io)?;
         }
 
-        // Clean build directory
         let build_dir = path.join("build");
         if build_dir.exists() {
             std::fs::remove_dir_all(&build_dir).map_err(FrameworkError::Io)?;
         }
 
-        // Run xcodebuild clean if project exists
         if let Ok(xcode_project) = self.find_xcode_project(path) {
-            let (flag, project_path) = match &xcode_project {
-                XcodeProject::Workspace(ws) => ("-workspace", ws.to_string_lossy().to_string()),
-                XcodeProject::Project(proj) => ("-project", proj.to_string_lossy().to_string()),
+            let project_path = match &xcode_project {
+                XcodeProject::Workspace(ws) => ws.clone(),
+                XcodeProject::Project(proj) => proj.clone(),
             };
-            let args = vec!["clean", flag, &project_path];
 
-            let _ = self.run_xcodebuild(&args, path, &HashMap::new());
+            let opts = XcodeBuildOptions::new(&project_path, "placeholder")
+                .with_destination(Destination::GenericIos);
+
+            // Best-effort clean — ignore errors.
+            let _ = XcodeBuildRunner::build(&opts).await;
         }
 
         Ok(())
@@ -787,6 +783,178 @@ impl BuildAdapter for NativeIosAdapter {
     }
 }
 
+// ---------------------------------------------------------------------------
+// TestAdapter implementation
+// ---------------------------------------------------------------------------
+
+#[async_trait]
+impl TestAdapter for NativeIosAdapter {
+    fn id(&self) -> &'static str {
+        "native-ios"
+    }
+
+    fn name(&self) -> &'static str {
+        "Native iOS (Xcode)"
+    }
+
+    fn detect(&self, path: &Path) -> Detection {
+        // Detect if there is an Xcode project with at least one test scheme.
+        if let Ok(xcode_project) = self.find_xcode_project(path) {
+            if let Ok(schemes) = self.list_schemes(path, &xcode_project) {
+                let has_tests = schemes
+                    .iter()
+                    .any(|s| s.ends_with("Tests") || s.ends_with("UITests"));
+                if has_tests {
+                    return Detection::Yes(85);
+                }
+            }
+            // Has a project but couldn't confirm test schemes — still possible.
+            return Detection::Maybe(50);
+        }
+        Detection::No
+    }
+
+    fn capabilities(&self) -> Capabilities {
+        Capabilities::native_ios()
+    }
+
+    async fn check_prerequisites(&self) -> Result<PrerequisiteStatus> {
+        // Same checks as BuildAdapter.
+        <Self as BuildAdapter>::check_prerequisites(self).await
+    }
+
+    #[instrument(skip(self, ctx), fields(framework = "native-ios"))]
+    async fn test(&self, ctx: &TestContext) -> Result<TestReport> {
+        let path = &ctx.path;
+        info!("running native iOS tests");
+
+        let xcode_project = self.find_xcode_project(path)?;
+        let scheme = self.resolve_scheme(path, &xcode_project, &ctx.config)?;
+
+        self.ensure_pods(path).await?;
+
+        let project_path = match &xcode_project {
+            XcodeProject::Workspace(ws) => ws.clone(),
+            XcodeProject::Project(proj) => proj.clone(),
+        };
+
+        // Default simulator destination.
+        let destination = ctx
+            .config
+            .get("destination")
+            .and_then(|v| v.as_str())
+            .map(|_| {
+                let name = ctx
+                    .config
+                    .get("simulator_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("iPhone 16")
+                    .to_string();
+                let os = ctx
+                    .config
+                    .get("simulator_os")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                Destination::Simulator { name, os }
+            })
+            .unwrap_or_else(|| Destination::Simulator {
+                name: "iPhone 16".to_string(),
+                os: None,
+            });
+
+        let mut opts = XcodeBuildOptions::new(&project_path, &scheme)
+            .with_configuration(BuildConfiguration::Debug)
+            .with_destination(destination);
+
+        // Apply env.
+        let mut env = ctx.env.clone();
+        if ctx.ci {
+            env.insert("CI".to_string(), "true".to_string());
+        }
+        for (k, v) in &env {
+            opts = opts.with_env(k, v);
+        }
+
+        // Result bundle path for xcresult parsing.
+        let result_bundle_dir = path.join("build/test-results");
+        std::fs::create_dir_all(&result_bundle_dir).map_err(FrameworkError::Io)?;
+        let result_bundle_path = result_bundle_dir.join(format!("{}.xcresult", scheme));
+        // Remove stale result bundle if it exists (xcodebuild refuses to
+        // overwrite).
+        if result_bundle_path.exists() {
+            let _ = std::fs::remove_dir_all(&result_bundle_path);
+        }
+
+        let test_plan = ctx
+            .config
+            .get("test_plan")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        if ctx.dry_run {
+            return Ok(TestReport {
+                passed: 0,
+                failed: 0,
+                skipped: 0,
+                duration_ms: 0,
+                suites: vec![],
+                coverage: None,
+            });
+        }
+
+        let result = self
+            .test_xcode(&opts, Some(&result_bundle_path), test_plan.as_deref())
+            .await?;
+
+        // Convert xcodebuild::TestResult → traits::TestReport.
+        let mut suites = Vec::new();
+
+        if !result.failures.is_empty() {
+            let failed_cases: Vec<TestCase> = result
+                .failures
+                .iter()
+                .map(|f| TestCase {
+                    name: f.test_name.clone(),
+                    status: TestStatus::Failed,
+                    duration_ms: 0,
+                    error: Some(f.message.clone()),
+                })
+                .collect();
+
+            suites.push(TestSuite {
+                name: scheme.clone(),
+                tests: failed_cases,
+                duration_ms: result.duration.as_millis() as u64,
+            });
+        }
+
+        Ok(TestReport {
+            passed: result.tests_passed,
+            failed: result.tests_failed,
+            skipped: result.tests_skipped,
+            duration_ms: result.duration.as_millis() as u64,
+            suites,
+            coverage: None,
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Extension trait for XcodeBuildOptions env convenience
+// ---------------------------------------------------------------------------
+
+impl XcodeBuildOptions {
+    /// Bulk-set environment variables from a map.
+    pub fn with_env_map(mut self, map: HashMap<String, String>) -> Self {
+        self.env = map;
+        self
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -800,7 +968,7 @@ mod tests {
         std::fs::create_dir(dir.path().join("MyApp.xcodeproj")).unwrap();
 
         let adapter = NativeIosAdapter::new();
-        let detection = adapter.detect(dir.path());
+        let detection = BuildAdapter::detect(&adapter, dir.path());
 
         assert!(matches!(detection, Detection::Yes(80)));
     }
@@ -811,7 +979,7 @@ mod tests {
         std::fs::create_dir(dir.path().join("MyApp.xcworkspace")).unwrap();
 
         let adapter = NativeIosAdapter::new();
-        let detection = adapter.detect(dir.path());
+        let detection = BuildAdapter::detect(&adapter, dir.path());
 
         assert!(matches!(detection, Detection::Yes(85)));
     }
@@ -821,7 +989,7 @@ mod tests {
         let dir = tempdir().unwrap();
 
         let adapter = NativeIosAdapter::new();
-        let detection = adapter.detect(dir.path());
+        let detection = BuildAdapter::detect(&adapter, dir.path());
 
         assert!(matches!(detection, Detection::No));
     }
@@ -857,10 +1025,146 @@ mod tests {
     #[test]
     fn test_capabilities() {
         let adapter = NativeIosAdapter::new();
-        let caps = adapter.capabilities();
+        let caps = BuildAdapter::capabilities(&adapter);
 
         assert!(caps.has(Capability::BuildIos));
         assert!(caps.has(Capability::ReleaseBuild));
         assert!(caps.has(Capability::DebugBuild));
+        assert!(caps.has(Capability::UnitTests));
+        assert!(caps.has(Capability::IntegrationTests));
+        assert!(caps.has(Capability::CodeSigning));
+    }
+
+    #[test]
+    fn test_build_configuration_mapping() {
+        assert_eq!(
+            NativeIosAdapter::build_configuration(&BuildProfile::Debug),
+            BuildConfiguration::Debug
+        );
+        assert_eq!(
+            NativeIosAdapter::build_configuration(&BuildProfile::Release),
+            BuildConfiguration::Release
+        );
+        assert_eq!(
+            NativeIosAdapter::build_configuration(&BuildProfile::Profile),
+            BuildConfiguration::Release
+        );
+    }
+
+    #[test]
+    fn test_export_options_from_ctx_default() {
+        let ctx = BuildContext::new("/project", Platform::Ios).with_profile(BuildProfile::Release);
+
+        let adapter = NativeIosAdapter::new();
+        let opts = adapter.export_options_from_ctx(&ctx);
+
+        assert_eq!(opts.method, ExportMethod::AppStore);
+        assert_eq!(opts.signing_style, SigningStyle::Automatic);
+        assert!(opts.upload_symbols);
+        assert!(!opts.compile_bitcode);
+    }
+
+    #[test]
+    fn test_export_options_from_ctx_debug() {
+        let ctx = BuildContext::new("/project", Platform::Ios).with_profile(BuildProfile::Debug);
+
+        let adapter = NativeIosAdapter::new();
+        let opts = adapter.export_options_from_ctx(&ctx);
+
+        assert_eq!(opts.method, ExportMethod::Development);
+    }
+
+    #[test]
+    fn test_export_options_from_ctx_manual_signing() {
+        use crate::context::SigningConfig;
+
+        let signing = SigningConfig {
+            automatic: false,
+            team_id: Some("TEAM123".to_string()),
+            provisioning_profile: Some("MyProfile".to_string()),
+            identity: Some("iPhone Distribution".to_string()),
+            ..Default::default()
+        };
+
+        let ctx = BuildContext::new("/project", Platform::Ios)
+            .with_profile(BuildProfile::Release)
+            .with_signing(signing);
+
+        let adapter = NativeIosAdapter::new();
+        let opts = adapter.export_options_from_ctx(&ctx);
+
+        assert_eq!(opts.method, ExportMethod::AppStore);
+        assert_eq!(opts.signing_style, SigningStyle::Manual);
+        assert_eq!(opts.team_id, "TEAM123");
+        assert!(opts.provisioning_profiles.contains_key("com.example.app"));
+        assert_eq!(
+            opts.provisioning_profiles.get("com.example.app"),
+            Some(&"MyProfile".to_string())
+        );
+    }
+
+    #[test]
+    fn test_find_xcode_project_workspace_preferred() {
+        let dir = tempdir().unwrap();
+        std::fs::create_dir(dir.path().join("MyApp.xcodeproj")).unwrap();
+        std::fs::create_dir(dir.path().join("MyApp.xcworkspace")).unwrap();
+
+        let adapter = NativeIosAdapter::new();
+        let project = adapter.find_xcode_project(dir.path()).unwrap();
+
+        assert!(matches!(project, XcodeProject::Workspace(_)));
+    }
+
+    #[test]
+    fn test_get_default_scheme() {
+        let adapter = NativeIosAdapter::new();
+
+        let schemes = vec![
+            "MyApp".to_string(),
+            "MyAppTests".to_string(),
+            "MyAppUITests".to_string(),
+        ];
+        assert_eq!(
+            adapter.get_default_scheme(&schemes),
+            Some("MyApp".to_string())
+        );
+
+        let test_only = vec!["MyAppTests".to_string()];
+        assert_eq!(
+            adapter.get_default_scheme(&test_only),
+            Some("MyAppTests".to_string())
+        );
+
+        let empty: Vec<String> = vec![];
+        assert_eq!(adapter.get_default_scheme(&empty), None);
+    }
+
+    #[test]
+    fn test_version_update_roundtrip() {
+        let dir = tempdir().unwrap();
+        let plist_path = dir.path().join("Info.plist");
+
+        let plist_content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+</dict>
+</plist>"#;
+
+        std::fs::write(&plist_path, plist_content).unwrap();
+
+        let adapter = NativeIosAdapter::new();
+        let new_version = VersionInfo::new("2.5.0").with_build_number(99);
+        adapter
+            .update_info_plist_version(&plist_path, &new_version)
+            .unwrap();
+
+        let read_back = adapter.parse_info_plist_version(&plist_path).unwrap();
+        assert_eq!(read_back.version, "2.5.0");
+        assert_eq!(read_back.build_number, Some(99));
     }
 }

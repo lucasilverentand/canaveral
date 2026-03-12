@@ -43,4 +43,5 @@ pub fn register_all(registry: &mut FrameworkRegistry) {
 
     // Test adapters
     registry.register_test(FlutterTestAdapter::new());
+    registry.register_test(NativeIosAdapter::new());
 }
