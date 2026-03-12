@@ -7,7 +7,7 @@ use tracing::debug;
 
 use crate::cache::ToolCache;
 use crate::error::ToolError;
-use crate::providers::{AquaProvider, BunProvider, NodeProvider, NpmProvider};
+use crate::providers::{BunProvider, GenericProvider, NodeProvider, NpmProvider};
 use crate::traits::{ToolInfo, ToolProvider};
 
 /// Registry of available tool providers
@@ -48,7 +48,7 @@ impl ToolRegistry {
 
     /// Get a provider by tool name.
     ///
-    /// Falls back to the aqua registry shortnames index when no builtin
+    /// Falls back to the embedded tool definitions when no builtin
     /// provider is registered for the given name.
     pub fn get(&self, name: &str) -> Option<Arc<dyn ToolProvider>> {
         if let Some(provider) = self.providers.get(name).cloned() {
@@ -56,10 +56,10 @@ impl ToolRegistry {
             return Some(provider);
         }
 
-        // Fallback: try aqua registry
-        if let Some(aqua) = AquaProvider::from_shortname(name) {
-            debug!(tool = name, "tool provider lookup: aqua shortname");
-            return Some(Arc::new(aqua));
+        // Fallback: try embedded tool definitions
+        if let Some(def) = crate::tool_defs::definitions().get(name) {
+            debug!(tool = name, "tool provider lookup: embedded definition");
+            return Some(Arc::new(GenericProvider::new(def.clone())));
         }
 
         debug!(tool = name, "tool provider lookup: not found");
@@ -69,13 +69,13 @@ impl ToolRegistry {
     /// Get a provider by tool name with an explicit `source` override.
     ///
     /// When the user specifies `source = "owner/repo"` in the config,
-    /// this creates an aqua provider pointing at that repo directly.
+    /// this creates a generic provider pointing at that repo directly.
     pub fn get_with_source(&self, name: &str, source: &str) -> Arc<dyn ToolProvider> {
         // Builtins take priority even if source is specified
         if let Some(provider) = self.providers.get(name).cloned() {
             return provider;
         }
-        Arc::new(AquaProvider::from_source(name, source))
+        Arc::new(GenericProvider::from_repo(name, source))
     }
 
     /// Get all registered providers

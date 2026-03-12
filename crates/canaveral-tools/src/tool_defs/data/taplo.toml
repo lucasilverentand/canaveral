@@ -1,0 +1,40 @@
+id = "taplo"
+name = "taplo"
+binary = "taplo"
+repo = "tamasfe/taplo"
+tag_prefix = ""
+
+# Asset: taplo-{os}-{arch}.gz (gzip-compressed single binary)
+# Note: taplo uses .gz (not tar.gz) — it's a gzip'd raw binary
+asset = "taplo-{os}-{arch}.gz"
+format = "gz"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "taplo"
+
+[platforms.darwin-aarch64]
+os = "darwin"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "aarch64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "taplo-{os}-{arch}.zip"
+
+[platforms.windows-x86_64]
+os = "windows"
+arch = "x86_64"

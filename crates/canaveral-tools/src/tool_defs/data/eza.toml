@@ -1,0 +1,35 @@
+id = "eza"
+name = "eza"
+binary = "eza"
+repo = "eza-community/eza"
+tag_prefix = "v"
+
+# Asset: eza_{target}.tar.gz (no version in filename)
+# Archive contains: ./eza (at root)
+# Note: eza does not provide macOS builds via GitHub releases.
+# macOS users should install via Homebrew.
+asset = "eza_{os}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+regex = '(\d+\.\d+\.\d+)'
+
+[[files]]
+name = "eza"
+
+[platforms.linux-x86_64]
+os = "x86_64-unknown-linux-musl"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "aarch64-unknown-linux-gnu"
+arch = "aarch64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "eza.exe_{os}.zip"
+
+[platforms.windows-x86_64]
+os = "x86_64-pc-windows-gnu"
+arch = "x86_64"

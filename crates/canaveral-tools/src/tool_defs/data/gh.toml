@@ -1,0 +1,49 @@
+id = "gh"
+name = "GitHub CLI"
+binary = "gh"
+repo = "cli/cli"
+tag_prefix = "v"
+
+# macOS uses zip, Linux uses tar.gz
+# Archive contains: gh_{version}_{os}_{arch}/bin/gh
+asset = "gh_{version}_{os}_{arch}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "gh"
+src = "gh_{version}_{os}_{arch}/bin/gh"
+
+[platforms.darwin-aarch64]
+os = "macOS"
+arch = "arm64"
+
+[platforms.darwin-x86_64]
+os = "macOS"
+arch = "amd64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "amd64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "arm64"
+
+[platform_overrides.darwin-aarch64]
+format = "zip"
+asset = "gh_{version}_{os}_{arch}.zip"
+
+[platform_overrides.darwin-x86_64]
+format = "zip"
+asset = "gh_{version}_{os}_{arch}.zip"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "gh_{version}_{os}_{arch}.zip"
+
+[platforms.windows-x86_64]
+os = "windows"
+arch = "amd64"

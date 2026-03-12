@@ -1,0 +1,33 @@
+id = "biome"
+name = "Biome"
+binary = "biome"
+repo = "biomejs/biome"
+tag_prefix = "@biomejs/biome@"
+
+# Raw binary download — no archive
+# Asset names: biome-{os}-{arch} (no version in filename)
+url = "https://github.com/biomejs/biome/releases/download/%40biomejs%2Fbiome%40{version}/biome-{os}-{arch}"
+format = "raw"
+
+[version_detect]
+args = ["--version"]
+
+[platforms.darwin-aarch64]
+os = "darwin"
+arch = "arm64"
+
+[platforms.darwin-x86_64]
+os = "darwin"
+arch = "x64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "x64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "arm64"
+
+[platforms.windows-x86_64]
+os = "win32"
+arch = "x64"

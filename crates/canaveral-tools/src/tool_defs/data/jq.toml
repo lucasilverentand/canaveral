@@ -1,0 +1,34 @@
+id = "jq"
+name = "jq"
+binary = "jq"
+repo = "jqlang/jq"
+tag_prefix = "jq-"
+
+# Raw binary download from GitHub releases
+# Asset names: jq-{os}-{arch} (no extension, no version in filename)
+url = "https://github.com/jqlang/jq/releases/download/jq-{version}/jq-{os}-{arch}"
+format = "raw"
+
+[version_detect]
+args = ["--version"]
+regex = 'jq-(\d+\.\d+\.\d*\w*)'
+
+[platforms.darwin-aarch64]
+os = "macos"
+arch = "arm64"
+
+[platforms.darwin-x86_64]
+os = "macos"
+arch = "amd64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "amd64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "arm64"
+
+[platforms.windows-x86_64]
+os = "windows"
+arch = "amd64"

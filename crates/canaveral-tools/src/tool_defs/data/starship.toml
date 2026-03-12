@@ -1,0 +1,40 @@
+id = "starship"
+name = "Starship"
+binary = "starship"
+repo = "starship/starship"
+tag_prefix = "v"
+
+# Asset: starship-{target}.tar.gz
+# Archive contains: starship (at root)
+asset = "starship-{os}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "starship"
+
+[platforms.darwin-aarch64]
+os = "aarch64-apple-darwin"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "x86_64-apple-darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "x86_64-unknown-linux-musl"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "aarch64-unknown-linux-gnu"
+arch = "aarch64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "starship-{os}.zip"
+
+[platforms.windows-x86_64]
+os = "x86_64-pc-windows-msvc"
+arch = "x86_64"

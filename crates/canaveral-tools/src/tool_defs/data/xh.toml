@@ -1,0 +1,41 @@
+id = "xh"
+name = "xh"
+binary = "xh"
+repo = "ducaale/xh"
+tag_prefix = "v"
+
+# Asset: xh-v{version}-{target}.tar.gz
+# Archive contains: xh-v{version}-{target}/xh
+asset = "xh-v{version}-{os}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "xh"
+src = "xh-v{version}-{os}/xh"
+
+[platforms.darwin-aarch64]
+os = "aarch64-apple-darwin"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "x86_64-apple-darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "x86_64-unknown-linux-musl"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "aarch64-unknown-linux-musl"
+arch = "aarch64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "xh-v{version}-{os}.zip"
+
+[platforms.windows-x86_64]
+os = "x86_64-pc-windows-msvc"
+arch = "x86_64"

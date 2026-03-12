@@ -1,0 +1,41 @@
+id = "lazygit"
+name = "lazygit"
+binary = "lazygit"
+repo = "jesseduffield/lazygit"
+tag_prefix = "v"
+
+# Asset: lazygit_{version}_{os}_{arch}.tar.gz
+# Archive contains: lazygit (at root)
+asset = "lazygit_{version}_{os}_{arch}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+regex = 'version=(\d+\.\d+\.\d+)'
+
+[[files]]
+name = "lazygit"
+
+[platforms.darwin-aarch64]
+os = "darwin"
+arch = "arm64"
+
+[platforms.darwin-x86_64]
+os = "darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "arm64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "lazygit_{version}_{os}_{arch}.zip"
+
+[platforms.windows-x86_64]
+os = "windows"
+arch = "x86_64"

@@ -19,7 +19,6 @@ async-trait = "0.1"
 which = { workspace = true }
 dirs = { workspace = true }
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
-serde_yaml = { workspace = true }
 flate2 = "1"
 tar = "0.4"
 zip = "2"

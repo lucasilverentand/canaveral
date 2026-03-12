@@ -1,9 +1,9 @@
 //! Built-in tool providers
 
-pub mod aqua;
 pub mod bun;
+pub mod generic;
 pub mod node;
 
-pub use aqua::AquaProvider;
 pub use bun::BunProvider;
+pub use generic::GenericProvider;
 pub use node::{NodeProvider, NpmProvider};

@@ -1,0 +1,41 @@
+id = "actionlint"
+name = "actionlint"
+binary = "actionlint"
+repo = "rhysd/actionlint"
+tag_prefix = "v"
+
+# Asset: actionlint_{version}_{os}_{arch}.tar.gz
+# Archive contains: actionlint (at root)
+asset = "actionlint_{version}_{os}_{arch}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+regex = '(\d+\.\d+\.\d+)'
+
+[[files]]
+name = "actionlint"
+
+[platforms.darwin-aarch64]
+os = "darwin"
+arch = "arm64"
+
+[platforms.darwin-x86_64]
+os = "darwin"
+arch = "amd64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "amd64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "arm64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "actionlint_{version}_{os}_{arch}.zip"
+
+[platforms.windows-x86_64]
+os = "windows"
+arch = "amd64"

@@ -1,0 +1,37 @@
+id = "deno"
+name = "Deno"
+binary = "deno"
+repo = "denoland/deno"
+tag_prefix = "v"
+
+# Asset: deno-{target}.zip (all platforms use zip)
+# Archive contains: deno (at root)
+asset = "deno-{os}.zip"
+format = "zip"
+
+[version_detect]
+args = ["--version"]
+regex = 'deno (\d+\.\d+\.\d+)'
+
+[[files]]
+name = "deno"
+
+[platforms.darwin-aarch64]
+os = "aarch64-apple-darwin"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "x86_64-apple-darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "x86_64-unknown-linux-gnu"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "aarch64-unknown-linux-gnu"
+arch = "aarch64"
+
+[platforms.windows-x86_64]
+os = "x86_64-pc-windows-msvc"
+arch = "x86_64"

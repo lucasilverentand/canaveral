@@ -1,0 +1,35 @@
+id = "ripgrep"
+name = "ripgrep"
+binary = "rg"
+repo = "BurntSushi/ripgrep"
+aliases = ["rg"]
+
+[version_detect]
+regex = '(\d+\.\d+\.\d+)'
+
+asset = "ripgrep-{version}-{arch}-{os}.tar.gz"
+format = "tar.gz"
+
+[[files]]
+name = "rg"
+src = "ripgrep-{version}-{arch}-{os}/rg"
+
+[platforms.darwin-aarch64]
+os = "apple-darwin"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "apple-darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "unknown-linux-musl"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "unknown-linux-gnu"
+arch = "aarch64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "ripgrep-{version}-{arch}-pc-windows-msvc.zip"

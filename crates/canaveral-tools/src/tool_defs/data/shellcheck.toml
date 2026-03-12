@@ -1,0 +1,35 @@
+id = "shellcheck"
+name = "ShellCheck"
+binary = "shellcheck"
+repo = "koalaman/shellcheck"
+tag_prefix = "v"
+
+# Asset: shellcheck-v{version}.{os}.{arch}.tar.gz
+# Note: shellcheck uses dots (not dashes) to separate os and arch
+# Archive contains: shellcheck-v{version}/shellcheck
+asset = "shellcheck-v{version}.{os}.{arch}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+regex = 'version: (\d+\.\d+\.\d+)'
+
+[[files]]
+name = "shellcheck"
+src = "shellcheck-v{version}/shellcheck"
+
+[platforms.darwin-aarch64]
+os = "darwin"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "aarch64"

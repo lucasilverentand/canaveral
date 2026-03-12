@@ -7,6 +7,7 @@ pub mod cache;
 pub mod error;
 pub mod providers;
 pub mod registry;
+pub mod tool_defs;
 pub mod traits;
 pub mod version_match;
 

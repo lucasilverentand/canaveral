@@ -1,0 +1,42 @@
+id = "cargo-nextest"
+name = "cargo-nextest"
+binary = "cargo-nextest"
+repo = "nextest-rs/nextest"
+tag_prefix = "cargo-nextest-"
+
+# Asset: cargo-nextest-{version}-{target}.tar.gz
+# Archive contains: cargo-nextest (at root)
+# Note: macOS uses universal-apple-darwin (fat binary for both architectures)
+asset = "cargo-nextest-{version}-{os}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["nextest", "--version"]
+regex = 'nextest-runner (\d+\.\d+\.\d+)'
+
+[[files]]
+name = "cargo-nextest"
+
+[platforms.darwin-aarch64]
+os = "universal-apple-darwin"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "universal-apple-darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "x86_64-unknown-linux-musl"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "aarch64-unknown-linux-gnu"
+arch = "aarch64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "cargo-nextest-{version}-{os}.zip"
+
+[platforms.windows-x86_64]
+os = "x86_64-pc-windows-msvc"
+arch = "x86_64"

@@ -1,0 +1,41 @@
+id = "fd"
+name = "fd"
+binary = "fd"
+repo = "sharkdp/fd"
+tag_prefix = "v"
+
+# Asset: fd-v{version}-{target}.tar.gz
+# Note: fd includes the "v" in the asset name (matching the tag)
+asset = "fd-v{version}-{os}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "fd"
+src = "fd-v{version}-{os}/fd"
+
+[platforms.darwin-aarch64]
+os = "aarch64-apple-darwin"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "x86_64-apple-darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "x86_64-unknown-linux-musl"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "aarch64-unknown-linux-gnu"
+arch = "aarch64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "fd-v{version}-{os}.zip"
+
+[platforms.windows-x86_64]
+os = "x86_64-pc-windows-msvc"
+arch = "x86_64"

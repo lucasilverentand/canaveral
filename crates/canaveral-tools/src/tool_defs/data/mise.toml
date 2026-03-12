@@ -1,0 +1,42 @@
+id = "mise"
+name = "mise"
+binary = "mise"
+repo = "jdx/mise"
+tag_prefix = "v"
+
+# Asset: mise-v{version}-{os}-{arch}.tar.gz
+# Archive contains: mise/bin/mise
+asset = "mise-v{version}-{os}-{arch}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+regex = '(\d+\.\d+\.\d+)'
+
+[[files]]
+name = "mise"
+src = "mise/bin/mise"
+
+[platforms.darwin-aarch64]
+os = "macos"
+arch = "arm64"
+
+[platforms.darwin-x86_64]
+os = "macos"
+arch = "x64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "x64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "arm64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "mise-v{version}-{os}-{arch}.zip"
+
+[platforms.windows-x86_64]
+os = "windows"
+arch = "x64"
