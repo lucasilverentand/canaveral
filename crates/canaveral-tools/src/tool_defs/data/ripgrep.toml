@@ -3,12 +3,11 @@ name = "ripgrep"
 binary = "rg"
 repo = "BurntSushi/ripgrep"
 aliases = ["rg"]
+asset = "ripgrep-{version}-{arch}-{os}.tar.gz"
+format = "tar.gz"
 
 [version_detect]
 regex = '(\d+\.\d+\.\d+)'
-
-asset = "ripgrep-{version}-{arch}-{os}.tar.gz"
-format = "tar.gz"
 
 [[files]]
 name = "rg"
