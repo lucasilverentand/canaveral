@@ -6,10 +6,14 @@
 pub mod capture;
 pub mod devices;
 pub mod framing;
+pub mod orchestrator;
 
 pub use capture::{ScreenshotCapture, ScreenshotConfig, ScreenshotResult};
 pub use devices::{DeviceConfig, DeviceManager, DeviceSpec, SimulatorDevice};
 pub use framing::{FrameConfig, FrameTemplate, ScreenshotFramer};
+pub use orchestrator::{
+    CapturedScreenshot, ScreenshotCaptureConfig, ScreenshotDevice, ScreenshotOrchestrator,
+};
 
 use serde::{Deserialize, Serialize};
 

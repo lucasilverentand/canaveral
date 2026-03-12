@@ -45,8 +45,10 @@ pub mod orchestration;
 pub mod output;
 pub mod registry;
 pub mod screenshots;
+pub mod simulator;
 pub mod testing;
 pub mod traits;
+pub mod xcodebuild;
 
 pub use artifacts::{Artifact, ArtifactKind, ArtifactMetadata};
 pub use capabilities::{Capabilities, Capability};
@@ -57,12 +59,21 @@ pub use orchestration::{BuildOrchestrator, Orchestrator, OrchestratorConfig};
 pub use output::{Output, OutputFormat};
 pub use registry::FrameworkRegistry;
 pub use screenshots::{
-    AppStoreScreenSize, DeviceConfig, DeviceManager, FrameConfig, FrameTemplate,
-    PlayStoreScreenSize, ScreenConfig, ScreenshotCapture, ScreenshotConfig, ScreenshotFramer,
-    ScreenshotResult, ScreenshotSession,
+    AppStoreScreenSize, CapturedScreenshot, DeviceConfig, DeviceManager, FrameConfig,
+    FrameTemplate, PlayStoreScreenSize, ScreenConfig, ScreenshotCapture, ScreenshotCaptureConfig,
+    ScreenshotConfig, ScreenshotDevice, ScreenshotFramer, ScreenshotOrchestrator, ScreenshotResult,
+    ScreenshotSession,
+};
+pub use simulator::{
+    Appearance, RecordingHandle, SimDevice, SimDeviceState, SimDeviceType, SimRuntime,
+    SimulatorManager, StatusBarOverrides,
 };
 pub use testing::{ReportGenerator, TestRunner, TestRunnerConfig};
 pub use traits::{
     BuildAdapter, DistributeAdapter, OtaAdapter, ScreenshotAdapter, TestAdapter, TestCase,
     TestReport, TestStatus, TestSuite, VersionAdapter,
+};
+pub use xcodebuild::{
+    ArchiveResult, BuildConfiguration, BuildResult, Destination, ExportMethod, ExportOptions,
+    ExportResult, SigningStyle, TestFailure, TestResult, XcodeBuildOptions, XcodeBuildRunner,
 };
