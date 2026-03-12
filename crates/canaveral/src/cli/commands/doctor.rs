@@ -48,6 +48,8 @@ pub enum CheckCategory {
     Git,
     /// Environment variables
     Env,
+    /// Configured tool versions
+    Tools,
 }
 
 /// Framework to check
@@ -114,6 +116,7 @@ impl DoctorCommand {
                 CheckCategory::Stores => self.check_stores(),
                 CheckCategory::Git => self.check_git(),
                 CheckCategory::Env => self.check_env(),
+                CheckCategory::Tools => self.check_tools(),
             };
             checks.extend(category_checks);
         }
@@ -187,6 +190,7 @@ impl DoctorCommand {
             CheckCategory::Stores,
             CheckCategory::Git,
             CheckCategory::Env,
+            CheckCategory::Tools,
         ];
 
         if let Some(ref only) = self.only {
@@ -1029,6 +1033,124 @@ impl DoctorCommand {
                 version: None,
                 fix_suggestion: Some("Set HOME environment variable".to_string()),
             });
+        }
+
+        results
+    }
+
+    fn check_tools(&self) -> Vec<CheckResult> {
+        let mut results = Vec::new();
+
+        let cwd = std::env::current_dir().unwrap_or_default();
+        let (config, _) = canaveral_core::config::load_config_or_default(&cwd);
+
+        if config.tools.tools.is_empty() {
+            results.push(CheckResult {
+                name: "Tools config".to_string(),
+                status: CheckStatus::Skip,
+                message: Some("No tools configured in [tools] section".to_string()),
+                version: None,
+                fix_suggestion: Some(
+                    "Add tool versions to [tools] in canaveral.toml (e.g. bun = \"1.2\")"
+                        .to_string(),
+                ),
+            });
+            return results;
+        }
+
+        let registry = canaveral_tools::ToolRegistry::with_builtins();
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => {
+                results.push(CheckResult {
+                    name: "Tools check".to_string(),
+                    status: CheckStatus::Fail,
+                    message: Some(format!("Failed to create async runtime: {e}")),
+                    version: None,
+                    fix_suggestion: None,
+                });
+                return results;
+            }
+        };
+
+        let mut tool_entries: Vec<_> = config.tools.tools.iter().collect();
+        tool_entries.sort_by_key(|(name, _)| (*name).clone());
+
+        for (name, spec) in tool_entries {
+            let (requested_version, source) = match spec {
+                canaveral_core::config::ToolVersionSpec::Version(v) => (v.clone(), None),
+                canaveral_core::config::ToolVersionSpec::Detailed(d) => {
+                    (d.version.clone(), d.source.clone())
+                }
+            };
+
+            let provider = match &source {
+                Some(src) => Some(registry.get_with_source(name, src)),
+                None => registry.get(name),
+            };
+
+            let Some(provider) = provider else {
+                results.push(CheckResult {
+                    name: name.clone(),
+                    status: CheckStatus::Fail,
+                    message: Some(format!("Unknown tool (requested {requested_version})")),
+                    version: None,
+                    fix_suggestion: Some(format!("No provider found for '{name}'")),
+                });
+                continue;
+            };
+
+            let detected = rt.block_on(provider.detect_version()).ok().flatten();
+            match detected {
+                Some(installed) => {
+                    let satisfied = rt
+                        .block_on(provider.is_satisfied(&requested_version))
+                        .unwrap_or(false);
+
+                    if satisfied {
+                        results.push(CheckResult {
+                            name: name.clone(),
+                            status: CheckStatus::Ok,
+                            message: Some(format!("{installed} (satisfies {requested_version})")),
+                            version: Some(installed),
+                            fix_suggestion: None,
+                        });
+                    } else {
+                        results.push(CheckResult {
+                            name: name.clone(),
+                            status: CheckStatus::Warn,
+                            message: Some(format!("{installed} (wants {requested_version})")),
+                            version: Some(installed),
+                            fix_suggestion: if self.fix {
+                                Some(
+                                    "Run 'canaveral tools install' to install the correct version"
+                                        .to_string(),
+                                )
+                            } else {
+                                Some(format!(
+                                    "Installed version does not satisfy requested {requested_version}"
+                                ))
+                            },
+                        });
+                    }
+                }
+                None => {
+                    results.push(CheckResult {
+                        name: name.clone(),
+                        status: CheckStatus::Fail,
+                        message: Some(format!("Not installed (wants {requested_version})")),
+                        version: None,
+                        fix_suggestion: if self.fix {
+                            Some(
+                                "Run 'canaveral tools install' to install configured tools"
+                                    .to_string(),
+                            )
+                        } else {
+                            Some(format!("{name} is not installed"))
+                        },
+                    });
+                }
+            }
         }
 
         results

@@ -163,8 +163,8 @@ impl ToolRegistry {
 
     fn register_builtins(&mut self) {
         self.register(BunProvider::new());
-        self.register(NodeProvider);
-        self.register(NpmProvider);
+        self.register(NodeProvider::new());
+        self.register(NpmProvider::new());
     }
 }
 
