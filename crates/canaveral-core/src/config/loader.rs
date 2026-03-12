@@ -1,7 +1,13 @@
 //! Configuration loading
+//!
+//! Supports:
+//! - `${ENV_VAR}` interpolation in any string value
+//! - `canaveral.local.toml` for private overrides (gitignored secrets)
+//! - Deep merging of local config on top of committed config
 
 use std::path::{Path, PathBuf};
 
+use regex::Regex;
 use tracing::{debug, info, warn};
 
 use crate::error::{ConfigError, Result};
@@ -10,7 +16,63 @@ use super::defaults::{config_file_names, LEGACY_YAML_NAMES};
 use super::root::Config;
 use super::validation::validate_config;
 
-/// Load configuration from a TOML file
+/// Interpolate `${VAR}` and `$VAR` references in a string with environment variables.
+///
+/// - `${VAR}` is replaced with the value of `VAR`, or empty string if unset.
+/// - `${VAR:-default}` uses "default" when `VAR` is unset or empty.
+/// - Unresolvable references are replaced with empty string (open-source friendly).
+fn interpolate_env(input: &str) -> String {
+    let re = Regex::new(r"\$\{([^}]+)\}").unwrap();
+    re.replace_all(input, |caps: &regex::Captures| {
+        let expr = &caps[1];
+        if let Some((var, default)) = expr.split_once(":-") {
+            std::env::var(var).unwrap_or_else(|_| default.to_string())
+        } else {
+            std::env::var(expr).unwrap_or_default()
+        }
+    })
+    .to_string()
+}
+
+/// Recursively interpolate environment variables in all string values of a TOML table.
+fn interpolate_toml_value(value: &mut toml::Value) {
+    match value {
+        toml::Value::String(s) => {
+            if s.contains('$') {
+                *s = interpolate_env(s);
+            }
+        }
+        toml::Value::Table(table) => {
+            for (_, v) in table.iter_mut() {
+                interpolate_toml_value(v);
+            }
+        }
+        toml::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                interpolate_toml_value(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Deep-merge `overlay` into `base`. Overlay values win for scalars;
+/// tables are merged recursively; arrays from overlay replace base.
+fn deep_merge(base: &mut toml::Value, overlay: toml::Value) {
+    match (base, overlay) {
+        (toml::Value::Table(base_table), toml::Value::Table(overlay_table)) => {
+            for (key, overlay_val) in overlay_table {
+                let entry = base_table.entry(key).or_insert(toml::Value::Boolean(false));
+                deep_merge(entry, overlay_val);
+            }
+        }
+        (base, overlay) => {
+            *base = overlay;
+        }
+    }
+}
+
+/// Load configuration from a TOML file, with env interpolation and local overrides.
 pub fn load_config(path: &Path) -> Result<Config> {
     info!(path = %path.display(), "loading config");
 
@@ -24,7 +86,26 @@ pub fn load_config(path: &Path) -> Result<Config> {
     }
 
     let content = std::fs::read_to_string(path).map_err(ConfigError::Io)?;
-    let config: Config = toml::from_str(&content).map_err(ConfigError::TomlError)?;
+    let mut value: toml::Value = toml::from_str(&content).map_err(ConfigError::TomlError)?;
+
+    // Merge canaveral.local.toml if it exists alongside the main config
+    if let Some(dir) = path.parent() {
+        let local_path = dir.join("canaveral.local.toml");
+        if local_path.exists() {
+            info!(path = %local_path.display(), "loading local config overlay");
+            let local_content = std::fs::read_to_string(&local_path).map_err(ConfigError::Io)?;
+            let local_value: toml::Value =
+                toml::from_str(&local_content).map_err(ConfigError::TomlError)?;
+            deep_merge(&mut value, local_value);
+        }
+    }
+
+    // Interpolate environment variables in all string values
+    interpolate_toml_value(&mut value);
+
+    let config: Config = value
+        .try_into()
+        .map_err(|e: toml::de::Error| ConfigError::TomlError(e))?;
 
     validate_config(&config)?;
     debug!(path = %path.display(), "config loaded and validated");
@@ -190,5 +271,132 @@ mod tests {
                 ConfigError::UnsupportedFormat(_)
             ))
         ));
+    }
+
+    #[test]
+    fn test_interpolate_env_basic() {
+        std::env::set_var("CANAVERAL_TEST_VAR", "hello");
+        assert_eq!(interpolate_env("${CANAVERAL_TEST_VAR}"), "hello");
+        assert_eq!(
+            interpolate_env("pre-${CANAVERAL_TEST_VAR}-post"),
+            "pre-hello-post"
+        );
+        std::env::remove_var("CANAVERAL_TEST_VAR");
+    }
+
+    #[test]
+    fn test_interpolate_env_unset_returns_empty() {
+        std::env::remove_var("CANAVERAL_NONEXISTENT_VAR");
+        assert_eq!(interpolate_env("${CANAVERAL_NONEXISTENT_VAR}"), "");
+    }
+
+    #[test]
+    fn test_interpolate_env_default_value() {
+        std::env::remove_var("CANAVERAL_MISSING");
+        assert_eq!(
+            interpolate_env("${CANAVERAL_MISSING:-fallback}"),
+            "fallback"
+        );
+
+        // When var is set, default is not used
+        std::env::set_var("CANAVERAL_PRESENT", "real");
+        assert_eq!(interpolate_env("${CANAVERAL_PRESENT:-fallback}"), "real");
+        std::env::remove_var("CANAVERAL_PRESENT");
+    }
+
+    #[test]
+    fn test_interpolate_env_no_vars_passthrough() {
+        assert_eq!(interpolate_env("no variables here"), "no variables here");
+    }
+
+    #[test]
+    fn test_deep_merge() {
+        let mut base: toml::Value = toml::from_str(
+            r#"
+            [versioning]
+            strategy = "semver"
+
+            [git]
+            remote = "origin"
+            branch = "main"
+            "#,
+        )
+        .unwrap();
+
+        let overlay: toml::Value = toml::from_str(
+            r#"
+            [ios]
+            team_id = "SECRET123"
+
+            [git]
+            branch = "develop"
+            "#,
+        )
+        .unwrap();
+
+        deep_merge(&mut base, overlay);
+
+        let table = base.as_table().unwrap();
+        // Original values preserved
+        assert_eq!(table["versioning"]["strategy"].as_str().unwrap(), "semver");
+        // Git remote preserved, branch overridden
+        assert_eq!(table["git"]["remote"].as_str().unwrap(), "origin");
+        assert_eq!(table["git"]["branch"].as_str().unwrap(), "develop");
+        // New section merged in
+        assert_eq!(table["ios"]["team_id"].as_str().unwrap(), "SECRET123");
+    }
+
+    #[test]
+    fn test_local_config_overlay() {
+        let temp = TempDir::new().unwrap();
+
+        // Main config (committed to repo)
+        std::fs::write(
+            temp.path().join("canaveral.toml"),
+            r#"
+            [versioning]
+            strategy = "semver"
+
+            [ios]
+            scheme = "MyApp"
+            "#,
+        )
+        .unwrap();
+
+        // Local config (gitignored, has secrets)
+        std::fs::write(
+            temp.path().join("canaveral.local.toml"),
+            r#"
+            [ios]
+            team_id = "SECRET_TEAM_ID"
+            "#,
+        )
+        .unwrap();
+
+        let config = load_config(&temp.path().join("canaveral.toml")).unwrap();
+        assert_eq!(config.versioning.strategy, "semver");
+        assert_eq!(config.ios.scheme, Some("MyApp".to_string()));
+        assert_eq!(config.ios.team_id, Some("SECRET_TEAM_ID".to_string()));
+    }
+
+    #[test]
+    fn test_env_interpolation_in_config() {
+        let temp = TempDir::new().unwrap();
+
+        std::env::set_var("CANAVERAL_TEST_TEAM", "TEAM_FROM_ENV");
+        std::fs::write(
+            temp.path().join("canaveral.toml"),
+            r#"
+            [ios]
+            team_id = "${CANAVERAL_TEST_TEAM}"
+            scheme = "MyApp"
+            "#,
+        )
+        .unwrap();
+
+        let config = load_config(&temp.path().join("canaveral.toml")).unwrap();
+        assert_eq!(config.ios.team_id, Some("TEAM_FROM_ENV".to_string()));
+        assert_eq!(config.ios.scheme, Some("MyApp".to_string()));
+        std::env::remove_var("CANAVERAL_TEST_TEAM");
     }
 }

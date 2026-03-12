@@ -60,6 +60,13 @@ pub struct ArchiveCommand {
     #[arg(long)]
     pub dry_run: bool,
 
+    /// Skip code signing (build with CODE_SIGN_IDENTITY="-")
+    ///
+    /// Useful for open-source CI where signing credentials aren't available.
+    /// The build will succeed but won't produce a distributable artifact.
+    #[arg(long)]
+    pub skip_signing: bool,
+
     /// Skip prerequisite checks
     #[arg(long)]
     pub skip_checks: bool,
@@ -191,16 +198,26 @@ impl ArchiveCommand {
         }
 
         // Signing configuration
-        let signing_style = config.ios.signing.style.as_str();
-        let signing = SigningConfig {
-            identity: config.ios.signing.identity.clone(),
-            provisioning_profile: config.ios.signing.provisioning_profile.clone(),
-            team_id: team_id.clone(),
-            keystore_path: None,
-            key_alias: None,
-            automatic: signing_style == "automatic",
-        };
-        ctx = ctx.with_signing(signing);
+        if self.skip_signing {
+            // Open-source / CI mode: disable code signing entirely
+            ctx = ctx.with_config("CODE_SIGN_IDENTITY", serde_json::json!("-"));
+            ctx = ctx.with_config("CODE_SIGNING_REQUIRED", serde_json::json!("NO"));
+            ctx = ctx.with_config("CODE_SIGNING_ALLOWED", serde_json::json!("NO"));
+            if ui.is_text() {
+                ui.info("Code signing disabled (--skip-signing)");
+            }
+        } else {
+            let signing_style = config.ios.signing.style.as_str();
+            let signing = SigningConfig {
+                identity: config.ios.signing.identity.clone(),
+                provisioning_profile: config.ios.signing.provisioning_profile.clone(),
+                team_id: team_id.clone(),
+                keystore_path: None,
+                key_alias: None,
+                automatic: signing_style == "automatic",
+            };
+            ctx = ctx.with_signing(signing);
+        }
 
         // Extra args
         if !self.extra_args.is_empty() {

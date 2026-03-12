@@ -99,6 +99,12 @@ pub struct BuildCommand {
     #[arg(long)]
     pub export_method: Option<String>,
 
+    /// Skip code signing (build with CODE_SIGN_IDENTITY="-")
+    ///
+    /// Useful for open-source CI where signing credentials aren't available.
+    #[arg(long)]
+    pub skip_signing: bool,
+
     /// Extra arguments to pass to the underlying build tool
     #[arg(last = true)]
     pub extra_args: Vec<String>,
@@ -296,7 +302,12 @@ impl BuildCommand {
         }
 
         // Code signing configuration: CLI flags > iOS config > none
-        if self.signing_identity.is_some()
+        if self.skip_signing && is_ios {
+            // Open-source / CI mode: disable code signing entirely
+            ctx = ctx.with_config("CODE_SIGN_IDENTITY", serde_json::json!("-"));
+            ctx = ctx.with_config("CODE_SIGNING_REQUIRED", serde_json::json!("NO"));
+            ctx = ctx.with_config("CODE_SIGNING_ALLOWED", serde_json::json!("NO"));
+        } else if self.signing_identity.is_some()
             || self.provisioning_profile.is_some()
             || self.team_id.is_some()
             || self.keystore.is_some()
