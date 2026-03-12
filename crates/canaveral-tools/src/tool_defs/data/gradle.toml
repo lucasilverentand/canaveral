@@ -1,0 +1,36 @@
+id = "gradle"
+name = "Gradle"
+binary = "gradle"
+repo = "gradle/gradle"
+tag_prefix = "v"
+format = "zip"
+url = "https://services.gradle.org/distributions/gradle-{version}-bin.zip"
+
+[version_detect]
+args = ["--version"]
+regex = 'Gradle (\d+\.\d+(?:\.\d+)?)'
+
+[[files]]
+name = "gradle"
+src = "gradle-{version}/bin/gradle"
+
+# Gradle is platform-independent (JVM-based)
+[platforms.darwin-aarch64]
+os = "universal"
+arch = "universal"
+
+[platforms.darwin-x86_64]
+os = "universal"
+arch = "universal"
+
+[platforms.linux-x86_64]
+os = "universal"
+arch = "universal"
+
+[platforms.linux-aarch64]
+os = "universal"
+arch = "universal"
+
+[platforms.windows-x86_64]
+os = "universal"
+arch = "universal"

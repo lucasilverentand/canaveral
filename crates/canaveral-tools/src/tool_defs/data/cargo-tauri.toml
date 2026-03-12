@@ -1,0 +1,42 @@
+id = "cargo-tauri"
+name = "Tauri CLI"
+binary = "cargo-tauri"
+repo = "tauri-apps/tauri"
+tag_prefix = "tauri-cli-v"
+aliases = ["tauri"]
+asset = "cargo-tauri-{arch}-{os}.tgz"
+format = "tgz"
+
+[version_detect]
+args = ["tauri", "--version"]
+
+[[files]]
+name = "cargo-tauri"
+
+[platforms.darwin-aarch64]
+os = "apple-darwin"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "apple-darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "unknown-linux-gnu"
+arch = "x86_64"
+
+[platform_overrides.darwin-aarch64]
+format = "zip"
+asset = "cargo-tauri-{arch}-{os}.zip"
+
+[platform_overrides.darwin-x86_64]
+format = "zip"
+asset = "cargo-tauri-{arch}-{os}.zip"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "cargo-tauri-{arch}-{os}.zip"
+
+[platforms.windows-x86_64]
+os = "pc-windows-msvc"
+arch = "x86_64"

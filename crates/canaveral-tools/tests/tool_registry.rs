@@ -46,6 +46,11 @@ fn all_expected_tools_are_registered() {
         "taplo",
         "eza",
         "shellcheck",
+        "pnpm",
+        "yarn-classic",
+        "watchman",
+        "gradle",
+        "cargo-tauri",
     ];
     for id in &expected {
         assert!(defs.contains_key(*id), "missing tool definition for '{id}'");
@@ -58,7 +63,7 @@ fn all_expected_tools_are_registered() {
 fn every_definition_has_darwin_aarch64_platform() {
     let defs = definitions();
     // Tools that don't provide macOS builds via GitHub releases
-    let no_macos = ["eza"];
+    let no_macos = ["eza", "watchman"];
 
     let unique: Vec<_> = defs
         .iter()
@@ -1414,6 +1419,11 @@ fn registry_all_tools_from_embedded_are_accessible() {
         "taplo",
         "eza",
         "shellcheck",
+        "pnpm",
+        "yarn-classic",
+        "watchman",
+        "gradle",
+        "cargo-tauri",
     ];
     for id in &all_ids {
         assert!(
@@ -1494,8 +1504,8 @@ fn definitions_map_has_expected_entry_count() {
         .filter(|(key, def)| key.as_str() == def.id.as_str())
         .count();
     assert_eq!(
-        unique_count, 26,
-        "expected 26 unique tool definitions, got {unique_count}"
+        unique_count, 31,
+        "expected 31 unique tool definitions, got {unique_count}"
     );
 }
 

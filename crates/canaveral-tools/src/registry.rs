@@ -7,7 +7,10 @@ use tracing::debug;
 
 use crate::cache::ToolCache;
 use crate::error::ToolError;
-use crate::providers::{BunProvider, GenericProvider, NodeProvider, NpmProvider};
+use crate::providers::{
+    BunProvider, DartProvider, FlutterProvider, GenericProvider, GoProvider, GradleProvider,
+    JavaProvider, NodeProvider, NpmProvider, PipProvider, PythonProvider,
+};
 use crate::traits::{ToolInfo, ToolProvider};
 
 /// Registry of available tool providers
@@ -162,9 +165,34 @@ impl ToolRegistry {
     }
 
     fn register_builtins(&mut self) {
+        // JavaScript runtimes & package managers
         self.register(BunProvider::new());
         self.register(NodeProvider::new());
         self.register(NpmProvider::new());
+
+        // Language runtimes
+        self.register(PythonProvider::new());
+        self.register(PipProvider::new());
+        self.register(GoProvider::new());
+        self.register(JavaProvider::new());
+        self.register(GradleProvider::new());
+        self.register(FlutterProvider::new());
+        self.register(DartProvider::new());
+
+        // System/detect-only tools
+        use crate::providers::system;
+        self.register(system::git());
+        self.register(system::docker());
+        self.register(system::rustc());
+        self.register(system::cargo());
+        self.register(system::xcodebuild());
+        self.register(system::xcrun());
+        self.register(system::gpg());
+        self.register(system::adb());
+        self.register(system::pod());
+        self.register(system::npx());
+        self.register(system::yarn());
+        self.register(system::eas());
     }
 }
 

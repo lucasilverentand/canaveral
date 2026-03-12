@@ -1,0 +1,22 @@
+id = "watchman"
+name = "Watchman"
+binary = "watchman"
+repo = "facebook/watchman"
+tag_prefix = "v"
+asset = "watchman-v{version}-linux.zip"
+format = "zip"
+
+[version_detect]
+args = ["version"]
+# Watchman uses CalVer: YYYY.MM.DD.00
+regex = '(\d+\.\d+\.\d+\.\d+)'
+
+[[files]]
+name = "watchman"
+src = "watchman-v{version}-linux/bin/watchman"
+
+# Only Linux x86_64 builds are available on GitHub releases
+# macOS users should install via Homebrew
+[platforms.linux-x86_64]
+os = "linux"
+arch = "x86_64"

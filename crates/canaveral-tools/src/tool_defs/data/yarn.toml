@@ -1,0 +1,43 @@
+id = "yarn-classic"
+name = "Yarn Classic"
+binary = "yarn"
+repo = "yarnpkg/yarn"
+tag_prefix = "v"
+asset = "yarn-v{version}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "yarn"
+src = "yarn-v{version}/bin/yarn"
+
+[[files]]
+name = "yarn.js"
+src = "yarn-v{version}/bin/yarn.js"
+
+[[files]]
+name = "yarnpkg"
+src = "yarn-v{version}/bin/yarnpkg"
+
+# Yarn Classic is platform-independent (Node.js-based)
+[platforms.darwin-aarch64]
+os = "universal"
+arch = "universal"
+
+[platforms.darwin-x86_64]
+os = "universal"
+arch = "universal"
+
+[platforms.linux-x86_64]
+os = "universal"
+arch = "universal"
+
+[platforms.linux-aarch64]
+os = "universal"
+arch = "universal"
+
+[platforms.windows-x86_64]
+os = "universal"
+arch = "universal"
