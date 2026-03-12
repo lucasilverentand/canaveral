@@ -1,0 +1,39 @@
+id = "swiftlint"
+name = "SwiftLint"
+binary = "swiftlint"
+repo = "realm/SwiftLint"
+tag_prefix = ""
+
+# macOS: portable_swiftlint.zip (universal binary, no version/arch in filename)
+# Linux: swiftlint_linux_{arch}.zip (arch = amd64 | arm64)
+asset = "swiftlint_linux_{arch}.zip"
+format = "zip"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "swiftlint"
+
+[platforms.darwin-aarch64]
+os = "macos"
+arch = "arm64"
+
+[platforms.darwin-x86_64]
+os = "macos"
+arch = "amd64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "amd64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "arm64"
+
+# macOS uses a universal binary with a different asset name
+[platform_overrides.darwin-aarch64]
+asset = "portable_swiftlint.zip"
+
+[platform_overrides.darwin-x86_64]
+asset = "portable_swiftlint.zip"

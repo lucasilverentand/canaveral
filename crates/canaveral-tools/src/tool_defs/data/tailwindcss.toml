@@ -1,0 +1,38 @@
+id = "tailwindcss"
+name = "Tailwind CSS"
+binary = "tailwindcss"
+repo = "tailwindlabs/tailwindcss"
+aliases = ["tailwind"]
+tag_prefix = "v"
+
+# Raw binary download — no archive
+# Asset names: tailwindcss-{os}-{arch} (no version in filename)
+url = "https://github.com/tailwindlabs/tailwindcss/releases/download/v{version}/tailwindcss-{os}-{arch}"
+format = "raw"
+
+[version_detect]
+args = ["--help"]
+regex = '(\d+\.\d+\.\d+)'
+
+[platforms.darwin-aarch64]
+os = "macos"
+arch = "arm64"
+
+[platforms.darwin-x86_64]
+os = "macos"
+arch = "x64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "x64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "arm64"
+
+[platform_overrides.windows-x86_64]
+url = "https://github.com/tailwindlabs/tailwindcss/releases/download/v{version}/tailwindcss-{os}-{arch}.exe"
+
+[platforms.windows-x86_64]
+os = "windows"
+arch = "x64"

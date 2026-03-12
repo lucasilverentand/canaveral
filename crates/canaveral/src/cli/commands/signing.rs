@@ -45,6 +45,9 @@ pub enum SigningSubcommand {
 
     /// Provisioning profile management
     Profiles(ProfilesCommand),
+
+    /// Generate a new Android keystore
+    GenerateKeystore(GenerateKeystoreCommand),
 }
 
 /// Provisioning profile subcommands
@@ -124,6 +127,10 @@ pub struct ListCommand {
     /// Show only valid (non-expired) identities
     #[arg(long)]
     pub valid_only: bool,
+
+    /// Path to Android keystore for listing keys
+    #[arg(long)]
+    pub keystore: Option<PathBuf>,
 }
 
 /// Sign an artifact
@@ -184,6 +191,22 @@ pub struct SignCommand {
     /// Key alias (Android)
     #[arg(long)]
     pub key_alias: Option<String>,
+
+    /// Enable V1 (JAR) signing scheme (Android)
+    #[arg(long)]
+    pub v1_signing: Option<bool>,
+
+    /// Enable V2 (APK Signature Scheme v2) (Android)
+    #[arg(long)]
+    pub v2_signing: Option<bool>,
+
+    /// Enable V3 (APK Signature Scheme v3) (Android)
+    #[arg(long)]
+    pub v3_signing: Option<bool>,
+
+    /// Enable V4 (APK Signature Scheme v4) (Android)
+    #[arg(long)]
+    pub v4_signing: Option<bool>,
 }
 
 /// Verify a signature
@@ -226,6 +249,46 @@ pub struct InfoCommand {
     pub provider: Option<String>,
 }
 
+/// Generate a new Android keystore
+#[derive(Debug, Args)]
+pub struct GenerateKeystoreCommand {
+    /// Output path for the keystore file
+    #[arg(required = true)]
+    pub output: PathBuf,
+
+    /// Key alias name
+    #[arg(long, default_value = "release")]
+    pub alias: String,
+
+    /// Keystore and key password (will prompt if not provided)
+    #[arg(long)]
+    pub password: Option<String>,
+
+    /// Certificate validity in days
+    #[arg(long, default_value = "10950")]
+    pub validity: u32,
+
+    /// Common Name (CN)
+    #[arg(long)]
+    pub cn: Option<String>,
+
+    /// Organization (O)
+    #[arg(long)]
+    pub org: Option<String>,
+
+    /// Country code (C)
+    #[arg(long)]
+    pub country: Option<String>,
+
+    /// Key algorithm (RSA, EC)
+    #[arg(long, default_value = "RSA")]
+    pub key_algorithm: String,
+
+    /// Key size in bits
+    #[arg(long, default_value = "2048")]
+    pub key_size: u32,
+}
+
 impl SigningCommand {
     /// Execute the signing command
     pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
@@ -236,6 +299,7 @@ impl SigningCommand {
             SigningSubcommand::Info(_) => "info",
             SigningSubcommand::Team(_) => "team",
             SigningSubcommand::Profiles(_) => "profiles",
+            SigningSubcommand::GenerateKeystore(_) => "generate-keystore",
         };
         info!(subcommand = subcommand_name, "executing signing command");
         // Create tokio runtime for async operations
@@ -248,6 +312,7 @@ impl SigningCommand {
             SigningSubcommand::Info(cmd) => rt.block_on(cmd.execute(cli)),
             SigningSubcommand::Team(cmd) => cmd.execute(cli),
             SigningSubcommand::Profiles(cmd) => cmd.execute(cli),
+            SigningSubcommand::GenerateKeystore(cmd) => rt.block_on(cmd.execute(cli)),
         }
     }
 }
@@ -287,6 +352,75 @@ impl ListCommand {
                 "Signing provider '{}' is not available on this system",
                 provider.name()
             );
+        }
+
+        // For Android with explicit keystore, list keys in that keystore
+        if provider_type == ProviderType::Android {
+            if let Some(ref keystore_path) = self.keystore {
+                let android_provider = canaveral_signing::AndroidProvider::new();
+                let password = std::env::var(
+                    config
+                        .signing
+                        .android
+                        .keystore_password_env
+                        .as_deref()
+                        .unwrap_or("ANDROID_KEYSTORE_PASSWORD"),
+                )
+                .unwrap_or_default();
+                let identities = android_provider
+                    .list_keystore_keys(&keystore_path.to_string_lossy(), &password)
+                    .await?;
+
+                if ui.is_json() {
+                    let output = serde_json::json!({
+                        "provider": provider.name(),
+                        "keystore": keystore_path,
+                        "identities": identities
+                    });
+                    ui.json(&output)?;
+                } else if ui.is_text() {
+                    ui.header(&format!("Keystore Keys ({})", keystore_path.display()));
+                    ui.blank();
+
+                    if identities.is_empty() {
+                        ui.hint("No keys found in keystore");
+                    } else {
+                        for id in &identities {
+                            let status = if id.is_expired() {
+                                style("EXPIRED").red()
+                            } else if !id.is_valid {
+                                style("INVALID").red()
+                            } else if id.expires_within_days(30) {
+                                style("EXPIRING SOON").yellow()
+                            } else {
+                                style("VALID").green()
+                            };
+
+                            println!("  {} [{}]", style(&id.name).cyan(), status);
+
+                            if let Some(fp) = &id.fingerprint {
+                                let short_fp = if fp.len() > 16 { &fp[..16] } else { fp };
+                                ui.key_value(
+                                    "    Fingerprint",
+                                    &format!("{}...", style(short_fp).dim()),
+                                );
+                            }
+
+                            if let Some(alias) = &id.key_alias {
+                                ui.key_value("    Alias", alias);
+                            }
+
+                            if let Some(exp) = id.expires_at {
+                                ui.key_value("    Expires", &exp.format("%Y-%m-%d").to_string());
+                            }
+
+                            ui.blank();
+                        }
+                    }
+                }
+
+                return Ok(());
+            }
         }
 
         let identities = provider.list_identities().await?;
@@ -458,6 +592,34 @@ impl SignCommand {
                     .unwrap_or("GPG_PASSPHRASE"),
             )
             .ok(),
+            v1_signing: self
+                .v1_signing
+                .or(if provider_type == ProviderType::Android {
+                    Some(config.signing.android.v1_signing)
+                } else {
+                    None
+                }),
+            v2_signing: self
+                .v2_signing
+                .or(if provider_type == ProviderType::Android {
+                    Some(config.signing.android.v2_signing)
+                } else {
+                    None
+                }),
+            v3_signing: self
+                .v3_signing
+                .or(if provider_type == ProviderType::Android {
+                    Some(config.signing.android.v3_signing)
+                } else {
+                    None
+                }),
+            v4_signing: self
+                .v4_signing
+                .or(if provider_type == ProviderType::Android {
+                    Some(config.signing.android.v4_signing)
+                } else {
+                    None
+                }),
             ..Default::default()
         };
 
@@ -549,6 +711,17 @@ impl VerifyCommand {
                 ui.key_value("Signer", &style(&signer.common_name).cyan().to_string());
                 if let Some(team) = &signer.team_id {
                     ui.key_value("Team", team);
+                }
+                if let Some(expires) = &signer.expires_at {
+                    let exp_str = expires.format("%Y-%m-%d").to_string();
+                    if signer.certificate_valid {
+                        ui.key_value("Certificate Expires", &style(&exp_str).green().to_string());
+                    } else {
+                        ui.key_value(
+                            "Certificate Expires",
+                            &style(format!("{} (EXPIRED)", exp_str)).red().to_string(),
+                        );
+                    }
                 }
             }
 
@@ -936,6 +1109,67 @@ impl ProfilesMatchCommand {
                 }
             }
         }
+
+        Ok(())
+    }
+}
+
+impl GenerateKeystoreCommand {
+    async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
+        if self.output.exists() {
+            anyhow::bail!(
+                "Keystore already exists at {}. Remove it first or choose a different path.",
+                self.output.display()
+            );
+        }
+
+        let provider = canaveral_signing::AndroidProvider::new();
+
+        let password = self.password.clone().unwrap_or_else(|| {
+            std::env::var("ANDROID_KEYSTORE_PASSWORD").unwrap_or_else(|_| "changeit".to_string())
+        });
+
+        let mut dname_parts = Vec::new();
+        if let Some(ref cn) = self.cn {
+            dname_parts.push(format!("CN={cn}"));
+        }
+        if let Some(ref org) = self.org {
+            dname_parts.push(format!("O={org}"));
+        }
+        if let Some(ref country) = self.country {
+            dname_parts.push(format!("C={country}"));
+        }
+        let dname = if dname_parts.is_empty() {
+            "CN=Unknown, O=Unknown, C=US".to_string()
+        } else {
+            dname_parts.join(", ")
+        };
+
+        ui.info(&format!(
+            "Generating keystore at {}",
+            style(self.output.display()).bold()
+        ));
+
+        provider
+            .generate_keystore(
+                &self.output,
+                &self.alias,
+                &password,
+                self.validity,
+                &dname,
+                &self.key_algorithm,
+                self.key_size,
+            )
+            .await?;
+
+        ui.success("Keystore generated successfully");
+        ui.key_value("Path", &self.output.display().to_string());
+        ui.key_value("Alias", &self.alias);
+        ui.key_value("Algorithm", &self.key_algorithm);
+        ui.key_value("Key Size", &self.key_size.to_string());
+        ui.key_value("Validity", &format!("{} days", self.validity));
 
         Ok(())
     }

@@ -1,0 +1,34 @@
+id = "ktlint"
+name = "ktlint"
+binary = "ktlint"
+repo = "pinterest/ktlint"
+tag_prefix = ""
+
+# Raw binary download — platform-independent JVM executable
+# The standalone `ktlint` file is a self-contained script+JAR (requires Java)
+url = "https://github.com/pinterest/ktlint/releases/download/{version}/ktlint"
+format = "raw"
+
+[version_detect]
+args = ["--version"]
+
+# ktlint is platform-independent (JVM-based)
+[platforms.darwin-aarch64]
+os = "universal"
+arch = "universal"
+
+[platforms.darwin-x86_64]
+os = "universal"
+arch = "universal"
+
+[platforms.linux-x86_64]
+os = "universal"
+arch = "universal"
+
+[platforms.linux-aarch64]
+os = "universal"
+arch = "universal"
+
+[platforms.windows-x86_64]
+os = "universal"
+arch = "universal"

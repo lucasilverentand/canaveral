@@ -15,7 +15,7 @@ use canaveral_tools::ToolProvider;
 // SECTION 1: Embedded definition registry – completeness & consistency
 // ---------------------------------------------------------------------------
 
-/// All 26 expected tool IDs are present in the registry.
+/// All expected tool IDs are present in the registry.
 #[test]
 fn all_expected_tools_are_registered() {
     let defs = definitions();
@@ -51,6 +51,19 @@ fn all_expected_tools_are_registered() {
         "watchman",
         "gradle",
         "cargo-tauri",
+        // iOS ecosystem
+        "swiftlint",
+        "swiftformat",
+        "xcbeautify",
+        "tuist",
+        "xcodegen",
+        "periphery",
+        // TypeScript ecosystem
+        "bun",
+        "tailwindcss",
+        "oxlint",
+        // Android / Kotlin ecosystem
+        "ktlint",
     ];
     for id in &expected {
         assert!(defs.contains_key(*id), "missing tool definition for '{id}'");
@@ -81,16 +94,23 @@ fn every_definition_has_darwin_aarch64_platform() {
     }
 }
 
-/// Every definition has at least a `linux-x86_64` platform mapping.
+/// Every definition has at least a `linux-x86_64` platform mapping,
+/// except tools that are macOS-only (e.g. xcodegen, periphery).
 #[test]
 fn every_definition_has_linux_x86_64_platform() {
     let defs = definitions();
+    // macOS-only tools that don't provide Linux builds
+    let no_linux = ["xcodegen", "periphery"];
+
     let unique: Vec<_> = defs
         .iter()
         .filter(|(key, def)| key.as_str() == def.id.as_str())
         .collect();
 
     for (id, def) in &unique {
+        if no_linux.contains(&id.as_str()) {
+            continue;
+        }
         assert!(
             def.platforms.contains_key("linux-x86_64"),
             "tool '{id}' is missing linux-x86_64 platform"
@@ -894,6 +914,73 @@ fn url_shellcheck() {
     assert!(url.contains("0.10.0"));
 }
 
+#[test]
+fn url_swiftlint() {
+    let url = url_for("swiftlint", "0.57.1");
+    assert!(url.contains("github.com/realm/SwiftLint"));
+    assert!(url.contains("0.57.1"));
+}
+
+#[test]
+fn url_swiftformat() {
+    let url = url_for("swiftformat", "0.55.3");
+    assert!(url.contains("github.com/nicklockwood/SwiftFormat"));
+    assert!(url.contains("0.55.3"));
+}
+
+#[test]
+fn url_xcbeautify() {
+    let url = url_for("xcbeautify", "2.15.0");
+    assert!(url.contains("github.com/cpisciotta/xcbeautify"));
+    assert!(url.contains("2.15.0"));
+}
+
+#[test]
+fn url_tuist() {
+    let url = url_for("tuist", "4.36.0");
+    assert!(url.contains("github.com/tuist/tuist"));
+    assert!(url.contains("4.36.0"));
+}
+
+#[test]
+fn url_xcodegen() {
+    let url = url_for("xcodegen", "2.42.0");
+    assert!(url.contains("github.com/yonaskolb/XcodeGen"));
+    assert!(url.contains("2.42.0"));
+}
+
+#[test]
+fn url_periphery() {
+    let url = url_for("periphery", "3.0.2");
+    assert!(url.contains("github.com/peripheryapp/periphery"));
+    assert!(url.contains("3.0.2"));
+}
+
+#[test]
+fn url_oxlint() {
+    let url = url_for("oxlint", "1.54.0");
+    assert!(url.contains("github.com/oxc-project/oxc"));
+    assert!(url.contains("1.54.0"));
+    // Uses apps_v tag prefix
+    assert!(url.contains("/apps_v1.54.0/"));
+}
+
+#[test]
+fn url_tailwindcss() {
+    let url = url_for("tailwindcss", "4.1.0");
+    assert!(url.contains("github.com/tailwindlabs/tailwindcss"));
+    assert!(url.contains("4.1.0"));
+}
+
+#[test]
+fn url_ktlint() {
+    let url = url_for("ktlint", "1.8.0");
+    assert!(url.contains("github.com/pinterest/ktlint"));
+    assert!(url.contains("1.8.0"));
+    // ktlint uses no tag prefix
+    assert!(url.contains("/1.8.0/"));
+}
+
 // ---------------------------------------------------------------------------
 // SECTION 8: GenericProvider – tar.gz extraction
 // ---------------------------------------------------------------------------
@@ -1424,6 +1511,16 @@ fn registry_all_tools_from_embedded_are_accessible() {
         "watchman",
         "gradle",
         "cargo-tauri",
+        "swiftlint",
+        "swiftformat",
+        "xcbeautify",
+        "tuist",
+        "xcodegen",
+        "periphery",
+        "bun",
+        "tailwindcss",
+        "oxlint",
+        "ktlint",
     ];
     for id in &all_ids {
         assert!(
@@ -1504,8 +1601,8 @@ fn definitions_map_has_expected_entry_count() {
         .filter(|(key, def)| key.as_str() == def.id.as_str())
         .count();
     assert_eq!(
-        unique_count, 31,
-        "expected 31 unique tool definitions, got {unique_count}"
+        unique_count, 41,
+        "expected 41 unique tool definitions, got {unique_count}"
     );
 }
 

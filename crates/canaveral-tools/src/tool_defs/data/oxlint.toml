@@ -1,0 +1,41 @@
+id = "oxlint"
+name = "oxlint"
+binary = "oxlint"
+repo = "oxc-project/oxc"
+tag_prefix = "apps_v"
+
+# Asset: oxlint-{arch}-{os}.tar.gz (Rust target triples)
+# Archive contains: oxlint-{arch}-{os} (bare binary at root)
+asset = "oxlint-{arch}-{os}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "oxlint"
+src = "oxlint-{arch}-{os}"
+
+[platforms.darwin-aarch64]
+os = "apple-darwin"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "apple-darwin"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "unknown-linux-gnu"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "unknown-linux-gnu"
+arch = "aarch64"
+
+[platform_overrides.windows-x86_64]
+format = "zip"
+asset = "oxlint-{arch}-{os}.zip"
+
+[platforms.windows-x86_64]
+os = "pc-windows-msvc"
+arch = "x86_64"

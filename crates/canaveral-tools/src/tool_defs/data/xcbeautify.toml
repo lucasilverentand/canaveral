@@ -1,0 +1,32 @@
+id = "xcbeautify"
+name = "xcbeautify"
+binary = "xcbeautify"
+repo = "cpisciotta/xcbeautify"
+tag_prefix = ""
+
+# macOS: xcbeautify-{version}-{arch}-apple-macosx.zip
+# Linux: xcbeautify-{version}-x86_64-unknown-linux-gnu.tar.xz
+asset = "xcbeautify-{version}-{arch}-{os}.zip"
+format = "zip"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "xcbeautify"
+
+[platforms.darwin-aarch64]
+os = "apple-macosx"
+arch = "arm64"
+
+[platforms.darwin-x86_64]
+os = "apple-macosx"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "unknown-linux-gnu"
+arch = "x86_64"
+
+[platform_overrides.linux-x86_64]
+format = "tar.xz"
+asset = "xcbeautify-{version}-{arch}-{os}.tar.xz"

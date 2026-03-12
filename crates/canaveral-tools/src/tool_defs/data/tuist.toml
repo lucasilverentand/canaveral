@@ -1,0 +1,41 @@
+id = "tuist"
+name = "Tuist"
+binary = "tuist"
+repo = "tuist/tuist"
+tag_prefix = ""
+
+# macOS: tuist.zip (universal binary, no version/arch in filename)
+# Linux: tuist-linux-{arch}.tar.gz
+asset = "tuist-linux-{arch}.tar.gz"
+format = "tar.gz"
+
+[version_detect]
+args = ["version"]
+
+[[files]]
+name = "tuist"
+
+[platforms.darwin-aarch64]
+os = "macos"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "macos"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "aarch64"
+
+# macOS uses a universal binary with a different asset name
+[platform_overrides.darwin-aarch64]
+format = "zip"
+asset = "tuist.zip"
+
+[platform_overrides.darwin-x86_64]
+format = "zip"
+asset = "tuist.zip"

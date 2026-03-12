@@ -193,6 +193,28 @@ impl ToolRegistry {
         self.register(system::npx());
         self.register(system::yarn());
         self.register(system::eas());
+
+        // TypeScript ecosystem
+        self.register(system::tsc());
+        self.register(system::turbo());
+        self.register(system::esbuild());
+
+        // iOS / Swift ecosystem
+        self.register(system::swift());
+        self.register(system::xcode_select());
+
+        // Expo / React Native ecosystem
+        self.register(system::expo());
+
+        // Android SDK & JDK tools
+        self.register(system::keytool());
+        self.register(system::sdkmanager());
+        self.register(system::apksigner());
+        self.register(system::zipalign());
+        self.register(system::emulator());
+        self.register(system::aapt2());
+        self.register(system::avdmanager());
+        self.register(system::bundletool());
     }
 }
 

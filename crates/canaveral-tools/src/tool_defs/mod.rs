@@ -48,6 +48,16 @@ pub fn definitions() -> &'static HashMap<String, ToolDefinition> {
         load_def(&mut map, include_str!("data/watchman.toml"));
         load_def(&mut map, include_str!("data/gradle.toml"));
         load_def(&mut map, include_str!("data/cargo-tauri.toml"));
+        load_def(&mut map, include_str!("data/swiftlint.toml"));
+        load_def(&mut map, include_str!("data/swiftformat.toml"));
+        load_def(&mut map, include_str!("data/xcbeautify.toml"));
+        load_def(&mut map, include_str!("data/tuist.toml"));
+        load_def(&mut map, include_str!("data/xcodegen.toml"));
+        load_def(&mut map, include_str!("data/periphery.toml"));
+        load_def(&mut map, include_str!("data/bun.toml"));
+        load_def(&mut map, include_str!("data/tailwindcss.toml"));
+        load_def(&mut map, include_str!("data/oxlint.toml"));
+        load_def(&mut map, include_str!("data/ktlint.toml"));
 
         map
     })

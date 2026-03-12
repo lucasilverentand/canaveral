@@ -54,6 +54,18 @@ pub struct SignOptions {
     /// Key password (Android)
     pub key_password: Option<String>,
 
+    /// Enable V1 (JAR) signing scheme (Android)
+    pub v1_signing: Option<bool>,
+
+    /// Enable V2 (APK Signature Scheme v2) (Android)
+    pub v2_signing: Option<bool>,
+
+    /// Enable V3 (APK Signature Scheme v3) (Android)
+    pub v3_signing: Option<bool>,
+
+    /// Enable V4 (APK Signature Scheme v4) (Android)
+    pub v4_signing: Option<bool>,
+
     /// GPG passphrase
     pub passphrase: Option<String>,
 

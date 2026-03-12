@@ -1,0 +1,43 @@
+id = "swiftformat"
+name = "SwiftFormat"
+binary = "swiftformat"
+repo = "nicklockwood/SwiftFormat"
+tag_prefix = ""
+
+# macOS: swiftformat.zip (universal binary)
+# Linux x86_64: swiftformat_linux.zip
+# Linux aarch64: swiftformat_linux_aarch64.zip
+# Asset names don't follow a single template — use platform overrides
+asset = "swiftformat_linux.zip"
+format = "zip"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "swiftformat"
+
+[platforms.darwin-aarch64]
+os = "macos"
+arch = "arm64"
+
+[platforms.darwin-x86_64]
+os = "macos"
+arch = "amd64"
+
+[platforms.linux-x86_64]
+os = "linux"
+arch = "amd64"
+
+[platforms.linux-aarch64]
+os = "linux"
+arch = "aarch64"
+
+[platform_overrides.darwin-aarch64]
+asset = "swiftformat.zip"
+
+[platform_overrides.darwin-x86_64]
+asset = "swiftformat.zip"
+
+[platform_overrides.linux-aarch64]
+asset = "swiftformat_linux_aarch64.zip"

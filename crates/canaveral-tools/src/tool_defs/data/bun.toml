@@ -1,0 +1,36 @@
+id = "bun"
+name = "Bun"
+binary = "bun"
+repo = "oven-sh/bun"
+tag_prefix = "bun-v"
+
+# Asset: bun-{os}.zip containing bun-{os}/bun
+asset = "bun-{os}.zip"
+format = "zip"
+
+[version_detect]
+args = ["--version"]
+
+[[files]]
+name = "bun"
+src = "bun-{os}/bun"
+
+[platforms.darwin-aarch64]
+os = "darwin-aarch64"
+arch = "aarch64"
+
+[platforms.darwin-x86_64]
+os = "darwin-x64"
+arch = "x86_64"
+
+[platforms.linux-x86_64]
+os = "linux-x64"
+arch = "x86_64"
+
+[platforms.linux-aarch64]
+os = "linux-aarch64"
+arch = "aarch64"
+
+[platforms.windows-x86_64]
+os = "windows-x64"
+arch = "x86_64"
