@@ -7,7 +7,9 @@ use tracing::info;
 
 use canaveral_core::config::load_config_or_default;
 use canaveral_signing::{
+    profiles::ProfileManager,
     providers::{create_provider, ProviderType},
+    sync::ProfileType,
     SignOptions, VerifyOptions,
 };
 
@@ -40,6 +42,76 @@ pub enum SigningSubcommand {
 
     /// Team vault management
     Team(TeamCommand),
+
+    /// Provisioning profile management
+    Profiles(ProfilesCommand),
+}
+
+/// Provisioning profile subcommands
+#[derive(Debug, Args)]
+pub struct ProfilesCommand {
+    #[command(subcommand)]
+    pub command: ProfilesSubcommand,
+}
+
+/// Profile management subcommands
+#[derive(Debug, Subcommand)]
+pub enum ProfilesSubcommand {
+    /// List installed provisioning profiles
+    List(ProfilesListCommand),
+
+    /// Install a provisioning profile
+    Install(ProfilesInstallCommand),
+
+    /// Remove expired provisioning profiles
+    Cleanup(ProfilesCleanupCommand),
+
+    /// Sync profiles from match repository
+    Match(ProfilesMatchCommand),
+}
+
+/// List installed profiles
+#[derive(Debug, Args)]
+pub struct ProfilesListCommand {
+    /// Show only valid (non-expired) profiles
+    #[arg(long)]
+    pub valid_only: bool,
+
+    /// Filter by bundle ID
+    #[arg(long)]
+    pub bundle_id: Option<String>,
+
+    /// Filter by profile type (development, adhoc, appstore, enterprise)
+    #[arg(long)]
+    pub profile_type: Option<String>,
+}
+
+/// Install a provisioning profile
+#[derive(Debug, Args)]
+pub struct ProfilesInstallCommand {
+    /// Path to the .mobileprovision file
+    #[arg(required = true)]
+    pub path: PathBuf,
+}
+
+/// Remove expired profiles
+#[derive(Debug, Args)]
+pub struct ProfilesCleanupCommand;
+
+/// Sync profiles from match repo
+#[derive(Debug, Args)]
+pub struct ProfilesMatchCommand {
+    /// Private key file
+    #[arg(long, default_value = ".canaveral/match/match.key")]
+    pub keyfile: PathBuf,
+
+    /// Storage configuration file
+    #[arg(short, long, default_value = ".canaveral/match/config.toml")]
+    pub config: PathBuf,
+
+    /// App IDs to sync (comma-separated)
+    #[arg(long)]
+    pub app_ids: Option<String>,
 }
 
 /// List available signing identities
@@ -163,6 +235,7 @@ impl SigningCommand {
             SigningSubcommand::Verify(_) => "verify",
             SigningSubcommand::Info(_) => "info",
             SigningSubcommand::Team(_) => "team",
+            SigningSubcommand::Profiles(_) => "profiles",
         };
         info!(subcommand = subcommand_name, "executing signing command");
         // Create tokio runtime for async operations
@@ -174,6 +247,7 @@ impl SigningCommand {
             SigningSubcommand::Verify(cmd) => rt.block_on(cmd.execute(cli)),
             SigningSubcommand::Info(cmd) => rt.block_on(cmd.execute(cli)),
             SigningSubcommand::Team(cmd) => cmd.execute(cli),
+            SigningSubcommand::Profiles(cmd) => cmd.execute(cli),
         }
     }
 }
@@ -621,6 +695,245 @@ impl InfoCommand {
 
             if let Some(alias) = &identity.key_alias {
                 ui.key_value("Key Alias", alias);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl ProfilesCommand {
+    pub fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let subcommand_name = match &self.command {
+            ProfilesSubcommand::List(_) => "list",
+            ProfilesSubcommand::Install(_) => "install",
+            ProfilesSubcommand::Cleanup(_) => "cleanup",
+            ProfilesSubcommand::Match(_) => "match",
+        };
+        info!(subcommand = subcommand_name, "executing profiles command");
+
+        match &self.command {
+            ProfilesSubcommand::List(cmd) => cmd.execute(cli),
+            ProfilesSubcommand::Install(cmd) => cmd.execute(cli),
+            ProfilesSubcommand::Cleanup(cmd) => cmd.execute(cli),
+            ProfilesSubcommand::Match(cmd) => {
+                let rt = tokio::runtime::Runtime::new()?;
+                rt.block_on(cmd.execute(cli))
+            }
+        }
+    }
+}
+
+impl ProfilesListCommand {
+    fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+        let manager = ProfileManager::new();
+
+        let profiles = manager.list_installed()?;
+
+        let profiles: Vec<_> = profiles
+            .into_iter()
+            .filter(|p| {
+                if self.valid_only && p.is_expired() {
+                    return false;
+                }
+                if let Some(ref bundle_id) = self.bundle_id {
+                    if !p.matches_bundle_id(bundle_id) {
+                        return false;
+                    }
+                }
+                if let Some(ref pt) = self.profile_type {
+                    let expected = match pt.to_lowercase().as_str() {
+                        "development" | "dev" => ProfileType::Development,
+                        "adhoc" | "ad-hoc" => ProfileType::AdHoc,
+                        "appstore" | "app-store" => ProfileType::AppStore,
+                        "enterprise" => ProfileType::Enterprise,
+                        _ => return true, // Unknown type, don't filter
+                    };
+                    if p.profile_type != expected {
+                        return false;
+                    }
+                }
+                true
+            })
+            .collect();
+
+        if ui.is_json() {
+            ui.json(&profiles)?;
+        } else if ui.is_text() {
+            ui.header("Installed Provisioning Profiles");
+            ui.blank();
+
+            if profiles.is_empty() {
+                ui.hint("No matching profiles found");
+            } else {
+                for profile in &profiles {
+                    let status = if profile.is_expired() {
+                        style("EXPIRED").red()
+                    } else if profile.expires_within_days(30) {
+                        style("EXPIRING SOON").yellow()
+                    } else {
+                        style("VALID").green()
+                    };
+
+                    println!(
+                        "  {} [{}] [{}]",
+                        style(&profile.name).cyan(),
+                        style(&profile.profile_type).dim(),
+                        status,
+                    );
+                    ui.key_value("    Bundle ID", &profile.bundle_id);
+                    ui.key_value("    UUID", &profile.uuid);
+                    ui.key_value("    Team", &profile.team_id);
+                    ui.key_value(
+                        "    Expires",
+                        &profile.expiration_date.format("%Y-%m-%d").to_string(),
+                    );
+                    if !profile.devices.is_empty() {
+                        ui.key_value(
+                            "    Devices",
+                            &format!("{} registered", profile.devices.len()),
+                        );
+                    }
+                    ui.blank();
+                }
+
+                ui.info(&format!("{} profile(s) found", profiles.len()));
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl ProfilesInstallCommand {
+    fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+        let manager = ProfileManager::new();
+
+        if !self.path.exists() {
+            anyhow::bail!("File not found: {}", self.path.display());
+        }
+
+        ui.info(&format!(
+            "Installing profile from {}",
+            style(self.path.display()).bold()
+        ));
+
+        let profile = manager.install(&self.path)?;
+
+        if ui.is_json() {
+            ui.json(&profile)?;
+        } else if ui.is_text() {
+            ui.success(&format!(
+                "Installed profile: {}",
+                style(&profile.name).cyan()
+            ));
+            ui.key_value("UUID", &profile.uuid);
+            ui.key_value("Bundle ID", &profile.bundle_id);
+            ui.key_value("Type", &profile.profile_type.to_string());
+            ui.key_value("Team", &profile.team_id);
+            ui.key_value(
+                "Expires",
+                &profile.expiration_date.format("%Y-%m-%d").to_string(),
+            );
+        }
+
+        Ok(())
+    }
+}
+
+impl ProfilesCleanupCommand {
+    fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+        let manager = ProfileManager::new();
+
+        ui.info("Cleaning up expired provisioning profiles...");
+
+        let removed = manager.cleanup_expired()?;
+
+        if ui.is_json() {
+            let output = serde_json::json!({
+                "removed_count": removed.len(),
+                "removed_uuids": removed,
+            });
+            ui.json(&output)?;
+        } else if ui.is_text() {
+            if removed.is_empty() {
+                ui.success("No expired profiles found");
+            } else {
+                ui.success(&format!(
+                    "Removed {} expired profile(s)",
+                    style(removed.len()).cyan()
+                ));
+                for uuid in &removed {
+                    println!("  {} {}", style("-").red(), style(uuid).dim());
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl ProfilesMatchCommand {
+    async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
+        let ui = Ui::new(cli);
+
+        use canaveral_signing::sync::{MatchConfig, MatchSync};
+
+        // Load configuration
+        let config_content = std::fs::read_to_string(&self.config)
+            .map_err(|_| anyhow::anyhow!("Config not found. Run 'canaveral match init' first."))?;
+        let mut config: MatchConfig = toml::from_str(&config_content)?;
+
+        if let Some(ref app_ids) = self.app_ids {
+            config.app_ids = app_ids.split(',').map(|s| s.trim().to_string()).collect();
+        }
+
+        // Load keypair
+        let private_key = std::fs::read_to_string(&self.keyfile)
+            .map_err(|_| anyhow::anyhow!("Key file not found: {}", self.keyfile.display()))?;
+
+        let public_key = config
+            .encryption_key
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("No encryption key in config"))?;
+
+        let keypair = canaveral_signing::team::KeyPair {
+            public_key,
+            private_key,
+        };
+
+        ui.blank();
+        ui.header("Syncing profiles from match repository...");
+        ui.blank();
+
+        let sync = MatchSync::new(config)?.with_keypair(keypair);
+        let manifest = sync.sync().await?;
+
+        let profile_count: usize = manifest.profiles.values().map(|v| v.len()).sum();
+
+        if ui.is_json() {
+            ui.json(&manifest)?;
+        } else if ui.is_text() {
+            ui.success("Profile sync complete");
+            ui.info(&format!(
+                "{} profile(s) synced",
+                style(profile_count).cyan()
+            ));
+
+            for (app_id, profiles) in &manifest.profiles {
+                for (profile_type, profile) in profiles {
+                    println!(
+                        "  {} {} ({}) - {} - expires {}",
+                        style("*").dim(),
+                        style(&profile.name).cyan(),
+                        profile_type,
+                        app_id,
+                        style(&profile.expires).yellow()
+                    );
+                }
             }
         }
 

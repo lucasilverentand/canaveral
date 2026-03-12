@@ -12,6 +12,7 @@
 
 pub mod error;
 pub mod identity;
+pub mod profiles;
 pub mod provider;
 pub mod providers;
 pub mod registry;
@@ -31,5 +32,6 @@ pub use providers::macos::MacOSProvider;
 #[cfg(target_os = "windows")]
 pub use providers::windows::WindowsProvider;
 
+pub use profiles::{ProfileManager, ProvisioningProfile};
 pub use providers::android::AndroidProvider;
 pub use registry::SigningProviderRegistry;
