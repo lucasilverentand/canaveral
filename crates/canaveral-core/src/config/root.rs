@@ -6,6 +6,7 @@ use super::changelog::ChangelogConfig;
 use super::ci::CIConfig;
 use super::git::GitConfig;
 use super::hooks_cfg::{GitHooksConfig, HooksConfig};
+use super::ios::IosConfig;
 use super::metadata_cfg::MetadataConfig;
 use super::pr::PrConfig;
 use super::publishing::PublishConfig;
@@ -79,6 +80,10 @@ pub struct Config {
 
     /// Publishing configuration
     pub publish: PublishConfig,
+
+    /// iOS platform configuration
+    #[serde(default)]
+    pub ios: IosConfig,
 
     /// Code signing configuration
     #[serde(default)]

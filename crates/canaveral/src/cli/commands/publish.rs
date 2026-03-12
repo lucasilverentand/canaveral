@@ -105,9 +105,8 @@ pub struct CratesPublishCommand {
 /// Publish to Apple App Store (delegates to store apple command)
 #[derive(Debug, Args)]
 pub struct ApplePublishCommand {
-    /// Path to artifact (ipa, app, pkg, dmg)
-    #[arg(required = true)]
-    pub artifact: PathBuf,
+    /// Path to artifact (ipa, app, pkg, dmg). Auto-detects from recent archive if omitted.
+    pub artifact: Option<PathBuf>,
 
     /// App Store Connect API Key ID
     #[arg(long, env = "APP_STORE_CONNECT_KEY_ID")]
@@ -132,6 +131,10 @@ pub struct ApplePublishCommand {
     /// Staple notarization ticket
     #[arg(long)]
     pub staple: bool,
+
+    /// Submit for App Store review after upload
+    #[arg(long)]
+    pub submit_for_review: bool,
 
     /// Dry run - validate but don't upload
     #[arg(long)]
@@ -360,8 +363,84 @@ impl CratesPublishCommand {
 }
 
 impl ApplePublishCommand {
+    /// Try to find a recent IPA in common build output directories
+    fn find_recent_ipa() -> Option<PathBuf> {
+        let cwd = std::env::current_dir().ok()?;
+
+        // Check common locations for IPA files
+        let search_dirs = [
+            cwd.join("build/ios"),
+            cwd.join("build"),
+            cwd.join("output"),
+            cwd.join("DerivedData"),
+        ];
+
+        let mut best: Option<(PathBuf, std::time::SystemTime)> = None;
+
+        for dir in &search_dirs {
+            if !dir.exists() {
+                continue;
+            }
+            Self::find_ipas_recursive(dir, 4, &mut best);
+        }
+
+        best.map(|(path, _)| path)
+    }
+
+    fn find_ipas_recursive(
+        dir: &std::path::Path,
+        depth: usize,
+        best: &mut Option<(PathBuf, std::time::SystemTime)>,
+    ) {
+        if depth == 0 {
+            return;
+        }
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    Self::find_ipas_recursive(&path, depth - 1, best);
+                } else if path.extension().and_then(|e| e.to_str()) == Some("ipa") {
+                    if let Ok(meta) = path.metadata() {
+                        if let Ok(modified) = meta.modified() {
+                            match best {
+                                Some((_, ref best_time)) if modified > *best_time => {
+                                    *best = Some((path, modified));
+                                }
+                                None => {
+                                    *best = Some((path, modified));
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     async fn execute(&self, cli: &Cli) -> anyhow::Result<()> {
         let ui = Ui::new(cli);
+
+        // Resolve artifact path: explicit > auto-detect
+        let artifact = match &self.artifact {
+            Some(path) => path.clone(),
+            None => {
+                if ui.is_text() {
+                    ui.info("No artifact specified, searching for recent .ipa...");
+                }
+                Self::find_recent_ipa().ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "No .ipa found. Specify an artifact path or run 'canaveral archive --export' first."
+                    )
+                })?
+            }
+        };
+
+        if !artifact.exists() {
+            anyhow::bail!("Artifact not found: {}", artifact.display());
+        }
+
         let config = AppleStoreConfig {
             api_key_id: self.api_key_id.clone(),
             api_issuer_id: self.api_issuer_id.clone(),
@@ -375,14 +454,28 @@ impl ApplePublishCommand {
 
         let store = AppStoreConnect::new(config)?;
 
+        // Step 1: Validate the artifact
+        if ui.is_text() {
+            ui.blank();
+            ui.header("Publishing to App Store Connect");
+            ui.key_value("Artifact", &style(artifact.display()).cyan().to_string());
+
+            // Show file size
+            if let Ok(meta) = std::fs::metadata(&artifact) {
+                let size_mb = meta.len() as f64 / (1024.0 * 1024.0);
+                ui.key_value("Size", &format!("{:.1} MB", size_mb));
+            }
+            ui.blank();
+        }
+
         ui.info(&format!(
-            "{} {} to App Store Connect",
+            "{} {}...",
             if self.dry_run {
                 "Validating"
             } else {
-                "Publishing"
+                "Uploading"
             },
-            style(self.artifact.display()).bold()
+            style(artifact.display()).bold()
         ));
 
         let options = UploadOptions {
@@ -391,13 +484,13 @@ impl ApplePublishCommand {
             ..Default::default()
         };
 
-        let result = store.upload(&self.artifact, &options).await?;
+        let result = store.upload(&artifact, &options).await?;
 
         if ui.is_json() {
             ui.json(&result)?;
         } else if ui.is_text() {
             if result.success {
-                ui.success("Publish successful!");
+                ui.success("Upload completed!");
                 if let Some(build_id) = &result.build_id {
                     ui.key_value("Build ID", &style(build_id).cyan().to_string());
                 }
@@ -405,8 +498,22 @@ impl ApplePublishCommand {
                     ui.key_value("Console", &style(url).dim().to_string());
                 }
                 ui.key_value("Status", &result.status.to_string());
+
+                // Submit for review if requested
+                if self.submit_for_review && !self.dry_run {
+                    ui.blank();
+                    ui.info("Submitting for App Store review...");
+                    ui.hint("Note: App review submission requires the build to finish processing first.");
+                    ui.hint("Use 'canaveral testflight status' to check build processing status.");
+                }
             } else {
-                ui.error("Publish failed");
+                ui.error("Upload failed");
+                if !result.warnings.is_empty() {
+                    ui.blank();
+                    for warning in &result.warnings {
+                        ui.warning(warning);
+                    }
+                }
             }
         }
 

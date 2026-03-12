@@ -74,6 +74,10 @@ pub struct UploadArgs {
     /// Locale for changelog
     #[arg(long, default_value = "en-US")]
     pub locale: String,
+
+    /// Dry run - validate but don't upload
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 /// Status arguments
@@ -275,14 +279,57 @@ impl TestFlightCommand {
         ui.blank();
         ui.header("Uploading to TestFlight...");
         ui.key_value("File", &style(args.ipa.display()).cyan().to_string());
+        if let Ok(meta) = std::fs::metadata(&args.ipa) {
+            let size_mb = meta.len() as f64 / (1024.0 * 1024.0);
+            ui.key_value("Size", &format!("{:.1} MB", size_mb));
+        }
+        if let Some(ref changelog) = args.changelog {
+            ui.key_value("What's New", &style(changelog).dim().to_string());
+        }
+        if args.dry_run {
+            ui.warning("DRY RUN");
+        }
         ui.blank();
 
+        // Dry run: validate only
+        if args.dry_run {
+            let store = AppStoreConnect::new(config)?;
+
+            ui.info("Validating IPA...");
+            let validation = store.validate_artifact(&args.ipa).await?;
+
+            if ui.is_json() {
+                ui.json(&validation)?;
+            } else if ui.is_text() {
+                if validation.valid {
+                    ui.success("IPA is valid for TestFlight upload");
+                    if let Some(ref app_info) = validation.app_info {
+                        ui.key_value("Bundle ID", &style(&app_info.identifier).cyan().to_string());
+                        ui.key_value("Version", &style(&app_info.version).cyan().to_string());
+                        ui.key_value("Build", &style(&app_info.build_number).cyan().to_string());
+                    }
+                } else {
+                    ui.error("IPA validation failed");
+                    for error in &validation.errors {
+                        ui.warning(&error.message);
+                    }
+                }
+            }
+            return Ok(());
+        }
+
         let store = AppStoreConnect::new(config)?;
+
+        let mut release_notes = std::collections::HashMap::new();
+        if let Some(ref changelog) = args.changelog {
+            release_notes.insert(args.locale.clone(), changelog.clone());
+        }
 
         let options = UploadOptions {
             track: Some("testflight".to_string()),
             dry_run: false,
             verbose: cli.verbose,
+            release_notes,
             ..Default::default()
         };
 
@@ -291,16 +338,33 @@ impl TestFlightCommand {
         if ui.is_json() {
             ui.json(&result)?;
         } else if ui.is_text() {
-            ui.success("Upload completed!");
-            if let Some(ref build_id) = result.build_id {
-                ui.key_value("Build ID", &style(build_id).cyan().to_string());
-            }
-            ui.key_value(
-                "Status",
-                &style(result.status.to_string()).yellow().to_string(),
-            );
-            if let Some(ref url) = result.console_url {
-                ui.key_value("Console", &style(url).dim().to_string());
+            if result.success {
+                ui.success("Upload completed!");
+                if let Some(ref build_id) = result.build_id {
+                    ui.key_value("Build ID", &style(build_id).cyan().to_string());
+                }
+                ui.key_value(
+                    "Status",
+                    &style(result.status.to_string()).yellow().to_string(),
+                );
+                if let Some(ref url) = result.console_url {
+                    ui.key_value("Console", &style(url).dim().to_string());
+                }
+
+                if !args.skip_distribution {
+                    ui.blank();
+                    ui.hint(
+                        "Build will be available to TestFlight testers after processing completes.",
+                    );
+                    ui.hint("Check status with: canaveral testflight status");
+                }
+            } else {
+                ui.error("Upload failed");
+                if !result.warnings.is_empty() {
+                    for warning in &result.warnings {
+                        ui.warning(warning);
+                    }
+                }
             }
         }
 
@@ -691,6 +755,7 @@ mod tests {
             skip_distribution: false,
             changelog: None,
             locale: "en-US".to_string(),
+            dry_run: false,
         };
         assert_eq!(args.locale, "en-US");
     }

@@ -8,10 +8,10 @@ use std::fmt::Write;
 use tracing::info;
 
 use commands::{
-    BuildCommand, CICommand, CacheCommand, ChangelogCommand, CheckCommand, CompletionsCommand,
-    DoctorCommand, FirebaseCommand, FmtCommand, HooksCommand, InitCommand, LintCommand,
-    MatchCommand, MetadataCommand, PrCommand, PublishCommand, ReleaseCommand, RunCommand,
-    ScaffoldCommand, ScreenshotsCommand, SigningCommand, StatusCommand, TestCommand,
+    ArchiveCommand, BuildCommand, CICommand, CacheCommand, ChangelogCommand, CheckCommand,
+    CompletionsCommand, DoctorCommand, FirebaseCommand, FmtCommand, HooksCommand, InitCommand,
+    LintCommand, MatchCommand, MetadataCommand, PrCommand, PublishCommand, ReleaseCommand,
+    RunCommand, ScaffoldCommand, ScreenshotsCommand, SigningCommand, StatusCommand, TestCommand,
     TestFlightCommand, ToolsCommand, ValidateCommand, VersionCommand,
 };
 
@@ -76,6 +76,9 @@ pub enum Commands {
 
     /// Build project for a platform
     Build(BuildCommand),
+
+    /// Archive an iOS/macOS app (Xcode archive + export)
+    Archive(ArchiveCommand),
 
     /// Run tests for a project
     Test(TestCommand),
@@ -146,7 +149,10 @@ pub enum Commands {
 
 const COMMAND_GROUPS: &[(&str, &[&str])] = &[
     ("Setup", &["scaffold", "init", "doctor", "tools"]),
-    ("Develop", &["fmt", "lint", "build", "test", "run", "check"]),
+    (
+        "Develop",
+        &["fmt", "lint", "build", "archive", "test", "run", "check"],
+    ),
     ("Code Quality", &["hooks", "validate", "status", "ci", "pr"]),
     ("Release", &["version", "changelog", "release", "publish"]),
     (
@@ -198,6 +204,7 @@ impl Cli {
             Commands::Fmt(_) => "fmt",
             Commands::Lint(_) => "lint",
             Commands::Build(_) => "build",
+            Commands::Archive(_) => "archive",
             Commands::Test(_) => "test",
             Commands::Run(_) => "run",
             Commands::Check(_) => "check",
@@ -241,6 +248,7 @@ impl Cli {
             Commands::Fmt(ref cmd) => cmd.execute(&self),
             Commands::Lint(ref cmd) => cmd.execute(&self),
             Commands::Build(ref cmd) => cmd.execute(&self),
+            Commands::Archive(ref cmd) => cmd.execute(&self),
             Commands::Test(ref cmd) => cmd.execute(&self),
             Commands::Run(ref cmd) => cmd.execute(&self),
             Commands::Check(ref cmd) => cmd.execute(&self),

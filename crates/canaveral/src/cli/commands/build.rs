@@ -6,7 +6,7 @@ use clap::{Args, ValueEnum};
 use console::style;
 use tracing::info;
 
-use canaveral_adapters::AdapterRegistry;
+use canaveral_core::config::load_config_or_default;
 use canaveral_frameworks::{
     context::BuildProfile, traits::Platform, BuildContext, Orchestrator, OrchestratorConfig,
     OutputFormat as FrameworkOutputFormat,
@@ -18,9 +18,9 @@ use crate::cli::{Cli, OutputFormat};
 /// Build a project for specified platform(s)
 #[derive(Debug, Args)]
 pub struct BuildCommand {
-    /// Target platform (required for framework builds, optional for package builds)
+    /// Target platform
     #[arg(short, long, value_enum)]
-    pub platform: Option<PlatformArg>,
+    pub platform: PlatformArg,
 
     /// Build profile
     #[arg(long, value_enum, default_value = "release")]
@@ -73,6 +73,31 @@ pub struct BuildCommand {
     /// Key alias (Android)
     #[arg(long)]
     pub key_alias: Option<String>,
+
+    // ── iOS-specific options ─────────────────────────────
+    /// Xcode scheme (iOS/macOS, auto-detected if not specified)
+    #[arg(long)]
+    pub scheme: Option<String>,
+
+    /// Xcode build configuration, e.g. Debug or Release (iOS/macOS)
+    #[arg(long)]
+    pub configuration: Option<String>,
+
+    /// Build destination (iOS/macOS, e.g. "iPhone 16", "generic/platform=iOS")
+    #[arg(long)]
+    pub destination: Option<String>,
+
+    /// Custom derived data path (iOS/macOS)
+    #[arg(long)]
+    pub derived_data: Option<PathBuf>,
+
+    /// Build for archiving (iOS/macOS - implies Release, generic destination)
+    #[arg(long)]
+    pub archive: bool,
+
+    /// Export method when archiving: app-store, ad-hoc, development (iOS/macOS)
+    #[arg(long)]
+    pub export_method: Option<String>,
 
     /// Extra arguments to pass to the underlying build tool
     #[arg(last = true)]
@@ -177,42 +202,19 @@ impl BuildCommand {
     async fn execute_async(&self, cli: &Cli) -> anyhow::Result<()> {
         let ui = Ui::new(cli);
         let cwd = std::env::current_dir()?;
+        let platform: Platform = self.platform.into();
+        let (config, _) = load_config_or_default(&cwd);
 
-        // If no platform specified, try the package adapter (e.g. cargo build)
-        let Some(platform_arg) = self.platform else {
-            let adapter_registry = AdapterRegistry::new();
-            let adapter = adapter_registry
-                .detect(&cwd)
-                .ok_or_else(|| anyhow::anyhow!("No framework or package adapter detected"))?;
-
-            if ui.is_text() {
-                ui.blank();
-                ui.header("Building project...");
-                ui.key_value("Adapter", &style(adapter.name()).cyan().to_string());
-                ui.key_value("Profile", &style(self.profile.as_str()).cyan().to_string());
-                if self.dry_run {
-                    ui.warning("DRY RUN");
-                }
-                ui.blank();
-            }
-
-            if !self.dry_run {
-                adapter.build(&cwd)?;
-            }
-
-            if ui.is_text() {
-                ui.blank();
-                ui.success("Build completed successfully!");
-            }
-
-            return Ok(());
+        // For --archive, override profile to Release unless explicitly Debug
+        let profile: BuildProfile = if self.archive && !matches!(self.profile, ProfileArg::Debug) {
+            BuildProfile::Release
+        } else {
+            self.profile.into()
         };
-
-        let platform: Platform = platform_arg.into();
 
         // Create build context
         let mut ctx = BuildContext::new(&cwd, platform)
-            .with_profile(self.profile.into())
+            .with_profile(profile)
             .with_dry_run(self.dry_run)
             .with_ci(std::env::var("CI").is_ok());
 
@@ -233,7 +235,67 @@ impl BuildCommand {
             ctx = ctx.with_build_number(build_number);
         }
 
-        // Code signing configuration
+        // iOS-specific: merge CLI flags with config for scheme, destination, etc.
+        let is_ios = matches!(platform, Platform::Ios | Platform::MacOs);
+        if is_ios {
+            // Scheme: CLI > config > auto-detect
+            let scheme = self.scheme.clone().or_else(|| config.ios.scheme.clone());
+            if let Some(ref s) = scheme {
+                ctx = ctx.with_config("scheme", serde_json::json!(s));
+            }
+
+            // Configuration: CLI > profile mapping
+            if let Some(ref cfg) = self.configuration {
+                ctx = ctx.with_config("configuration", serde_json::json!(cfg));
+            }
+
+            // Destination: CLI > config > default
+            let destination = self
+                .destination
+                .clone()
+                .or_else(|| config.ios.destination.clone());
+            if let Some(ref dest) = destination {
+                ctx = ctx.with_config("destination", serde_json::json!(dest));
+            }
+
+            // Derived data: CLI > config
+            let derived_data = self
+                .derived_data
+                .clone()
+                .or_else(|| config.ios.derived_data.clone());
+            if let Some(ref dd) = derived_data {
+                ctx = ctx.with_config("derived_data", serde_json::json!(dd.to_string_lossy()));
+            }
+
+            // Archive mode
+            if self.archive {
+                ctx = ctx.with_config("archive", serde_json::json!(true));
+                ctx = ctx.with_config("destination", serde_json::json!("generic/platform=iOS"));
+
+                let method = self
+                    .export_method
+                    .clone()
+                    .unwrap_or_else(|| config.ios.export.method.clone());
+                ctx = ctx.with_config("export_method", serde_json::json!(method));
+                ctx = ctx.with_config("export", serde_json::json!(true));
+            }
+
+            // Export options from config
+            ctx = ctx.with_config(
+                "upload_symbols",
+                serde_json::json!(config.ios.export.upload_symbols),
+            );
+            ctx = ctx.with_config(
+                "compile_bitcode",
+                serde_json::json!(config.ios.export.compile_bitcode),
+            );
+
+            if let Some(ref bundle_id) = config.ios.bundle_id {
+                ctx = ctx.with_config("bundle_id", serde_json::json!(bundle_id));
+            }
+        }
+
+        // Code signing configuration: CLI flags > iOS config > none
         if self.signing_identity.is_some()
             || self.provisioning_profile.is_some()
             || self.team_id.is_some()
@@ -251,6 +313,28 @@ impl BuildCommand {
                 automatic: false,
             };
             ctx = ctx.with_signing(signing);
+        } else if is_ios {
+            // Fall back to iOS config for signing
+            let team_id = config
+                .ios
+                .team_id
+                .clone()
+                .or_else(|| config.ios.signing.development_team.clone());
+            if team_id.is_some()
+                || config.ios.signing.identity.is_some()
+                || config.ios.signing.provisioning_profile.is_some()
+            {
+                use canaveral_frameworks::context::SigningConfig;
+                let signing = SigningConfig {
+                    identity: config.ios.signing.identity.clone(),
+                    provisioning_profile: config.ios.signing.provisioning_profile.clone(),
+                    team_id,
+                    keystore_path: None,
+                    key_alias: None,
+                    automatic: config.ios.signing.style == "automatic",
+                };
+                ctx = ctx.with_signing(signing);
+            }
         }
 
         // Pass extra args to framework config
@@ -277,14 +361,34 @@ impl BuildCommand {
         // Print build info
         if ui.is_text() {
             ui.blank();
-            ui.header("Building project...");
+            if self.archive {
+                ui.header("Archiving project...");
+            } else {
+                ui.header("Building project...");
+            }
             ui.key_value("Platform", &style(platform.as_str()).cyan().to_string());
-            ui.key_value("Profile", &style(self.profile.as_str()).cyan().to_string());
+            ui.key_value("Profile", &style(profile.as_str()).cyan().to_string());
             if let Some(ref flavor) = self.flavor {
                 ui.key_value("Flavor", &style(flavor).cyan().to_string());
             }
             if let Some(ref version) = self.build_version {
                 ui.key_value("Version", &style(version).cyan().to_string());
+            }
+            // iOS-specific info
+            if is_ios {
+                if let Some(ref s) = self.scheme.clone().or_else(|| config.ios.scheme.clone()) {
+                    ui.key_value("Scheme", &style(s).cyan().to_string());
+                }
+                if let Some(ref dest) = self.destination {
+                    ui.key_value("Destination", &style(dest).cyan().to_string());
+                }
+                if self.archive {
+                    let method = self
+                        .export_method
+                        .as_deref()
+                        .unwrap_or(&config.ios.export.method);
+                    ui.key_value("Export Method", &style(method).cyan().to_string());
+                }
             }
             if self.dry_run {
                 ui.warning("DRY RUN");
@@ -344,16 +448,6 @@ impl BuildCommand {
         }
 
         Ok(())
-    }
-}
-
-impl ProfileArg {
-    fn as_str(&self) -> &'static str {
-        match self {
-            Self::Debug => "debug",
-            Self::Release => "release",
-            Self::Profile => "profile",
-        }
     }
 }
 

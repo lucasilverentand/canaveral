@@ -6,7 +6,7 @@ use clap::{Args, ValueEnum};
 use console::style;
 use tracing::info;
 
-use canaveral_adapters::AdapterRegistry;
+use canaveral_core::config::load_config_or_default;
 use canaveral_frameworks::{
     context::{TestContext, TestReporter},
     testing::{ReportGenerator, TestRunner, TestRunnerConfig},
@@ -78,6 +78,27 @@ pub struct TestCommand {
     /// Base ref for affected/smart detection (default: main)
     #[arg(long, default_value = "main")]
     pub base: String,
+
+    // ── iOS-specific test options ────────────────────────
+    /// Xcode scheme (iOS, auto-detected if not specified)
+    #[arg(long)]
+    pub scheme: Option<String>,
+
+    /// Simulator destination device (iOS, default: "iPhone 16")
+    #[arg(long)]
+    pub destination: Option<String>,
+
+    /// Simulator OS version (iOS, default: latest)
+    #[arg(long)]
+    pub os: Option<String>,
+
+    /// Xcode test plan name (iOS)
+    #[arg(long)]
+    pub test_plan: Option<String>,
+
+    /// Path to save xcresult bundle (iOS)
+    #[arg(long)]
+    pub result_bundle: Option<PathBuf>,
 }
 
 /// Platform argument
@@ -157,6 +178,8 @@ impl TestCommand {
             anyhow::bail!("Path not found: {}", path.display());
         }
 
+        let (ios_config, _) = load_config_or_default(&path);
+
         // Build test context
         let mut ctx = TestContext::new(&path);
 
@@ -181,6 +204,68 @@ impl TestCommand {
             ctx.jobs = Some(jobs);
         }
 
+        // iOS-specific test configuration
+        let is_ios = self
+            .platform
+            .map(|p| matches!(p, PlatformArg::Ios))
+            .unwrap_or(false);
+
+        if is_ios {
+            // Scheme: CLI > config > auto-detect
+            let scheme = self
+                .scheme
+                .clone()
+                .or_else(|| ios_config.ios.scheme.clone());
+            if let Some(ref s) = scheme {
+                ctx.config
+                    .insert("scheme".to_string(), serde_json::json!(s));
+            }
+
+            // Destination: CLI > config > default
+            let destination = self
+                .destination
+                .clone()
+                .or_else(|| ios_config.ios.simulator.clone())
+                .unwrap_or_else(|| "iPhone 16".to_string());
+            ctx.config.insert(
+                "destination".to_string(),
+                serde_json::json!(format!("platform=iOS Simulator,name={}", destination)),
+            );
+
+            // OS version: CLI > config > latest
+            let os_version = self
+                .os
+                .clone()
+                .or_else(|| ios_config.ios.simulator_os.clone());
+            if let Some(ref os) = os_version {
+                // Append OS version to destination
+                if let Some(dest) = ctx.config.get("destination").and_then(|v| v.as_str()) {
+                    ctx.config.insert(
+                        "destination".to_string(),
+                        serde_json::json!(format!("{},OS={}", dest, os)),
+                    );
+                }
+            }
+
+            // Test plan: CLI > config
+            let test_plan = self
+                .test_plan
+                .clone()
+                .or_else(|| ios_config.ios.test_plan.clone());
+            if let Some(ref plan) = test_plan {
+                ctx.config
+                    .insert("test_plan".to_string(), serde_json::json!(plan));
+            }
+
+            // Result bundle path
+            if let Some(ref rb) = self.result_bundle {
+                ctx.config.insert(
+                    "result_bundle".to_string(),
+                    serde_json::json!(rb.to_string_lossy()),
+                );
+            }
+        }
+
         // Build runner config
         let config = TestRunnerConfig::new()
             .with_fail_fast(self.fail_fast)
@@ -198,6 +283,35 @@ impl TestCommand {
             ui.blank();
             ui.header("Running tests...");
             ui.key_value("Path", &style(path.display()).cyan().to_string());
+            if is_ios {
+                if let Some(ref s) = self
+                    .scheme
+                    .clone()
+                    .or_else(|| ios_config.ios.scheme.clone())
+                {
+                    ui.key_value("Scheme", &style(s).cyan().to_string());
+                }
+                let dest = self
+                    .destination
+                    .as_deref()
+                    .or(ios_config.ios.simulator.as_deref())
+                    .unwrap_or("iPhone 16");
+                ui.key_value("Simulator", &style(dest).cyan().to_string());
+                if let Some(ref os) = self
+                    .os
+                    .clone()
+                    .or_else(|| ios_config.ios.simulator_os.clone())
+                {
+                    ui.key_value("OS Version", &style(os).cyan().to_string());
+                }
+                if let Some(ref plan) = self
+                    .test_plan
+                    .clone()
+                    .or_else(|| ios_config.ios.test_plan.clone())
+                {
+                    ui.key_value("Test Plan", &style(plan).cyan().to_string());
+                }
+            }
             if let Some(ref filter) = self.filter {
                 ui.key_value("Filter", &style(filter).dim().to_string());
             }
@@ -210,40 +324,9 @@ impl TestCommand {
             ui.blank();
         }
 
-        // Run tests — try framework adapter first, fall back to package adapter
+        // Run tests
         let runner = TestRunner::with_config(config);
-        let report = match runner.run(&path, &ctx).await {
-            Ok(report) => report,
-            Err(e) => {
-                // If no framework detected, fall back to the package adapter (e.g. cargo test)
-                let adapter_registry = AdapterRegistry::new();
-                if let Some(adapter) = adapter_registry.detect(&path) {
-                    if ui.is_text() {
-                        ui.info(&format!(
-                            "No framework detected, using {} adapter",
-                            style(adapter.name()).bold()
-                        ));
-                    }
-                    let start = std::time::Instant::now();
-                    if !ctx.dry_run {
-                        adapter.test(&path).map_err(|_| e)?;
-                    }
-                    let duration_ms = start.elapsed().as_millis() as u64;
-                    // Package adapter doesn't return structured results,
-                    // so build a simple success report
-                    TestReport {
-                        passed: 1,
-                        failed: 0,
-                        skipped: 0,
-                        duration_ms,
-                        suites: vec![],
-                        coverage: None,
-                    }
-                } else {
-                    return Err(e.into());
-                }
-            }
-        };
+        let report = runner.run(&path, &ctx).await?;
 
         // Output results
         self.output_results(&report, &ui)?;

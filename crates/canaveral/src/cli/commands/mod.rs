@@ -1,5 +1,6 @@
 //! CLI commands
 
+mod archive;
 mod build;
 mod cache;
 mod changelog;
@@ -29,6 +30,7 @@ mod tools;
 mod validate;
 mod version;
 
+pub use archive::ArchiveCommand;
 pub use build::BuildCommand;
 pub use cache::CacheCommand;
 pub use changelog::ChangelogCommand;
