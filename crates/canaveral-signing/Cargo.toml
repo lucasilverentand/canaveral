@@ -20,7 +20,7 @@ dirs = { workspace = true }
 uuid = { version = "1", features = ["v4", "serde"] }
 base64 = "0.22"
 sha2 = "0.10"
-rand = "0.8"
+rand = "0.9"
 
 # Age encryption
 age = { version = "0.10", features = ["armor"] }
