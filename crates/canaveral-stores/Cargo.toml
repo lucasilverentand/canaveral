@@ -30,7 +30,7 @@ async-trait = "0.1"
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "multipart", "stream"], default-features = false }
 
 # JWT for App Store Connect API
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 
 # Base64 encoding
 base64 = "0.22"
