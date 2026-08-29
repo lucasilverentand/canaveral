@@ -51,7 +51,7 @@ toml = "0.8"
 toml_edit = "0.22"
 
 # Git
-git2 = "0.18"
+git2 = "0.20"
 
 # Async
 tokio = { version = "1", features = ["full"] }
